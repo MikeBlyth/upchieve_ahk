@@ -12,6 +12,8 @@ PageTarget := "|<WaitingStudents>*132$271.0000000000000s00007U000000000000000000
 
 WaitingTarget := "|<Waiting>*150$65.00000000000000000s0000000003k000000000DU000000E01z0000003U0Di000000T00QQ006C07s000s00Bw0z0001k00TU7s0003U00w0y00007001k3k0000C003U600000Q0070D00000s00A0DU0001k00M07k0003U00k03s0007001U01y000C003000z000Q006000S000s00A000A001k00M0000003U00k00000000000E"
 
+UpgradeTarget :="|<Upgrade>*197$75.zzzzzzzzzzzzzzzzzzzzzzzzzszss07zU7w07z7z700Ds0TU0DszssT1y31wD0z7z73y7Vy7Vy7szssTssTswDsz7z73z33z3Vz3szssTsMzzwDsT7z73z77zzVz7szssTkszzwDkz7z73w77zzVw7szss01sy0Q01z7z700z7k3U0zszssTzszsQD7z7z73zz7z3VsTsTssTzsTsQDXz3y73zzXz3VwDwDksTzwDsQDkzUsD3zzkQ3Vy6y03sTzz01wDsLw1z3zzy0TVzUzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw"
+
 ; Hotkey definitions
 ^+a::ActivateDetector()
 ^+q::ExitApp
@@ -19,19 +21,17 @@ WaitingTarget := "|<Waiting>*150$65.00000000000000000s0000000003k000000000DU0000
 ActivateDetector() {
     global
     
-    ; Switch to Upchieve window
-    if !WinExist(TargetWindow) {
-        MsgBox TargetWindow " window not found. Please make it visible and try again."
-        return
+    ; Show waiting message that will disappear when PageTarget is found
+    waitingMsg := MsgBox("Waiting for 'Waiting Students' page to appear...", "Page Detection", "T5")
+    
+    ; Wait for PageTarget to appear
+    while (!FindText(PageTarget)) {
+        Sleep 500
     }
     
-    WinActivate(TargetWindow)
-    Sleep 500
-    
-    ; Verify we're on the right page by finding PageTarget
-    if !FindText(PageTarget) {
-        MsgBox "Could not find 'Waiting Students' page. Please navigate to the correct page and try again."
-        return
+    ; PageTarget found, close the waiting message if still open
+    try {
+        WinClose("Page Detection")
     }
     
     IsActive := true
@@ -39,17 +39,28 @@ ActivateDetector() {
     
     ; Main detection loop
     while (IsActive) {
-        ; Search for waiting student indicator
-        if (FindText(WaitingTarget)) {
-            ; Found a waiting student, click on it
-            result := FindText(WaitingTarget)
+        ; Check for upgrade popup first
+        if (UpgradeTarget != "" && FindText(UpgradeTarget)) {
+            result := FindText(UpgradeTarget)
             if (result) {
-                ; Get coordinates and click
                 x := result.x + result.w/2
                 y := result.y + result.h/2
                 Click x, y
+                Sleep 1000
+            }
+        }
+        
+        ; Search for waiting student indicator
+        if (FindText(WaitingTarget)) {
+            ; Found a waiting student, show message instead of clicking
+            result := FindText(WaitingTarget)
+            if (result) {
+                ; Get coordinates for testing
+                x := result.x + result.w/2
+                y := result.y + result.h/2
+                ; Click x, y  ; Commented out for testing
                 
-                MsgBox "Found and clicked on waiting student! Detector will sleep until reactivated."
+                MsgBox "Student waiting! (at coordinates " x ", " y ")"
                 IsActive := false
                 break
             }
@@ -58,11 +69,6 @@ ActivateDetector() {
         ; Wait 200ms before next scan
         Sleep 200
         
-        ; Check if Upchieve window still exists
-        if !WinExist(TargetWindow) {
-            MsgBox TargetWindow " window closed. Stopping detector."
-            IsActive := false
-            break
-        }
+        ; Continue monitoring (removed window existence check)
     }
 }

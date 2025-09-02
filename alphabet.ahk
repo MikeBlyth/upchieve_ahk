@@ -1,0 +1,4 @@
+#Requires AutoHotkey v2.0
+
+Text:="|<a>*132$19.0000TU0zw0wD0Q3U40k00M00Q07y0Dz0S1UC0kC0M70Q1kz0zvs7sw000000E"
+
