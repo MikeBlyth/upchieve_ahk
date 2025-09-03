@@ -1,5 +1,6 @@
 #Requires AutoHotkey v2.0
 #Include FindTextv2.ahk
+#Include alphabet.ahk
 
 ; Upchieve Waiting Student Detector
 ; Hotkeys: Ctrl+Shift+A to activate, Ctrl+Shift+Q to quit
@@ -14,12 +15,190 @@ WaitingTarget := "|<Waiting>*150$65.00000000000000000s0000000003k000000000DU0000
 
 UpgradeTarget :="|<Upgrade>*197$75.zzzzzzzzzzzzzzzzzzzzzzzzzszss07zU7w07z7z700Ds0TU0DszssT1y31wD0z7z73y7Vy7Vy7szssTssTswDsz7z73z33z3Vz3szssTsMzzwDsT7z73z77zzVz7szssTkszzwDkz7z73w77zzVw7szss01sy0Q01z7z700z7k3U0zszssTzszsQD7z7z73zz7z3VsTsTssTzsTsQDXz3y73zzXz3VwDwDksTzwDsQDkzUsD3zzkQ3Vy6y03sTzz01wDsLw1z3zzy0TVzUzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw"
 
+; Load alphabet characters for name extraction
+LoadAlphabetCharacters() {
+    ; Combine all lowercase letters
+    Text := Texta . Textb . Textc . Textd . Texte . Textf . Textg . Texth . Texti . Textj . Textk . Textl . Textm . Textn . Texto . Textp . Textq . Textr . Texts . Textt . Textu . Textv . Textw . Textx . Texty . Textz
+    
+    ; Add uppercase letters
+    Text .= Text_A . Text_B . Text_C . Text_D . Text_E . Text_F . Text_G . Text_H . Text_I . Text_J . Text_K . Text_L . Text_M . Text_N . Text_O . Text_P . Text_Q . Text_R . Text_S . Text_T . Text_U . Text_V . Text_W . Text_X . Text_Y . Text_Z
+    
+    ; Add special characters
+    Text .= Text_apos . Text_hyphen
+    
+    ; Register with FindText library
+    FindText().PicLib(Text, 1)
+}
+
+; Log function
+WriteLog(message) {
+    logFile := "debug_log.txt"
+    timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
+    FileAppend timestamp . " - " . message . "`n", logFile
+}
+
+; Test function to search for student name
+TestCamilaSearch(baseX, baseY) {
+    ; Don't clear previous log - append to it
+    
+    ; Adjust for center point: WaitingTarget is 134x35, so center is at +67,+17.5 from upper-left
+    ; To get upper-left of WaitingTarget: subtract half width and height
+    upperLeftX := baseX - 67
+    upperLeftY := baseY - 17
+    
+    ; Search region: Expand even further right for final 'a' (720px left, 400 wide, 80 tall)
+    searchX := upperLeftX - 720
+    searchY := upperLeftY - 10
+    searchWidth := 400 
+    searchHeight := 80
+    
+    WriteLog("=== OCR TROUBLESHOOTING ===")
+    WriteLog("Search region: (" . searchX . ", " . searchY . ") to (" . (searchX + searchWidth) . ", " . (searchY + searchHeight) . ")")
+    
+    ; Search for name characters in the student area
+    nameChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"
+    X := ""
+    Y := ""
+    
+    if (ok := FindText(&X, &Y, searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.05, FindText().PicN(nameChars))) {
+        
+        ; Filter out characters that are too close and noise characters
+        cleanChars := Array()
+        for i, char in ok {
+            if (char.id == "'") {
+                continue  ; Skip apostrophes
+            }
+            
+            tooClose := false
+            for j, existingChar in cleanChars {
+                if (Abs(char.x - existingChar.x) < 8 && Abs(char.y - existingChar.y) < 8) {
+                    tooClose := true
+                    break
+                }
+            }
+            if (!tooClose) {
+                cleanChars.Push(char)
+            }
+        }
+        
+        ; Manual string assembly
+        if (cleanChars.Length > 0) {
+            ; Sort characters by X coordinate (left to right)
+            Loop cleanChars.Length - 1 {
+                i := A_Index
+                Loop cleanChars.Length - i {
+                    j := A_Index
+                    if (cleanChars[j].x > cleanChars[j+1].x) {
+                        temp := cleanChars[j]
+                        cleanChars[j] := cleanChars[j+1] 
+                        cleanChars[j+1] := temp
+                    }
+                }
+            }
+            
+            ; Build string from sorted characters
+            manualResult := ""
+            for i, char in cleanChars {
+                manualResult .= char.id
+            }
+            
+            WriteLog("FINAL RESULT: '" . manualResult . "' (manual assembly)")
+            
+            ; OCR comparison for troubleshooting
+            if (ocrResult := FindText().OCR(cleanChars, 15, 8)) {
+                WriteLog("OCR comparison: '" . ocrResult.text . "'")
+            }
+        }
+    } else {
+        WriteLog("No characters found in search area")
+    }
+    
+    MsgBox "OCR test complete. Check debug_log.txt for results."
+}
+
+; Extract student name from region left of waiting indicator
+ExtractStudentName(baseX, baseY) {
+    ; Adjust for center point: WaitingTarget is 134x35, so center is at +67,+17.5 from upper-left
+    ; To get upper-left of WaitingTarget: subtract half width and height
+    upperLeftX := baseX - 67
+    upperLeftY := baseY - 17
+    
+    ; Search region: Updated based on testing (720px left, 400 wide, 80 tall)
+    searchX := upperLeftX - 720
+    searchY := upperLeftY - 10
+    searchWidth := 400 
+    searchHeight := 80
+    
+    ; Define character set for names
+    nameChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"
+    X := ""
+    Y := ""
+    
+    ; Find text characters in the name region
+    if (ok := FindText(&X, &Y, searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.05, FindText().PicN(nameChars))) {
+        ; Filter and manually assemble characters (same as test function)
+        cleanChars := Array()
+        for i, char in ok {
+            ; Skip apostrophes and noise characters
+            if (char.id == "'") {
+                continue
+            }
+            
+            tooClose := false
+            for j, existingChar in cleanChars {
+                if (Abs(char.x - existingChar.x) < 8 && Abs(char.y - existingChar.y) < 8) {
+                    tooClose := true
+                    break
+                }
+            }
+            if (!tooClose) {
+                cleanChars.Push(char)
+            }
+        }
+        
+        ; Sort characters by X coordinate and build string manually
+        if (cleanChars.Length > 0) {
+            ; Sort characters by X coordinate (left to right)
+            Loop cleanChars.Length - 1 {
+                i := A_Index
+                Loop cleanChars.Length - i {
+                    j := A_Index
+                    if (cleanChars[j].x > cleanChars[j+1].x) {
+                        temp := cleanChars[j]
+                        cleanChars[j] := cleanChars[j+1] 
+                        cleanChars[j+1] := temp
+                    }
+                }
+            }
+            
+            ; Build string from sorted characters
+            extractedName := ""
+            for i, char in cleanChars {
+                extractedName .= char.id
+            }
+            
+            ; Clean up any remaining artifacts
+            extractedName := RegExReplace(extractedName, "[^a-zA-Z' -]", "")
+            finalName := Trim(extractedName)
+            
+            ; Log the final result
+            WriteLog("Student name extracted: '" . finalName . "'")
+            return finalName
+        }
+    }
+    
+    return ""  ; Return empty if extraction failed
+}
+
 ; Hotkey definitions
 ^+a::ActivateDetector()
 ^+q::ExitApp
 
 ActivateDetector() {
     global
+    
+    ; Initialize alphabet characters for name extraction
+    LoadAlphabetCharacters()
     
     ; Show waiting message that will disappear when PageTarget is found
     MsgBox("Waiting for 'Waiting Students' page to appear...", "Page Detection", "T5")
@@ -67,12 +246,23 @@ ActivateDetector() {
         X := ""
         Y := ""
         if (result := FindText(&X, &Y, 1273, 1188, 1607, 1423, 0, 0, WaitingTarget)) {
-            ToolTip "Found waiting student!", 10, 10
-            ; Found a waiting student, show message instead of clicking
-            ; Click X, Y  ; Commented out for testing
+            ToolTip "Found waiting student! Testing Camila search...", 10, 10
+            
+            ; Test search for Camila specifically
+            TestCamilaSearch(X, Y)
+            
+            ; Extract student name from region left of waiting indicator
+            studentName := ExtractStudentName(X, Y)
             
             ToolTip ""  ; Clear tooltip
-            MsgBox "Student waiting! (at coordinates " X ", " Y ")"
+            
+            ; Show message with student name if extracted, otherwise generic message
+            if (studentName != "") {
+                MsgBox "Student " . studentName . " waiting! (at coordinates " . X . ", " . Y . ")"
+            } else {
+                MsgBox "Student waiting! (at coordinates " . X . ", " . Y . ")"
+            }
+            
             IsActive := false
             break
         }
