@@ -30,6 +30,15 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 - **PageTarget**: "Waiting Students" page indicator
 - **WaitingTarget**: "< 1 minute" waiting time indicator
 
+## Search Zones
+These are the approximate locations of the search zones with a screen size of 3200 x 2000. The first pair is the upper left coord, the second pair is the width and height. 
+- PageTarget (Waiting Students): (991, 989), (355, 60)
+- WaitingTarget (less than 1 minute): < 1 target: (1373,1288), (134, 35)
+- Update: (1693, 1109), (125, 100)
+Screen size 3200x2000
+
+Use these zones with a ± 100 pixel error margin for each target.
+
 ## Dependencies
 - AutoHotkey v2.0+
 - FindTextv2.ahk (included)

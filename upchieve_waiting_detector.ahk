@@ -22,12 +22,22 @@ ActivateDetector() {
     global
     
     ; Show waiting message that will disappear when PageTarget is found
-    waitingMsg := MsgBox("Waiting for 'Waiting Students' page to appear...", "Page Detection", "T5")
+    MsgBox("Waiting for 'Waiting Students' page to appear...", "Page Detection", "T5")
     
-    ; Wait for PageTarget to appear
-    while (!FindText(PageTarget)) {
-        Sleep 500
+    ; Wait for PageTarget to appear with debug info
+    pageCheckCount := 0
+    X := ""
+    Y := ""
+    while (!(result := FindText(&X, &Y, 891, 889, 1446, 1149, 0, 0, PageTarget))) {
+        pageCheckCount++
+        ToolTip "Looking for 'Waiting Students' page... Check #" pageCheckCount, 10, 50
+        Sleep 100
     }
+    
+    ; PageTarget found
+    ToolTip "Found 'Waiting Students' page! Starting detector...", 10, 50
+    Sleep 1000
+    ToolTip ""
     
     ; PageTarget found, close the waiting message if still open
     try {
@@ -39,36 +49,40 @@ ActivateDetector() {
     
     ; Main detection loop
     while (IsActive) {
+        ; Debug: Show what we're looking for
+        ToolTip "Scanning for upgrade popup and waiting students...", 10, 10
+        
         ; Check for upgrade popup first
-        if (UpgradeTarget != "" && FindText(UpgradeTarget)) {
-            result := FindText(UpgradeTarget)
-            if (result) {
-                x := result.x + result.w/2
-                y := result.y + result.h/2
-                Click x, y
-                Sleep 1000
-            }
+        X := ""
+        Y := ""
+        if (UpgradeTarget != "" && (result := FindText(&X, &Y, 1593, 1009, 1918, 1309, 0, 0, UpgradeTarget))) {
+            ToolTip "Found upgrade popup! Clicking...", 10, 10
+            Click X, Y
+            MsgBox "Clicked upgrade popup at " X ", " Y
+            Sleep 1000
+            continue  ; Skip to next iteration after handling upgrade
         }
         
         ; Search for waiting student indicator
-        if (FindText(WaitingTarget)) {
+        X := ""
+        Y := ""
+        if (result := FindText(&X, &Y, 1273, 1188, 1607, 1423, 0, 0, WaitingTarget)) {
+            ToolTip "Found waiting student!", 10, 10
             ; Found a waiting student, show message instead of clicking
-            result := FindText(WaitingTarget)
-            if (result) {
-                ; Get coordinates for testing
-                x := result.x + result.w/2
-                y := result.y + result.h/2
-                ; Click x, y  ; Commented out for testing
-                
-                MsgBox "Student waiting! (at coordinates " x ", " y ")"
-                IsActive := false
-                break
-            }
+            ; Click X, Y  ; Commented out for testing
+            
+            ToolTip ""  ; Clear tooltip
+            MsgBox "Student waiting! (at coordinates " X ", " Y ")"
+            IsActive := false
+            break
         }
         
-        ; Wait 200ms before next scan
-        Sleep 200
+        ; Wait 50ms before next scan (faster detection)
+        Sleep 50
         
         ; Continue monitoring (removed window existence check)
     }
+    
+    ; Clear tooltip when done
+    ToolTip ""
 }
