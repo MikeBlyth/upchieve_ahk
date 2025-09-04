@@ -7,7 +7,8 @@
 
 TargetWindow := "UPchieve"
 IsActive := false
-SoundTimer := ""
+SoundTimerFunc := ""
+LiveMode := false
 
 ; Function to play notification sound
 PlayNotificationSound() {
@@ -118,9 +119,15 @@ ExtractStudentName(baseX, baseY) {
     return ""  ; Return empty if extraction failed
 }
 
+; Suspend detection with resume option
+SuspendDetection() {
+    MsgBox("Upchieve suspended`n`nPress OK to resume", "Detection Paused", "OK")
+}
+
 ; Hotkey definitions
 ^+a::ActivateDetector()
 ^+q::ExitApp
+^+h::SuspendDetection()
 
 ActivateDetector() {
     global
@@ -128,8 +135,17 @@ ActivateDetector() {
     ; Initialize alphabet characters for name extraction
     LoadAlphabetCharacters()
     
-    ; Show waiting message that will disappear when PageTarget is found
-    MsgBox("Waiting for 'Waiting Students' page to appear...", "Page Detection", "T5")
+    ; Mode selection dialog
+    modeResult := MsgBox("Select detector mode:`n`nYes = LIVE mode (clicks students)`nNo = TESTING mode (no clicking)`nCancel = Exit", "Detector Mode", "YNC Default2")
+    if (modeResult = "Cancel") {
+        return  ; Exit without starting
+    }
+    
+    LiveMode := (modeResult = "Yes")
+    modeText := LiveMode ? "LIVE" : "TESTING"
+    
+    ; Show mode confirmation and wait for page
+    MsgBox("Mode: " . modeText . "`n`nWaiting for 'Waiting Students' page to appear...", "Page Detection", "T5")
     
     ; Wait for PageTarget to appear with debug info
     pageCheckCount := 0
@@ -152,7 +168,6 @@ ActivateDetector() {
     }
     
     IsActive := true
-    MsgBox "Detector activated! Monitoring for waiting students... Press Ctrl+Shift+Q to quit."
     
     ; Main detection loop
     while (IsActive) {
@@ -174,32 +189,40 @@ ActivateDetector() {
         X := ""
         Y := ""
         if (result := FindText(&X, &Y, 1273, 1188, 1607, 1423, 0, 0, WaitingTarget)) {
-            ToolTip "Found waiting student! Clicking and extracting name...", 10, 10
+            global LiveMode
+            ToolTip "Found waiting student! Extracting name...", 10, 10
             
-            ; Step 1: Click on the WaitingTarget
-            Click X, Y
+            ; Step 1: Click on the WaitingTarget (only in LIVE mode)
+            if (LiveMode) {
+                Click X, Y
+                WriteLog("LIVE MODE: Clicked on student at (" . X . ", " . Y . ")")
+            } else {
+                WriteLog("TESTING MODE: Found student at (" . X . ", " . Y . ") - no click")
+            }
             
             ; Step 2: Extract student name from region left of waiting indicator
             studentName := ExtractStudentName(X, Y)
             
             ; Step 3: Start repeating notification sound (every 2 seconds)
-            global SoundTimer
+            global SoundTimerFunc
             PlayNotificationSound()  ; Play immediately
-            SoundTimer := SetTimer(PlayNotificationSound, 2000)  ; Then every 2 seconds
+            SoundTimerFunc := PlayNotificationSound  ; Store function reference
+            SetTimer SoundTimerFunc, 2000  ; Then every 2 seconds
             
             ToolTip ""  ; Clear tooltip
             
-            ; Step 4: Show message box with session opened message
+            ; Step 4: Show message box with session message
+            modePrefix := LiveMode ? "Session with " : "Found student "
             if (studentName != "") {
-                MsgBox("A session with " . studentName . " has opened", "Session Started", "OK")
+                MsgBox(modePrefix . studentName . (LiveMode ? " has opened" : " waiting"), LiveMode ? "Session Started" : "Student Detected", "OK")
             } else {
-                MsgBox("A session has opened", "Session Started", "OK")
+                MsgBox(LiveMode ? "A session has opened" : "A student is waiting", LiveMode ? "Session Started" : "Student Detected", "OK")
             }
             
             ; Step 5: When OK is clicked, stop the sound
-            if (SoundTimer != "") {
-                SetTimer(SoundTimer, 0)  ; Stop the timer
-                SoundTimer := ""
+            if (SoundTimerFunc != "") {
+                SetTimer SoundTimerFunc, 0  ; Stop the timer
+                SoundTimerFunc := ""
             }
             
             IsActive := false
