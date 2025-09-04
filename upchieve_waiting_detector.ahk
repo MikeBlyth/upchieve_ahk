@@ -65,7 +65,7 @@ LoadBlockedNames() {
     
     ; Check if file exists
     if (!FileExist(blockFile)) {
-        WriteLog("block_names.txt not found - no names will be blocked")
+        ; WriteLog("block_names.txt not found - no names will be blocked")
         return blockedNames
     }
     
@@ -81,9 +81,9 @@ LoadBlockedNames() {
             }
         }
         
-        WriteLog("Loaded " . blockedNames.Length . " blocked names from " . blockFile)
+        ; WriteLog("Loaded " . blockedNames.Length . " blocked names from " . blockFile)
     } catch Error as e {
-        WriteLog("ERROR: Failed to read " . blockFile . " - " . e.message)
+        ; WriteLog("ERROR: Failed to read " . blockFile . " - " . e.message)
     }
     
     return blockedNames
@@ -165,8 +165,8 @@ ExtractStudentName(baseX, baseY) {
             extractedName := RegExReplace(extractedName, "[^a-zA-Z' -]", "")
             finalName := Trim(extractedName)
             
-            ; Log the final result
-            WriteLog("Student name extracted: '" . finalName . "'")
+            ; Log the final result - keep for session tracking
+            ; WriteLog("Student name extracted: '" . finalName . "'")
             return finalName
         }
     }
@@ -179,17 +179,17 @@ SuspendDetection() {
     global SessionState
     previousState := SessionState
     SessionState := PAUSED
-    WriteLog("Detection paused. Previous state: " . previousState)
+    ; WriteLog("Detection paused. Previous state: " . previousState)
     
     MsgBox("Upchieve suspended`n`nPress OK to resume", "Detection Paused", "OK")
     
     ; Resume to appropriate state
     if (previousState == IN_SESSION) {
         SessionState := IN_SESSION
-        WriteLog("Detection resumed to IN_SESSION state")
+        ; WriteLog("Detection resumed to IN_SESSION state")
     } else {
         SessionState := WAITING_FOR_STUDENT
-        WriteLog("Detection resumed to WAITING_FOR_STUDENT state")
+        ; WriteLog("Detection resumed to WAITING_FOR_STUDENT state")
     }
 }
 
@@ -204,7 +204,7 @@ ResumeFromSession() {
     global SessionState
     if (SessionState == IN_SESSION) {
         SessionState := WAITING_FOR_STUDENT
-        WriteLog("Manual resume: State changed from IN_SESSION to WAITING_FOR_STUDENT")
+        ; WriteLog("Manual resume: State changed from IN_SESSION to WAITING_FOR_STUDENT")
         MsgBox("Resumed looking for students", "Manual Resume", "OK")
     } else {
         MsgBox("Not currently in session. State: " . SessionState, "Manual Resume", "OK")
@@ -253,8 +253,8 @@ StartDetector() {
     Sleep 1000
     ToolTip ""
     
-    ; Log initial state
-    WriteLog("Detector started in " . modeText . " mode with initial state: " . SessionState)
+    ; Log application start
+    WriteLog("Upchieve Detector started in " . modeText . " mode")
     
     IsActive := true
     
@@ -269,14 +269,14 @@ StartDetector() {
                 ; PageTarget found - update reference point
                 newUpperLeft := GetUpperLeft(tempX, tempY, 320, 45)
                 if (newUpperLeft.x != pageRefX || newUpperLeft.y != pageRefY) {
-                    WriteLog("PageTarget moved: (" . pageRefX . "," . pageRefY . ") -> (" . newUpperLeft.x . "," . newUpperLeft.y . ")")
+                    ; WriteLog("PageTarget moved: (" . pageRefX . "," . pageRefY . ") -> (" . newUpperLeft.x . "," . newUpperLeft.y . ")")
                     pageRefX := newUpperLeft.x
                     pageRefY := newUpperLeft.y
                 }
                 lastPageCheck := A_TickCount
             } else {
                 ; PageTarget not found - keep using previous coordinates and log warning
-                WriteLog("WARNING: PageTarget re-detection failed, using previous coordinates")
+                ; WriteLog("WARNING: PageTarget re-detection failed, using previous coordinates")
                 lastPageCheck := A_TickCount  ; Reset timer to avoid spam
             }
         }
@@ -288,12 +288,12 @@ StartDetector() {
             if (tempResult := FindText(&tempX, &tempY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0, 0, PageTarget)) {
                 ; Session ended - show continuation dialog
                 global SessionState
-                WriteLog("Session ended - PageTarget detected while IN_SESSION")
+                WriteLog("Session ended")
                 continueResult := MsgBox("Session ended.`n`nDo you want to continue looking for students?", "Session Complete", "YNC Default1")
                 
                 if (continueResult = "Yes") {
                     SessionState := WAITING_FOR_STUDENT
-                    WriteLog("Resuming student detection")
+                    ; WriteLog("Resuming student detection")
                     ; Update page reference coordinates for continued monitoring
                     newUpperLeft := GetUpperLeft(tempX, tempY, 320, 45)
                     pageRefX := newUpperLeft.x
@@ -353,7 +353,7 @@ StartDetector() {
             ; Step 2: Check if student name is blocked BEFORE clicking
             global BlockedNames
             if (studentName != "" && IsNameBlocked(studentName, BlockedNames)) {
-                WriteLog("BLOCKED: Student " . studentName . " is on block list - skipping action")
+                WriteLog("BLOCKED: " . studentName . " - student on block list")
                 continue  ; Skip this student and continue monitoring
             }
             
@@ -364,17 +364,25 @@ StartDetector() {
                 Sleep 200  ; Wait 200ms to avoid double-click detection
                 ; Second click to select student
                 Click X, Y
-                WriteLog("LIVE MODE: Double-clicked on student at (" . X . ", " . Y . ")")
+                ; Log session start with student name
+                if (studentName != "") {
+                    WriteLog("Session started with " . studentName)
+                } else {
+                    WriteLog("Session started with unknown student")
+                }
                 ; Change state to IN_SESSION after clicking
                 global SessionState
                 SessionState := IN_SESSION
-                WriteLog("State changed to IN_SESSION")
             } else {
-                WriteLog("TESTING MODE: Found student at (" . X . ", " . Y . ") - no click")
+                ; Log session start in testing mode  
+                if (studentName != "") {
+                    WriteLog("TESTING: Session started with " . studentName)
+                } else {
+                    WriteLog("TESTING: Session started with unknown student")
+                }
                 ; In testing mode, also simulate being in session for state testing
                 global SessionState
                 SessionState := IN_SESSION
-                WriteLog("TESTING MODE: State changed to IN_SESSION for testing")
             }
             
             ; Step 4: Start repeating notification sound (every 2 seconds)
