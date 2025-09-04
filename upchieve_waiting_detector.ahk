@@ -7,6 +7,12 @@
 
 TargetWindow := "UPchieve"
 IsActive := false
+SoundTimer := ""
+
+; Function to play notification sound
+PlayNotificationSound() {
+    SoundBeep(800, 500)  ; 800Hz beep for 500ms
+}
 
 ; Image targets
 PageTarget := "|<WaitingStudents>*132$271.0000000000000s00007U00000000000000000000000000000000000001y00007s00000000000000000000000000000000000000zU0003w00000000000000000000000001y00z00TU0000Tk0Q01y00000000000000Dw000k000000z00TU0DU0000Ds0y00z00000000000000zzk03s000000DU0Dk07k00003s0T00TU00000000C0001zzy01w0000007k0Ds03s00000s0DU07U00000000DU001zzzU0y0000003w07y03w00000007k00000000000Dk001zUTs0T0000000y03z01w00000003s00000000000Ds000z03y0DU000000T01zU0y00000001w000000000007U000z00T07k000000DU1vk0T03z007kTzzUz0T1z000zr0000T00D1zzy3w07k7s0ww0D07zw03sDzzkTUDXzs01zzU000DU030zzz1y03s1w0SS0DU7zz01w7zzsDk7nzy03zzk0007k000TzzUz01w0y0DD07k7zzk0y3zzw7s3vzzU3zzw0003s000DzzkTU0y0T0DbU3s7w7w0T03s03w1zsTk1z1z0001y0000DU0Dk0T07k7Xs1s7s1y0DU1w01y0zk3w1y0TU000zk0007k07s0DU3s3kw1w3s0T07k0y00z0Tk1y0z07k000DzU003s03w07k1w1sS0y0Q0DU3s0T00TUDk0T0T03w0007zzU01w01y03s0y0wD0S0007k1w0DU0Dk7s0DUDU1y0001zzy00y00z01w0DUw7kD0003s0y07k07s3w07k7k0z0000DzzU0T00TU0y07kS1sDU007w0T03s03w1y03s3w0T00001zzw0DU0Dk0T03sD0w7U01zy0DU1w01y0z01w0zUzU00003zz07k07s0DU0w7US3k07zz07k0y00z0TU0y0TzzU000003zU3s03w07k0T7U7Vs0DzzU3s0T00TUDk0T07zzU000000Tk1w01y03s0DXk3lw0Dy7k1w0DU0Dk7s0DU1zzU0000003w0y00z01w07ls1sw0Dk3s0y07k07s3w07k1zz00000001y0T00TU0y01sw0wS0Dk1w0T03s03w1y03s1s000000k00z0DU0Dk0T00yw0DD07k0y0DU1w01y0z01w1s000000w00TU7k07s0TU0TS07j03s0T07k0y00z0TU0y0w000000z00DU3s01w0Dk07j03rU1w0TU3s0T00TUDk0T0S000000Tk0Dk1y00z0Ds03z01zk0zVzs1w0DksDk7s0DUDU000007y0Tk0zVUTkTw01zU0Ts0TzzzUy07zw7s3w07k7zzw0001zzzk0Dzk7zzy00Tk0Ds07zyzkT01zy3w1y03s1zzzU000Tzzk07zs3zzD00Ds07w01zwDsDU0Tz1y0z01w0Tzzs0003zzU01zw0Tz7U07s03y00Ds3s7k03w0z0TU0y0Dzzw0000Dz000Ds03y3k0000000000000000000000000T00y00000000000000000000000000000000000000000D00DU000000000000000E"
@@ -37,83 +43,6 @@ WriteLog(message) {
     FileAppend timestamp . " - " . message . "`n", logFile
 }
 
-; Test function to search for student name
-TestCamilaSearch(baseX, baseY) {
-    ; Don't clear previous log - append to it
-    
-    ; Adjust for center point: WaitingTarget is 134x35, so center is at +67,+17.5 from upper-left
-    ; To get upper-left of WaitingTarget: subtract half width and height
-    upperLeftX := baseX - 67
-    upperLeftY := baseY - 17
-    
-    ; Search region: Expand even further right for final 'a' (720px left, 400 wide, 80 tall)
-    searchX := upperLeftX - 720
-    searchY := upperLeftY - 10
-    searchWidth := 400 
-    searchHeight := 80
-    
-    WriteLog("=== OCR TROUBLESHOOTING ===")
-    WriteLog("Search region: (" . searchX . ", " . searchY . ") to (" . (searchX + searchWidth) . ", " . (searchY + searchHeight) . ")")
-    
-    ; Search for name characters in the student area
-    nameChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"
-    X := ""
-    Y := ""
-    
-    if (ok := FindText(&X, &Y, searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.05, FindText().PicN(nameChars))) {
-        
-        ; Filter out characters that are too close and noise characters
-        cleanChars := Array()
-        for i, char in ok {
-            if (char.id == "'") {
-                continue  ; Skip apostrophes
-            }
-            
-            tooClose := false
-            for j, existingChar in cleanChars {
-                if (Abs(char.x - existingChar.x) < 8 && Abs(char.y - existingChar.y) < 8) {
-                    tooClose := true
-                    break
-                }
-            }
-            if (!tooClose) {
-                cleanChars.Push(char)
-            }
-        }
-        
-        ; Manual string assembly
-        if (cleanChars.Length > 0) {
-            ; Sort characters by X coordinate (left to right)
-            Loop cleanChars.Length - 1 {
-                i := A_Index
-                Loop cleanChars.Length - i {
-                    j := A_Index
-                    if (cleanChars[j].x > cleanChars[j+1].x) {
-                        temp := cleanChars[j]
-                        cleanChars[j] := cleanChars[j+1] 
-                        cleanChars[j+1] := temp
-                    }
-                }
-            }
-            
-            ; Build string from sorted characters
-            manualResult := ""
-            for i, char in cleanChars {
-                manualResult .= char.id
-            }
-            
-            WriteLog("FINAL RESULT: '" . manualResult . "' (manual assembly)")
-            
-            ; OCR comparison for troubleshooting
-            if (ocrResult := FindText().OCR(cleanChars, 15, 8)) {
-                WriteLog("OCR comparison: '" . ocrResult.text . "'")
-            }
-        }
-    } else {
-        WriteLog("No characters found in search area")
-    }
-    
-}
 
 ; Extract student name from region left of waiting indicator
 ExtractStudentName(baseX, baseY) {
@@ -245,21 +174,32 @@ ActivateDetector() {
         X := ""
         Y := ""
         if (result := FindText(&X, &Y, 1273, 1188, 1607, 1423, 0, 0, WaitingTarget)) {
-            ToolTip "Found waiting student! Testing Camila search...", 10, 10
+            ToolTip "Found waiting student! Clicking and extracting name...", 10, 10
             
-            ; Test search for Camila specifically
-            TestCamilaSearch(X, Y)
+            ; Step 1: Click on the WaitingTarget
+            Click X, Y
             
-            ; Extract student name from region left of waiting indicator
+            ; Step 2: Extract student name from region left of waiting indicator
             studentName := ExtractStudentName(X, Y)
+            
+            ; Step 3: Start repeating notification sound (every 2 seconds)
+            global SoundTimer
+            PlayNotificationSound()  ; Play immediately
+            SoundTimer := SetTimer(PlayNotificationSound, 2000)  ; Then every 2 seconds
             
             ToolTip ""  ; Clear tooltip
             
-            ; Show message with student name if extracted, otherwise generic message
+            ; Step 4: Show message box with session opened message
             if (studentName != "") {
-                MsgBox "Student " . studentName . " waiting! (at coordinates " . X . ", " . Y . ")"
+                MsgBox("A session with " . studentName . " has opened", "Session Started", "OK")
             } else {
-                MsgBox "Student waiting! (at coordinates " . X . ", " . Y . ")"
+                MsgBox("A session has opened", "Session Started", "OK")
+            }
+            
+            ; Step 5: When OK is clicked, stop the sound
+            if (SoundTimer != "") {
+                SetTimer(SoundTimer, 0)  ; Stop the timer
+                SoundTimer := ""
             }
             
             IsActive := false
