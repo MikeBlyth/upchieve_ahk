@@ -22,9 +22,28 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 ## Usage
 1. Run `upchieve_waiting_detector.ahk`
 2. Navigate to the Upchieve "Waiting Students" page
-3. Press **Ctrl+Shift+A** to activate the detector and choose LIVE or TESTING mode
+3. Script auto-starts and prompts for LIVE or TESTING mode
 4. The script will monitor and automatically extract student names and show personalized messages
-5. Press **Ctrl+Shift+H** to pause/resume detection or **Ctrl+Shift+Q** to quit the application
+5. **Hotkeys:**
+   - **Ctrl+Shift+H** - Pause/resume detection
+   - **Ctrl+Shift+R** - Manual resume from IN_SESSION state  
+   - **Ctrl+Shift+Q** - Quit application
+
+## Session State Management
+The script now tracks three states to prevent unwanted scanning during active sessions:
+
+- **WAITING_FOR_STUDENT** - Actively scanning for "< 1 minute" indicators
+- **IN_SESSION** - With a student, monitoring for session end only
+- **PAUSED** - Manually paused via Ctrl+Shift+H
+
+### State Flow:
+1. **Student detected and clicked** → Changes to IN_SESSION state
+2. **While IN_SESSION**: Only monitors for "Waiting Students" page to detect session end
+3. **Session ends** (PageTarget appears) → Shows dialog: "Session ended. Continue looking for students?"
+   - Yes: Resume to WAITING_FOR_STUDENT state
+   - No: Exit application
+   - Cancel: Pause (shows pause dialog, then resumes to WAITING_FOR_STUDENT)
+4. **Manual control**: Ctrl+Shift+R hotkey to manually resume from IN_SESSION state
 
 ## How It Works
 1. Searches full screen for PageTarget ("Waiting Students" page) to establish reference coordinates

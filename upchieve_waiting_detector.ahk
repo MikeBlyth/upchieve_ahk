@@ -3,12 +3,18 @@
 #Include alphabet.ahk
 
 ; Upchieve Waiting Student Detector
-; Hotkeys: Ctrl+Shift+A to activate, Ctrl+Shift+Q to quit
+; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+R to resume from session
 
 TargetWindow := "UPchieve"
 IsActive := false
 SoundTimerFunc := ""
 LiveMode := false
+
+; Session state management
+WAITING_FOR_STUDENT := "WAITING_FOR_STUDENT"
+IN_SESSION := "IN_SESSION" 
+PAUSED := "PAUSED"
+SessionState := WAITING_FOR_STUDENT
 
 ; Function to play notification sound
 PlayNotificationSound() {
@@ -21,6 +27,9 @@ PageTarget := "|<WaitingStudents>*132$271.0000000000000s00007U000000000000000000
 WaitingTarget := "|<Waiting>*150$65.00000000000000000s0000000003k000000000DU000000E01z0000003U0Di000000T00QQ006C07s000s00Bw0z0001k00TU7s0003U00w0y00007001k3k0000C003U600000Q0070D00000s00A0DU0001k00M07k0003U00k03s0007001U01y000C003000z000Q006000S000s00A000A001k00M0000003U00k00000000000E"
 
 UpgradeTarget :="|<Upgrade>*197$75.zzzzzzzzzzzzzzzzzzzzzzzzzszss07zU7w07z7z700Ds0TU0DszssT1y31wD0z7z73y7Vy7Vy7szssTssTswDsz7z73z33z3Vz3szssTsMzzwDsT7z73z77zzVz7szssTkszzwDkz7z73w77zzVw7szss01sy0Q01z7z700z7k3U0zszssTzszsQD7z7z73zz7z3VsTsTssTzsTsQDXz3y73zzXz3VwDwDksTzwDsQDkzUsD3zzkQ3Vy6y03sTzz01wDsLw1z3zzy0TVzUzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw"
+
+EndSessionTarget :="|<EndSession>*194$193.00C0000000000000000000000000000000C0000000000000000000000000000000C0000000000000000000000000000000C0000000000000000000000000000000C000000000000000000000000000000060000000000000000000000000000000600000000000000000000000000000007000000000000000000000000000000030000000000000000000000000000000300000000000000000000000000000003U0000000000000000000000000000001U0000000000000000000000000000000k0000000000000000000000000000000k0000000000000000000000000000000M0000000000000000000000000000000Q0000000000000000000000000000000A000000000000000000000000000000060000000000000000S0000000000000070000000000000000D00000000000000300000000zzw000007U007w0000000001U0000000Tzy000003k00DzU000000000k0000000Dzz000001s00Dzs000000000s00000007U0000000w00D0S000000000M00000003k0000000S00D07000000000A00000001s00STU0zD007U103w03w0Ds600000000w00DTs0zzU03k007zU7zUTz300000000S007zy0zzk01w007zs7zsDzlU0000000D003w7Uw3s00zU07US7UQD1sk00000007zw1w3kS0w00DzU3U73k470MM00000003zy0w0sS0S003zw3k3Vs03k0A00000001zz0S0QD0D000TzVzzkzU1y0600000000w00D0C7U7U000zkzzsDz0Tw300000000S007U73k3k0001wTzw1zk3zVU0000000D003k3Vs1s0000SD0007w0Dsk00000007U01s1kw0w0080D7U000D00wQ00000003k00w0sD0S00C07Vs20U7V0C600000001s00S0Q7UT007k7Uw3ks3lkD300000000zzwD0C1zzU01zzUDzkTzkzzVU0000000Tzy7U70Txk00TzU3zk7zkDzUs0000000Dzz3k3U7ss003z00Tk0zU1z0A0000000000000000000000000000000600000000000000000000000000000003U0000000000000000000000000000000k0000000000000000000000000000000M000000000000000000000000000000060000000000000000000000000000000300000000000000000000000000000001k0000000000000000000000000000000M0000000000000000000000000000000600000000000000000000000000000003U0000000000000000000000000000000k0000000000000000000000000000000A0000000000000000000000000000000700000000000000000000000000000001k0000000000000000000000000000000Q0000000000000000000000000000000700000000000000000000000000000001k0000000000000000000000000000000Q0000000000000000000000000000000700000000000000000000000000000001s0000000000000000000000000000E"
+FinishTarget :="|<Finish>*225$127.01000000000000000000001U00000000000000000001U00000000000000000000U00000000000000000000k00000000000000000000E00000000000000000000E00000000000000000000M00000000000000000000800000000000000000000400000000000000000000400000000000000000000200000000000000000000300000000000000000000100000000000T0000w0000U0000000000DU000z0000E0000000Dzz7k000TU000M00000007zzXk0007U000800000003zzk000000000400000001s00000000000200000000w00000000000100000000S00D1tz0S0zk0U0000000D007UzzkD0zy0k00000007U03kTzw7Uzz0M00000003k01sDky3ky7kA00000001zz0w7kD1sS1k600000000zzkS3s7kwDU0300000000TzsD1s3sS7y01U0000000D007Uw1wD1zs0E00000007U03kS0y7UTz0800000003k01sD0T3k1zk400000001s00w7UDVs03s200000000w00S3k7kw60w100000000S00D1s3sS7Uy0k0000000D007Uw1wD3zz0800000007U03kS0y7Uzz0400000003k01sD0T3k7y02000000000000000000001U00000000000000000000E000000000000000000008000000000000000000002000000000000000000001000000000000000000000k0000000000000000000E"
 
 ; Load alphabet characters for name extraction
 LoadAlphabetCharacters() {
@@ -167,7 +176,21 @@ ExtractStudentName(baseX, baseY) {
 
 ; Suspend detection with resume option
 SuspendDetection() {
+    global SessionState
+    previousState := SessionState
+    SessionState := PAUSED
+    WriteLog("Detection paused. Previous state: " . previousState)
+    
     MsgBox("Upchieve suspended`n`nPress OK to resume", "Detection Paused", "OK")
+    
+    ; Resume to appropriate state
+    if (previousState == IN_SESSION) {
+        SessionState := IN_SESSION
+        WriteLog("Detection resumed to IN_SESSION state")
+    } else {
+        SessionState := WAITING_FOR_STUDENT
+        WriteLog("Detection resumed to WAITING_FOR_STUDENT state")
+    }
 }
 
 ; Initialize alphabet characters for name extraction at startup
@@ -176,9 +199,22 @@ LoadAlphabetCharacters()
 ; Load blocked names list
 BlockedNames := LoadBlockedNames()
 
+; Manual resume from IN_SESSION state
+ResumeFromSession() {
+    global SessionState
+    if (SessionState == IN_SESSION) {
+        SessionState := WAITING_FOR_STUDENT
+        WriteLog("Manual resume: State changed from IN_SESSION to WAITING_FOR_STUDENT")
+        MsgBox("Resumed looking for students", "Manual Resume", "OK")
+    } else {
+        MsgBox("Not currently in session. State: " . SessionState, "Manual Resume", "OK")
+    }
+}
+
 ; Hotkey definitions
 ^+q::ExitApp
 ^+h::SuspendDetection()
+^+r::ResumeFromSession()
 
 ; Auto-start detection on script launch
 StartDetector()
@@ -217,6 +253,9 @@ StartDetector() {
     Sleep 1000
     ToolTip ""
     
+    ; Log initial state
+    WriteLog("Detector started in " . modeText . " mode with initial state: " . SessionState)
+    
     IsActive := true
     
     ; Main detection loop
@@ -242,8 +281,43 @@ StartDetector() {
             }
         }
         
-        ; Debug: Show what we're looking for
-        ToolTip "Scanning for upgrade popup and waiting students...", 10, 10
+        ; Check for session end: PageTarget appears while we're IN_SESSION
+        if (SessionState == IN_SESSION) {
+            tempX := ""
+            tempY := ""
+            if (tempResult := FindText(&tempX, &tempY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0, 0, PageTarget)) {
+                ; Session ended - show continuation dialog
+                global SessionState
+                WriteLog("Session ended - PageTarget detected while IN_SESSION")
+                continueResult := MsgBox("Session ended.`n`nDo you want to continue looking for students?", "Session Complete", "YNC Default1")
+                
+                if (continueResult = "Yes") {
+                    SessionState := WAITING_FOR_STUDENT
+                    WriteLog("Resuming student detection")
+                    ; Update page reference coordinates for continued monitoring
+                    newUpperLeft := GetUpperLeft(tempX, tempY, 320, 45)
+                    pageRefX := newUpperLeft.x
+                    pageRefY := newUpperLeft.y
+                    lastPageCheck := A_TickCount
+                } else if (continueResult = "No") {
+                    ExitApp
+                } else {  ; Cancel
+                    SessionState := PAUSED
+                    SuspendDetection()
+                    SessionState := WAITING_FOR_STUDENT  ; Resume after pause dialog
+                }
+            }
+        }
+        
+        ; Debug: Show current state and what we're looking for
+        stateText := "State: " . SessionState . " | "
+        if (SessionState == WAITING_FOR_STUDENT) {
+            ToolTip stateText . "Scanning for upgrade popup and waiting students...", 10, 10
+        } else if (SessionState == IN_SESSION) {
+            ToolTip stateText . "In session - monitoring for session end...", 10, 10
+        } else {
+            ToolTip stateText . "Paused", 10, 10
+        }
         
         ; Check for upgrade popup first (relative to PageTarget)
         upgradeX1 := pageRefX + 702
@@ -260,14 +334,16 @@ StartDetector() {
             continue  ; Skip to next iteration after handling upgrade
         }
         
-        ; Search for waiting student indicator (relative to PageTarget)
-        waitingX1 := pageRefX + 382
-        waitingY1 := pageRefY + 299
-        waitingX2 := waitingX1 + 334
-        waitingY2 := waitingY1 + 235
-        X := ""
-        Y := ""
-        if (result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0, 0, WaitingTarget)) {
+        ; Only scan for waiting students if we're in the right state
+        if (SessionState == WAITING_FOR_STUDENT) {
+            ; Search for waiting student indicator (relative to PageTarget)
+            waitingX1 := pageRefX + 382
+            waitingY1 := pageRefY + 299
+            waitingX2 := waitingX1 + 334
+            waitingY2 := waitingY1 + 235
+            X := ""
+            Y := ""
+            if (result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0, 0, WaitingTarget)) {
             global LiveMode
             ToolTip "Found waiting student! Extracting name...", 10, 10
             
@@ -289,8 +365,16 @@ StartDetector() {
                 ; Second click to select student
                 Click X, Y
                 WriteLog("LIVE MODE: Double-clicked on student at (" . X . ", " . Y . ")")
+                ; Change state to IN_SESSION after clicking
+                global SessionState
+                SessionState := IN_SESSION
+                WriteLog("State changed to IN_SESSION")
             } else {
                 WriteLog("TESTING MODE: Found student at (" . X . ", " . Y . ") - no click")
+                ; In testing mode, also simulate being in session for state testing
+                global SessionState
+                SessionState := IN_SESSION
+                WriteLog("TESTING MODE: State changed to IN_SESSION for testing")
             }
             
             ; Step 4: Start repeating notification sound (every 2 seconds)
@@ -316,6 +400,7 @@ StartDetector() {
             }
             
             ; Continue monitoring for more students (removed break statement)
+            }
         }
         
         ; Wait 50ms before next scan (faster detection)
