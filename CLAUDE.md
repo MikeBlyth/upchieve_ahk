@@ -18,6 +18,7 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 - **Student blocking system** - Skip action for names listed in block_names.txt
 - Auto-click functionality when waiting students are detected
 - LIVE/TESTING mode selection with pause/resume capability
+- **Sleep prevention** - Keeps laptop awake while monitoring for students
 
 ## Usage
 1. Run `upchieve_waiting_detector.ahk`

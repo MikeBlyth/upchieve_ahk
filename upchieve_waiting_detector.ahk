@@ -193,6 +193,10 @@ SuspendDetection() {
     }
 }
 
+; Prevent system from going to sleep while script is running
+; 0x80000003 = ES_SYSTEM_REQUIRED | ES_CONTINUOUS (keeps system awake)
+DllCall("kernel32.dll\SetThreadExecutionState", "UInt", 0x80000003)
+
 ; Initialize alphabet characters for name extraction at startup
 LoadAlphabetCharacters()
 
@@ -211,8 +215,15 @@ ResumeFromSession() {
     }
 }
 
+; Clean exit function to restore normal sleep behavior
+CleanExit() {
+    ; Restore normal power management
+    DllCall("kernel32.dll\SetThreadExecutionState", "UInt", 0x80000000)
+    ExitApp
+}
+
 ; Hotkey definitions
-^+q::ExitApp
+^+q::CleanExit()
 ^+h::SuspendDetection()
 ^+r::ResumeFromSession()
 
@@ -225,7 +236,7 @@ StartDetector() {
     ; Combined startup dialog with mode selection
     modeResult := MsgBox("Upchieve detector will search for 'Waiting Students' page and start monitoring automatically.`n`nYes = LIVE mode (clicks students)`nNo = TESTING mode (no clicking)`nCancel = Exit", "Upchieve Detector Startup", "YNC Default2")
     if (modeResult = "Cancel") {
-        ExitApp  ; Exit application
+        CleanExit()  ; Exit application
     }
     
     LiveMode := (modeResult = "Yes")
@@ -300,7 +311,7 @@ StartDetector() {
                     pageRefY := newUpperLeft.y
                     lastPageCheck := A_TickCount
                 } else if (continueResult = "No") {
-                    ExitApp
+                    CleanExit()
                 } else {  ; Cancel
                     SessionState := PAUSED
                     SuspendDetection()
