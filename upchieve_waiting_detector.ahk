@@ -44,6 +44,11 @@ WriteLog(message) {
     FileAppend timestamp . " - " . message . "`n", logFile
 }
 
+; Convert FindText midpoint coordinates to upper-left coordinates
+GetUpperLeft(centerX, centerY, width, height) {
+    return {x: centerX - width / 2, y: centerY - height / 2}
+}
+
 
 ; Extract student name from region left of waiting indicator
 ExtractStudentName(baseX, baseY) {
@@ -151,13 +156,20 @@ ActivateDetector() {
     pageCheckCount := 0
     X := ""
     Y := ""
-    while (!(result := FindText(&X, &Y, 891, 889, 1446, 1149, 0, 0, PageTarget))) {
+    while (!(result := FindText(&X, &Y, 0, 0, A_ScreenWidth, A_ScreenHeight, 0, 0, PageTarget))) {
         pageCheckCount++
         ToolTip "Looking for 'Waiting Students' page... Check #" pageCheckCount, 10, 50
         Sleep 100
     }
     
-    ; PageTarget found
+    ; PageTarget found - calculate upper-left reference point
+    ; PageTarget dimensions: width=320, height=45
+    ; TODO: Consider converting to modern FindTextv2 object syntax in the future
+    pageUpperLeft := GetUpperLeft(X, Y, 320, 45)
+    pageRefX := pageUpperLeft.x
+    pageRefY := pageUpperLeft.y
+    lastPageCheck := A_TickCount  ; Track when we last found PageTarget
+    
     ToolTip "Found 'Waiting Students' page! Starting detector...", 10, 50
     Sleep 1000
     ToolTip ""
@@ -171,13 +183,38 @@ ActivateDetector() {
     
     ; Main detection loop
     while (IsActive) {
+        ; Periodic PageTarget re-detection (every 5 seconds) to handle window movement
+        if (A_TickCount - lastPageCheck > 5000) {
+            ToolTip "Re-detecting PageTarget location...", 10, 10
+            tempX := ""
+            tempY := ""
+            if (tempResult := FindText(&tempX, &tempY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0, 0, PageTarget)) {
+                ; PageTarget found - update reference point
+                newUpperLeft := GetUpperLeft(tempX, tempY, 320, 45)
+                if (newUpperLeft.x != pageRefX || newUpperLeft.y != pageRefY) {
+                    WriteLog("PageTarget moved: (" . pageRefX . "," . pageRefY . ") -> (" . newUpperLeft.x . "," . newUpperLeft.y . ")")
+                    pageRefX := newUpperLeft.x
+                    pageRefY := newUpperLeft.y
+                }
+                lastPageCheck := A_TickCount
+            } else {
+                ; PageTarget not found - keep using previous coordinates and log warning
+                WriteLog("WARNING: PageTarget re-detection failed, using previous coordinates")
+                lastPageCheck := A_TickCount  ; Reset timer to avoid spam
+            }
+        }
+        
         ; Debug: Show what we're looking for
         ToolTip "Scanning for upgrade popup and waiting students...", 10, 10
         
-        ; Check for upgrade popup first
+        ; Check for upgrade popup first (relative to PageTarget)
+        upgradeX1 := pageRefX + 702
+        upgradeY1 := pageRefY + 120
+        upgradeX2 := upgradeX1 + 325
+        upgradeY2 := upgradeY1 + 300
         X := ""
         Y := ""
-        if (UpgradeTarget != "" && (result := FindText(&X, &Y, 1593, 1009, 1918, 1309, 0, 0, UpgradeTarget))) {
+        if (UpgradeTarget != "" && (result := FindText(&X, &Y, upgradeX1, upgradeY1, upgradeX2, upgradeY2, 0, 0, UpgradeTarget))) {
             ToolTip "Found upgrade popup! Clicking...", 10, 10
             Click X, Y
             MsgBox "Clicked upgrade popup at " X ", " Y
@@ -185,17 +222,25 @@ ActivateDetector() {
             continue  ; Skip to next iteration after handling upgrade
         }
         
-        ; Search for waiting student indicator
+        ; Search for waiting student indicator (relative to PageTarget)
+        waitingX1 := pageRefX + 382
+        waitingY1 := pageRefY + 299
+        waitingX2 := waitingX1 + 334
+        waitingY2 := waitingY1 + 235
         X := ""
         Y := ""
-        if (result := FindText(&X, &Y, 1273, 1188, 1607, 1423, 0, 0, WaitingTarget)) {
+        if (result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0, 0, WaitingTarget)) {
             global LiveMode
             ToolTip "Found waiting student! Extracting name...", 10, 10
             
             ; Step 1: Click on the WaitingTarget (only in LIVE mode)
             if (LiveMode) {
+                ; First click to activate window
                 Click X, Y
-                WriteLog("LIVE MODE: Clicked on student at (" . X . ", " . Y . ")")
+                Sleep 200  ; Wait 200ms to avoid double-click detection
+                ; Second click to select student
+                Click X, Y
+                WriteLog("LIVE MODE: Double-clicked on student at (" . X . ", " . Y . ")")
             } else {
                 WriteLog("TESTING MODE: Found student at (" . X . ", " . Y . ") - no click")
             }
@@ -219,14 +264,13 @@ ActivateDetector() {
                 MsgBox(LiveMode ? "A session has opened" : "A student is waiting", LiveMode ? "Session Started" : "Student Detected", "OK")
             }
             
-            ; Step 5: When OK is clicked, stop the sound
+            ; Step 5: When OK is clicked, stop the sound and continue monitoring
             if (SoundTimerFunc != "") {
                 SetTimer SoundTimerFunc, 0  ; Stop the timer
                 SoundTimerFunc := ""
             }
             
-            IsActive := false
-            break
+            ; Continue monitoring for more students (removed break statement)
         }
         
         ; Wait 50ms before next scan (faster detection)

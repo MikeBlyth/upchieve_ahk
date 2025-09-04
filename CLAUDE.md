@@ -19,18 +19,19 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 ## Usage
 1. Run `upchieve_waiting_detector.ahk`
 2. Navigate to the Upchieve "Waiting Students" page
-3. Press **Ctrl+Shift+A** to activate the detector
+3. Press **Ctrl+Shift+A** to activate the detector and choose LIVE or TESTING mode
 4. The script will monitor and automatically extract student names and show personalized messages
-5. Press **Ctrl+Shift+Q** to quit the application
+5. Press **Ctrl+Shift+H** to pause/resume detection or **Ctrl+Shift+Q** to quit the application
 
 ## How It Works
-1. Switches to UPchieve window
-2. Verifies correct page using PageTarget image
-3. Enters monitoring loop (scans every 0.05 seconds)
+1. Searches full screen for PageTarget ("Waiting Students" page) to establish reference coordinates
+2. Calculates upper-left reference point for window-position independence
+3. Enters monitoring loop (scans every 0.05 seconds with 5-second PageTarget re-detection)
 4. When WaitingTarget ("< 1 minute") is found:
-   - Extracts student name from region 680px left of indicator
-   - Shows personalized message: "Student [Name] waiting!"
-   - Goes dormant until reactivated with Ctrl+Shift+A
+   - Double-clicks student (200ms delay between clicks) in LIVE mode
+   - Extracts student name from region 720px left of indicator
+   - Shows personalized message: "Session with [Name] has opened" / "Found student [Name] waiting"
+   - Continues monitoring for additional students (until Ctrl+Shift+Q or Ctrl+Shift+H)
 
 ## Student Name Extraction
 - **Search Region**: 720px left of WaitingTarget, 400px wide, 80px tall
@@ -44,14 +45,26 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 - **WaitingTarget**: "< 1 minute" waiting time indicator  
 - **UpgradeTarget**: Update popup dismissal
 
-## Search Zones
-These are the approximate locations of the search zones with a screen size of 3200 x 2000. The first pair is the upper left coord, the second pair is the width and height. 
-- PageTarget (Waiting Students): (891, 889), (555, 160) [with ±100px margins]
-- WaitingTarget (< 1 minute): (1273, 1188), (334, 235) [with ±100px margins]  
-- UpgradeTarget (Update popup): (1593, 1009), (325, 300) [with ±100px margins]
-- Student Name Region: 720px left of WaitingTarget, (400, 80) size
+## Positioning System
+The script uses **window-position independent** relative positioning:
 
-Screen size 3200x2000
+### FindText Coordinate Conversion
+FindText returns midpoint coordinates. To get upper-left corner:
+```
+Upper-left x-coordinate: OutputVar.1.x - OutputVar.1.w / 2
+Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
+```
+
+### Search Zones (Relative to PageTarget)
+- **PageTarget (Waiting Students)**: Full screen search to find reference point
+- **WaitingTarget (< 1 minute)**: Offset (382, 299) from PageTarget upper-left, size 334×235
+- **UpgradeTarget (Update popup)**: Offset (702, 120) from PageTarget upper-left, size 325×300  
+- **Student Name Region**: 720px left of WaitingTarget, size 400×80
+
+### Original Absolute Coordinates (3200×2000 screen reference)
+- PageTarget: (891, 889) to (1446, 1149)
+- WaitingTarget: (1273, 1188) to (1607, 1423)
+- UpgradeTarget: (1593, 1009) to (1918, 1309)
 
 ## Dependencies
 - AutoHotkey v2.0+
