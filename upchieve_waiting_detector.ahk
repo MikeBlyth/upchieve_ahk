@@ -129,28 +129,27 @@ SuspendDetection() {
     MsgBox("Upchieve suspended`n`nPress OK to resume", "Detection Paused", "OK")
 }
 
+; Initialize alphabet characters for name extraction at startup
+LoadAlphabetCharacters()
+
 ; Hotkey definitions
-^+a::ActivateDetector()
 ^+q::ExitApp
 ^+h::SuspendDetection()
 
-ActivateDetector() {
+; Auto-start detection on script launch
+StartDetector()
+
+StartDetector() {
     global
     
-    ; Initialize alphabet characters for name extraction
-    LoadAlphabetCharacters()
-    
-    ; Mode selection dialog
-    modeResult := MsgBox("Select detector mode:`n`nYes = LIVE mode (clicks students)`nNo = TESTING mode (no clicking)`nCancel = Exit", "Detector Mode", "YNC Default2")
+    ; Combined startup dialog with mode selection
+    modeResult := MsgBox("Upchieve detector will search for 'Waiting Students' page and start monitoring automatically.`n`nYes = LIVE mode (clicks students)`nNo = TESTING mode (no clicking)`nCancel = Exit", "Upchieve Detector Startup", "YNC Default2")
     if (modeResult = "Cancel") {
-        return  ; Exit without starting
+        ExitApp  ; Exit application
     }
     
     LiveMode := (modeResult = "Yes")
     modeText := LiveMode ? "LIVE" : "TESTING"
-    
-    ; Show mode confirmation and wait for page
-    MsgBox("Mode: " . modeText . "`n`nWaiting for 'Waiting Students' page to appear...", "Page Detection", "T5")
     
     ; Wait for PageTarget to appear with debug info
     pageCheckCount := 0
@@ -170,14 +169,9 @@ ActivateDetector() {
     pageRefY := pageUpperLeft.y
     lastPageCheck := A_TickCount  ; Track when we last found PageTarget
     
-    ToolTip "Found 'Waiting Students' page! Starting detector...", 10, 50
+    ToolTip "Found 'Waiting Students' page! Starting " . modeText . " mode detector...", 10, 50
     Sleep 1000
     ToolTip ""
-    
-    ; PageTarget found, close the waiting message if still open
-    try {
-        WinClose("Page Detection")
-    }
     
     IsActive := true
     
