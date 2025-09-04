@@ -113,7 +113,6 @@ TestCamilaSearch(baseX, baseY) {
         WriteLog("No characters found in search area")
     }
     
-    MsgBox "OCR test complete. Check debug_log.txt for results."
 }
 
 ; Extract student name from region left of waiting indicator
