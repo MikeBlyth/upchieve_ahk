@@ -271,9 +271,8 @@ StartDetector() {
     
     ; Main detection loop
     while (IsActive) {
-        ; Periodic PageTarget re-detection (every 5 seconds) to handle window movement
-        if (A_TickCount - lastPageCheck > 5000) {
-            ToolTip "Re-detecting PageTarget location...", 10, 10
+        ; Periodic PageTarget re-detection (every 10 seconds) to handle window movement
+        if (A_TickCount - lastPageCheck > 10000) {
             tempX := ""
             tempY := ""
             if (tempResult := FindText(&tempX, &tempY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0, 0, PageTarget)) {
@@ -286,26 +285,28 @@ StartDetector() {
                 }
                 lastPageCheck := A_TickCount
             } else {
-                ; PageTarget not found - keep using previous coordinates and log warning
-                ; WriteLog("WARNING: PageTarget re-detection failed, using previous coordinates")
+                ; PageTarget not found - keep using previous coordinates
+                ; Reduced frequency: only warn every 60 seconds instead of every 5 seconds
+                if (A_TickCount - lastPageCheck > 60000) {
+                    ; WriteLog("WARNING: PageTarget re-detection failed for >60 seconds")
+                }
                 lastPageCheck := A_TickCount  ; Reset timer to avoid spam
             }
         }
         
-        ; Check for session end: PageTarget appears while we're IN_SESSION
+        ; Check for session end: PageTarget appears while we're IN_SESSION  
         if (SessionState == IN_SESSION) {
             tempX := ""
             tempY := ""
             if (tempResult := FindText(&tempX, &tempY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0, 0, PageTarget)) {
                 ; Session ended - show continuation dialog
-                global SessionState
                 WriteLog("Session ended")
                 continueResult := MsgBox("Session ended.`n`nDo you want to continue looking for students?", "Session Complete", "YNC Default1")
                 
                 if (continueResult = "Yes") {
+                    global SessionState
                     SessionState := WAITING_FOR_STUDENT
-                    ; WriteLog("Resuming student detection")
-                    ; Update page reference coordinates for continued monitoring
+                    ; Use the coordinates we just found  
                     newUpperLeft := GetUpperLeft(tempX, tempY, 320, 45)
                     pageRefX := newUpperLeft.x
                     pageRefY := newUpperLeft.y
@@ -313,6 +314,7 @@ StartDetector() {
                 } else if (continueResult = "No") {
                     CleanExit()
                 } else {  ; Cancel
+                    global SessionState
                     SessionState := PAUSED
                     SuspendDetection()
                     SessionState := WAITING_FOR_STUDENT  ; Resume after pause dialog
