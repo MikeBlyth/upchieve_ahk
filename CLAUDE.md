@@ -6,15 +6,18 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 - `upchieve_waiting_detector.ahk` - Main script file
 - `alphabet.ahk` - Character patterns for name recognition
 - `debug_log.txt` - OCR troubleshooting and results log
+- `block_names.txt` - Optional list of student names to skip (one per line)
 
 ## Features
 - Uses FindTextv2 library for fast image recognition
-- Automatic window switching to UPchieve
+- Window-position independent detection with automatic re-positioning
 - Page verification using "Waiting Students" image target
 - Real-time monitoring for "< 1 minute" waiting indicators
 - **Student name extraction** from detected waiting entries
-- **Personalized notifications** (e.g. "Student Camila waiting!")
+- **Personalized notifications** (e.g. "Session with Camila has opened!")
+- **Student blocking system** - Skip action for names listed in block_names.txt
 - Auto-click functionality when waiting students are detected
+- LIVE/TESTING mode selection with pause/resume capability
 
 ## Usage
 1. Run `upchieve_waiting_detector.ahk`
@@ -39,6 +42,19 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 - **Filtering**: Removes noise characters (apostrophes) and proximity duplicates
 - **Assembly**: Manual character sorting by X-coordinate for reliable results
 - **Logging**: Results logged to debug_log.txt with timestamps
+
+## Student Blocking System
+- **Block File**: `block_names.txt` (optional, created by user)
+- **Format**: One student name per line, case-insensitive matching
+- **Comments**: Lines starting with `;` are ignored
+- **Behavior**: When blocked student detected, script logs the encounter and continues monitoring without taking action
+- **Example block_names.txt**:
+  ```
+  ; Students to skip
+  John Smith
+  Mary Johnson
+  TestStudent
+  ```
 
 ## Image Targets
 - **PageTarget**: "Waiting Students" page indicator

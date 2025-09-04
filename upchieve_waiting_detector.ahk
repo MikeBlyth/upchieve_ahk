@@ -49,6 +49,47 @@ GetUpperLeft(centerX, centerY, width, height) {
     return {x: centerX - width / 2, y: centerY - height / 2}
 }
 
+; Load blocked names from block_names.txt
+LoadBlockedNames() {
+    blockedNames := []
+    blockFile := "block_names.txt"
+    
+    ; Check if file exists
+    if (!FileExist(blockFile)) {
+        WriteLog("block_names.txt not found - no names will be blocked")
+        return blockedNames
+    }
+    
+    ; Read file line by line
+    try {
+        fileContent := FileRead(blockFile)
+        lines := StrSplit(fileContent, "`n", "`r")
+        
+        for index, line in lines {
+            trimmedName := Trim(line)
+            if (trimmedName != "" && InStr(trimmedName, ";") != 1) {  ; Skip empty lines and comments
+                blockedNames.Push(trimmedName)
+            }
+        }
+        
+        WriteLog("Loaded " . blockedNames.Length . " blocked names from " . blockFile)
+    } catch Error as e {
+        WriteLog("ERROR: Failed to read " . blockFile . " - " . e.message)
+    }
+    
+    return blockedNames
+}
+
+; Check if student name is in blocked list
+IsNameBlocked(studentName, blockedNames) {
+    for index, blockedName in blockedNames {
+        if (StrLower(Trim(studentName)) == StrLower(Trim(blockedName))) {
+            return true
+        }
+    }
+    return false
+}
+
 
 ; Extract student name from region left of waiting indicator
 ExtractStudentName(baseX, baseY) {
@@ -131,6 +172,9 @@ SuspendDetection() {
 
 ; Initialize alphabet characters for name extraction at startup
 LoadAlphabetCharacters()
+
+; Load blocked names list
+BlockedNames := LoadBlockedNames()
 
 ; Hotkey definitions
 ^+q::ExitApp
@@ -227,7 +271,17 @@ StartDetector() {
             global LiveMode
             ToolTip "Found waiting student! Extracting name...", 10, 10
             
-            ; Step 1: Click on the WaitingTarget (only in LIVE mode)
+            ; Step 1: Extract student name from region left of waiting indicator
+            studentName := ExtractStudentName(X, Y)
+            
+            ; Step 2: Check if student name is blocked BEFORE clicking
+            global BlockedNames
+            if (studentName != "" && IsNameBlocked(studentName, BlockedNames)) {
+                WriteLog("BLOCKED: Student " . studentName . " is on block list - skipping action")
+                continue  ; Skip this student and continue monitoring
+            }
+            
+            ; Step 3: Click on the WaitingTarget (only in LIVE mode and if not blocked)
             if (LiveMode) {
                 ; First click to activate window
                 Click X, Y
@@ -239,10 +293,7 @@ StartDetector() {
                 WriteLog("TESTING MODE: Found student at (" . X . ", " . Y . ") - no click")
             }
             
-            ; Step 2: Extract student name from region left of waiting indicator
-            studentName := ExtractStudentName(X, Y)
-            
-            ; Step 3: Start repeating notification sound (every 2 seconds)
+            ; Step 4: Start repeating notification sound (every 2 seconds)
             global SoundTimerFunc
             PlayNotificationSound()  ; Play immediately
             SoundTimerFunc := PlayNotificationSound  ; Store function reference
@@ -250,7 +301,7 @@ StartDetector() {
             
             ToolTip ""  ; Clear tooltip
             
-            ; Step 4: Show message box with session message
+            ; Step 5: Show message box with session message
             modePrefix := LiveMode ? "Session with " : "Found student "
             if (studentName != "") {
                 MsgBox(modePrefix . studentName . (LiveMode ? " has opened" : " waiting"), LiveMode ? "Session Started" : "Student Detected", "OK")
@@ -258,7 +309,7 @@ StartDetector() {
                 MsgBox(LiveMode ? "A session has opened" : "A student is waiting", LiveMode ? "Session Started" : "Student Detected", "OK")
             }
             
-            ; Step 5: When OK is clicked, stop the sound and continue monitoring
+            ; Step 6: When OK is clicked, stop the sound and continue monitoring
             if (SoundTimerFunc != "") {
                 SetTimer SoundTimerFunc, 0  ; Stop the timer
                 SoundTimerFunc := ""
