@@ -182,6 +182,12 @@ RunOCRTest() {
         return
     }
     
+    ; Show that we're reloading
+    ResultText.Value := "Reloading alphabet characters and testing..."
+    
+    ; Reload alphabet characters to pick up any changes
+    LoadAlphabetCharacters()
+    
     ; Get current parameter values
     tolerance1 := Float(Tolerance1Edit.Value)
     tolerance2 := Float(Tolerance2Edit.Value)  
