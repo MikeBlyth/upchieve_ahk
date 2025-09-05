@@ -1,6 +1,7 @@
 #Requires AutoHotkey v2.0
 #Include FindTextv2.ahk
 #Include alphabet.ahk
+#Include ocr_functions.ahk
 
 ; Upchieve Waiting Student Detector
 ; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+R to resume from session
@@ -31,20 +32,6 @@ UpgradeTarget :="|<Upgrade>*197$75.zzzzzzzzzzzzzzzzzzzzzzzzzszss07zU7w07z7z700Ds
 EndSessionTarget :="|<EndSession>*194$193.00C0000000000000000000000000000000C0000000000000000000000000000000C0000000000000000000000000000000C0000000000000000000000000000000C000000000000000000000000000000060000000000000000000000000000000600000000000000000000000000000007000000000000000000000000000000030000000000000000000000000000000300000000000000000000000000000003U0000000000000000000000000000001U0000000000000000000000000000000k0000000000000000000000000000000k0000000000000000000000000000000M0000000000000000000000000000000Q0000000000000000000000000000000A000000000000000000000000000000060000000000000000S0000000000000070000000000000000D00000000000000300000000zzw000007U007w0000000001U0000000Tzy000003k00DzU000000000k0000000Dzz000001s00Dzs000000000s00000007U0000000w00D0S000000000M00000003k0000000S00D07000000000A00000001s00STU0zD007U103w03w0Ds600000000w00DTs0zzU03k007zU7zUTz300000000S007zy0zzk01w007zs7zsDzlU0000000D003w7Uw3s00zU07US7UQD1sk00000007zw1w3kS0w00DzU3U73k470MM00000003zy0w0sS0S003zw3k3Vs03k0A00000001zz0S0QD0D000TzVzzkzU1y0600000000w00D0C7U7U000zkzzsDz0Tw300000000S007U73k3k0001wTzw1zk3zVU0000000D003k3Vs1s0000SD0007w0Dsk00000007U01s1kw0w0080D7U000D00wQ00000003k00w0sD0S00C07Vs20U7V0C600000001s00S0Q7UT007k7Uw3ks3lkD300000000zzwD0C1zzU01zzUDzkTzkzzVU0000000Tzy7U70Txk00TzU3zk7zkDzUs0000000Dzz3k3U7ss003z00Tk0zU1z0A0000000000000000000000000000000600000000000000000000000000000003U0000000000000000000000000000000k0000000000000000000000000000000M000000000000000000000000000000060000000000000000000000000000000300000000000000000000000000000001k0000000000000000000000000000000M0000000000000000000000000000000600000000000000000000000000000003U0000000000000000000000000000000k0000000000000000000000000000000A0000000000000000000000000000000700000000000000000000000000000001k0000000000000000000000000000000Q0000000000000000000000000000000700000000000000000000000000000001k0000000000000000000000000000000Q0000000000000000000000000000000700000000000000000000000000000001s0000000000000000000000000000E"
 FinishTarget :="|<Finish>*225$127.01000000000000000000001U00000000000000000001U00000000000000000000U00000000000000000000k00000000000000000000E00000000000000000000E00000000000000000000M00000000000000000000800000000000000000000400000000000000000000400000000000000000000200000000000000000000300000000000000000000100000000000T0000w0000U0000000000DU000z0000E0000000Dzz7k000TU000M00000007zzXk0007U000800000003zzk000000000400000001s00000000000200000000w00000000000100000000S00D1tz0S0zk0U0000000D007UzzkD0zy0k00000007U03kTzw7Uzz0M00000003k01sDky3ky7kA00000001zz0w7kD1sS1k600000000zzkS3s7kwDU0300000000TzsD1s3sS7y01U0000000D007Uw1wD1zs0E00000007U03kS0y7UTz0800000003k01sD0T3k1zk400000001s00w7UDVs03s200000000w00S3k7kw60w100000000S00D1s3sS7Uy0k0000000D007Uw1wD3zz0800000007U03kS0y7Uzz0400000003k01sD0T3k7y02000000000000000000001U00000000000000000000E000000000000000000008000000000000000000002000000000000000000001000000000000000000000k0000000000000000000E"
 
-; Load alphabet characters for name extraction
-LoadAlphabetCharacters() {
-    ; Combine all lowercase letters
-    Text := Texta . Textb . Textc . Textd . Texte . Textf . Textg . Texth . Texti . Textj . Textk . Textl . Textm . Textn . Texto . Textp . Textq . Textr . Texts . Textt . Textu . Textv . Textw . Textx . Texty . Textz
-    
-    ; Add uppercase letters
-    Text .= Text_A . Text_B . Text_C . Text_D . Text_E . Text_F . Text_G . Text_H . Text_I . Text_J . Text_K . Text_L . Text_M . Text_N . Text_O . Text_P . Text_Q . Text_R . Text_S . Text_T . Text_U . Text_V . Text_W . Text_X . Text_Y . Text_Z
-    
-    ; Add special characters
-    Text .= Text_apos . Text_hyphen
-    
-    ; Register with FindText library
-    FindText().PicLib(Text, 1)
-}
 
 ; Log function
 WriteLog(message) {
@@ -113,65 +100,10 @@ ExtractStudentName(baseX, baseY) {
     searchWidth := 400 
     searchHeight := 80
     
-    ; Define character set for names
-    nameChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"
-    X := ""
-    Y := ""
+    ; Use shared OCR function with default parameters
+    result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight)
     
-    ; Find text characters in the name region
-    if (ok := FindText(&X, &Y, searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.05, FindText().PicN(nameChars))) {
-        ; Filter and manually assemble characters (same as test function)
-        cleanChars := Array()
-        for i, char in ok {
-            ; Skip apostrophes and noise characters
-            if (char.id == "'") {
-                continue
-            }
-            
-            tooClose := false
-            for j, existingChar in cleanChars {
-                if (Abs(char.x - existingChar.x) < 8 && Abs(char.y - existingChar.y) < 8) {
-                    tooClose := true
-                    break
-                }
-            }
-            if (!tooClose) {
-                cleanChars.Push(char)
-            }
-        }
-        
-        ; Sort characters by X coordinate and build string manually
-        if (cleanChars.Length > 0) {
-            ; Sort characters by X coordinate (left to right)
-            Loop cleanChars.Length - 1 {
-                i := A_Index
-                Loop cleanChars.Length - i {
-                    j := A_Index
-                    if (cleanChars[j].x > cleanChars[j+1].x) {
-                        temp := cleanChars[j]
-                        cleanChars[j] := cleanChars[j+1] 
-                        cleanChars[j+1] := temp
-                    }
-                }
-            }
-            
-            ; Build string from sorted characters
-            extractedName := ""
-            for i, char in cleanChars {
-                extractedName .= char.id
-            }
-            
-            ; Clean up any remaining artifacts
-            extractedName := RegExReplace(extractedName, "[^a-zA-Z' -]", "")
-            finalName := Trim(extractedName)
-            
-            ; Log the final result - keep for session tracking
-            ; WriteLog("Student name extracted: '" . finalName . "'")
-            return finalName
-        }
-    }
-    
-    return ""  ; Return empty if extraction failed
+    return result.text  ; Return extracted name or empty string
 }
 
 ; Suspend detection with resume option
