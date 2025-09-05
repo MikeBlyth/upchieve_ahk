@@ -100,7 +100,7 @@ WM_LBUTTONDOWN(wParam, lParam, msg, hwnd) {
         IsSelecting := true
         SelectionStartX := lParam & 0xFFFF
         SelectionStartY := lParam >> 16
-        SetCapture(hwnd)
+        DllCall("user32.dll\SetCapture", "Ptr", hwnd)
     }
 }
 
@@ -110,7 +110,7 @@ WM_LBUTTONUP(wParam, lParam, msg, hwnd) {
         IsSelecting := false
         SelectionEndX := lParam & 0xFFFF
         SelectionEndY := lParam >> 16
-        ReleaseCapture()
+        DllCall("user32.dll\ReleaseCapture")
         CompleteRegionSelection()
     }
 }
