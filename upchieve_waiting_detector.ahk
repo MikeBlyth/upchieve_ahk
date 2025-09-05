@@ -259,6 +259,7 @@ StartDetector() {
     pageRefX := pageUpperLeft.x
     pageRefY := pageUpperLeft.y
     lastPageCheck := A_TickCount  ; Track when we last found PageTarget
+    lastTooltipShow := A_TickCount  ; Track tooltip display timing
     
     ToolTip "Found 'Waiting Students' page! Starting " . modeText . " mode detector...", 10, 50
     Sleep 1000
@@ -322,14 +323,21 @@ StartDetector() {
             }
         }
         
-        ; Debug: Show current state and what we're looking for
-        stateText := "State: " . SessionState . " | "
-        if (SessionState == WAITING_FOR_STUDENT) {
-            ToolTip stateText . "Scanning for upgrade popup and waiting students...", 10, 10
-        } else if (SessionState == IN_SESSION) {
-            ToolTip stateText . "In session - monitoring for session end...", 10, 10
-        } else {
-            ToolTip stateText . "Paused", 10, 10
+        ; Debug: Show current state briefly (1 second every 5 seconds)
+        if (A_TickCount - lastTooltipShow > 5000) {
+            ; Time to show tooltip again
+            stateText := "State: " . SessionState . " | "
+            if (SessionState == WAITING_FOR_STUDENT) {
+                ToolTip stateText . "Scanning for upgrade popup and waiting students...", 10, 10
+            } else if (SessionState == IN_SESSION) {
+                ToolTip stateText . "In session - monitoring for session end...", 10, 10
+            } else {
+                ToolTip stateText . "Paused", 10, 10
+            }
+            lastTooltipShow := A_TickCount
+        } else if (A_TickCount - lastTooltipShow > 1000) {
+            ; Hide tooltip after 1 second
+            ToolTip ""
         }
         
         ; Check for upgrade popup first (relative to PageTarget)
