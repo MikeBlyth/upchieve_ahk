@@ -13,16 +13,22 @@ GetPriorityCharacter(char1, char2) {
         ; Common ambiguous pairs - lowercase
         "r,n", "n",  ; n over r
         "n,r", "n",  ; n over r (reverse order)
+        "r,m", "m",  ; n over r
+        "m,r", "m",  ; n over r (reverse order)
         "r,h", "h",  ; h over r  
         "h,r", "h",  ; h over r (reverse)
         "r,p", "p",  ; p over r
         "p,r", "p",  ; p over r (reverse)
         "n,h", "h",  ; h over n
         "h,n", "h",  ; h over n (reverse)
+        "l,h", "h",  ; h over n
+        "h,l", "h",  ; h over n (reverse)
         "c,e", "e",  ; e over c
         "e,c", "e",  ; e over c (reverse)
         "o,a", "a",  ; a over o
         "a,o", "a",  ; a over o (reverse)
+        "o,e", "e",  ; a over o
+        "e,o", "e",  ; a over o (reverse)
         "o,d", "d",  ; d over o
         "d,o", "d",  ; d over o (reverse)
         "l,i", "l",  ; l over i
@@ -33,8 +39,8 @@ GetPriorityCharacter(char1, char2) {
         "d,l", "d",  ; d over l (reverse)
         "m,n", "m",  ; m over n
         "n,m", "m",  ; m over n (reverse)
-        "q,d", "q",  ; q over d
-        "d,q", "q",  ; q over d (reverse)
+        "q,d", "d",  ; q over d
+        "d,q", "d",  ; q over d (reverse)
         
         ; Uppercase pairs
         "I,b", "b",  ; b over I
@@ -149,7 +155,7 @@ LoadAlphabetCharacters() {
 }
 
 ; Extract text from a specified screen region with configurable parameters
-ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.05, proximityThreshold := 8, useJoinText := false) {
+ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, proximityThreshold := 8, useJoinText := false) {
     ; Define character set for names
     nameChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"
     X := ""
