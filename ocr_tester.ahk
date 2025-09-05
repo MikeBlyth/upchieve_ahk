@@ -18,14 +18,14 @@ HasSelection := false
 LoadAlphabetCharacters()
 
 ; Create main GUI
-MainGui := Gui("+Resize +MinSize400x300", "OCR Parameter Tester")
+MainGui := Gui("+Resize +MinSize400x300 +AlwaysOnTop", "OCR Parameter Tester")
 MainGui.OnEvent("Close", (*) => ExitApp())
 
 ; Region Selection Section
 MainGui.AddText("Section", "1. Region Selection:")
 RegionText := MainGui.AddText("w300 h20", "Click 'Select Region' then drag on screen to select area")
 SelectBtn := MainGui.AddButton("w100 h30", "Select Region")
-SelectBtn.OnEvent("Click", StartRegionSelection)
+SelectBtn.OnEvent("Click", (*) => StartRegionSelection())
 
 ; Current selection display
 CurrentRegionText := MainGui.AddText("w300 h20", "No region selected")
@@ -56,8 +56,10 @@ ProximityEdit.OnEvent("Change", (*) => ProximitySlider.Value := Integer(Proximit
 
 ; Test Section
 MainGui.AddText("Section xm y+20", "3. Testing:")
-TestBtn := MainGui.AddButton("w100 h30", "Test OCR")
-TestBtn.OnEvent("Click", RunOCRTest)
+AutoReloadCheckbox := MainGui.AddCheckbox("Checked", "Auto-reload alphabet on each test")
+JoinTextCheckbox := MainGui.AddCheckbox("xm", "Use JoinText (sequential character matching)")
+TestBtn := MainGui.AddButton("xm w100 h30", "Test OCR")
+TestBtn.OnEvent("Click", (*) => RunOCRTest())
 
 ; Results Section
 MainGui.AddText("Section xm y+10", "4. Results:")
@@ -72,68 +74,55 @@ MainGui.Show()
 
 ; Function to start region selection
 StartRegionSelection() {
+    global SelectionStartX, SelectionStartY, SelectionEndX, SelectionEndY, IsSelecting
+    
     MainGui.Hide()
-    RegionText.Value := "Click and drag on screen to select region. Press ESC to cancel."
     
-    ; Set up mouse hooks for region selection
-    SetupRegionSelection()
-}
-
-; Setup region selection with mouse hooks
-SetupRegionSelection() {
-    ; Install mouse hook
-    OnMessage(0x0201, WM_LBUTTONDOWN)  ; Left button down
-    OnMessage(0x0202, WM_LBUTTONUP)    ; Left button up  
-    OnMessage(0x0200, WM_MOUSEMOVE)    ; Mouse move
-    
-    ; Show instruction tooltip
+    ; Show instruction and wait for click
     ToolTip("Click and drag to select region. Press ESC to cancel.", A_ScreenWidth/2, A_ScreenHeight/2)
     
-    ; Wait for ESC key or selection completion
-    Hotkey("Esc", CancelRegionSelection, "On")
-}
-
-; Mouse event handlers for region selection
-WM_LBUTTONDOWN(wParam, lParam, msg, hwnd) {
-    global
-    if (!IsSelecting) {
-        IsSelecting := true
-        SelectionStartX := lParam & 0xFFFF
-        SelectionStartY := lParam >> 16
-        DllCall("user32.dll\SetCapture", "Ptr", hwnd)
+    ; Set up hotkey to cancel
+    Hotkey("Esc", (*) => CancelRegionSelection(), "On")
+    
+    ; Use simple click-drag detection
+    KeyWait("LButton", "D")  ; Wait for left button down
+    
+    ; Check if ESC was pressed
+    if (GetKeyState("Esc", "P")) {
+        CancelRegionSelection()
+        return
     }
-}
-
-WM_LBUTTONUP(wParam, lParam, msg, hwnd) {
-    global
-    if (IsSelecting) {
-        IsSelecting := false
-        SelectionEndX := lParam & 0xFFFF
-        SelectionEndY := lParam >> 16
-        DllCall("user32.dll\ReleaseCapture")
-        CompleteRegionSelection()
-    }
-}
-
-WM_MOUSEMOVE(wParam, lParam, msg, hwnd) {
-    global
-    if (IsSelecting) {
-        ; Update selection end point for visual feedback if implemented
-        SelectionEndX := lParam & 0xFFFF
-        SelectionEndY := lParam >> 16
-    }
+    
+    ; Get start position
+    MouseGetPos(&SelectionStartX, &SelectionStartY)
+    IsSelecting := true
+    
+    ; Wait for drag completion
+    KeyWait("LButton", "U")  ; Wait for left button up
+    
+    ; Get end position
+    MouseGetPos(&SelectionEndX, &SelectionEndY)
+    IsSelecting := false
+    
+    ; Debug: Show what we captured
+    ToolTip("Start: " . SelectionStartX . "," . SelectionStartY . " End: " . SelectionEndX . "," . SelectionEndY, A_ScreenWidth/2, A_ScreenHeight/2)
+    Sleep(2000)
+    ToolTip()
+    
+    ; Complete selection
+    CompleteRegionSelection()
 }
 
 ; Complete the region selection
 CompleteRegionSelection() {
-    global
+    global SelectionStartX, SelectionStartY, SelectionEndX, SelectionEndY, HasSelection, CurrentRegionText
     
-    ; Clean up hooks
-    OnMessage(0x0201, WM_LBUTTONDOWN, 0)  ; Remove hook
-    OnMessage(0x0202, WM_LBUTTONUP, 0) 
-    OnMessage(0x0200, WM_MOUSEMOVE, 0)
-    Hotkey("Esc", CancelRegionSelection, "Off")
+    ; Clean up
+    Hotkey("Esc", (*) => CancelRegionSelection(), "Off")
     ToolTip()
+    
+    ; Debug: Check what values we have here
+    MsgBox("Debug in CompleteRegionSelection:`nStart: " . SelectionStartX . "," . SelectionStartY . "`nEnd: " . SelectionEndX . "," . SelectionEndY, "Debug", "OK")
     
     ; Ensure proper coordinate order (top-left to bottom-right)
     x1 := Min(SelectionStartX, SelectionEndX)
@@ -159,13 +148,10 @@ CompleteRegionSelection() {
 
 ; Cancel region selection
 CancelRegionSelection() {
-    global
+    global IsSelecting, RegionText
     
-    ; Clean up hooks
-    OnMessage(0x0201, WM_LBUTTONDOWN, 0)
-    OnMessage(0x0202, WM_LBUTTONUP, 0)
-    OnMessage(0x0200, WM_MOUSEMOVE, 0)
-    Hotkey("Esc", CancelRegionSelection, "Off")
+    ; Clean up
+    Hotkey("Esc", (*) => CancelRegionSelection(), "Off")
     ToolTip()
     
     IsSelecting := false
@@ -182,44 +168,90 @@ RunOCRTest() {
         return
     }
     
-    ; Show that we're reloading
-    ResultText.Value := "Reloading alphabet characters and testing..."
-    
-    ; Reload alphabet characters to pick up any changes
-    LoadAlphabetCharacters()
+    ; Check if we should reload alphabet
+    if (AutoReloadCheckbox.Value) {
+        ResultText.Value := "Reloading alphabet characters and testing..."
+        ; Reload alphabet characters to pick up any changes
+        LoadAlphabetCharacters()
+    } else {
+        ResultText.Value := "Testing with current alphabet..."
+    }
     
     ; Get current parameter values
     tolerance1 := Float(Tolerance1Edit.Value)
     tolerance2 := Float(Tolerance2Edit.Value)  
     proximityThreshold := Integer(ProximityEdit.Value)
     
+    ; Get JoinText option
+    useJoinText := JoinTextCheckbox.Value
+    
     ; Run OCR with current parameters
-    result := ExtractTextFromRegion(SelectionStartX, SelectionStartY, SelectionEndX, SelectionEndY, tolerance1, tolerance2, proximityThreshold)
+    result := ExtractTextFromRegion(SelectionStartX, SelectionStartY, SelectionEndX, SelectionEndY, tolerance1, tolerance2, proximityThreshold, useJoinText)
     
-    ; Display main result
+    ; Display main result with method indicator
+    methodText := result.HasOwnProp("method") ? " [" . result.method . "]" : ""
     if (result.text != "") {
-        ResultText.Value := "Extracted Text: '" . result.text . "'"
+        ResultText.Value := "Extracted Text: '" . result.text . "'" . methodText
     } else {
-        ResultText.Value := "No text extracted from selected region"
+        ResultText.Value := "No text extracted from selected region" . methodText
     }
     
-    ; Display character details
-    charDetails := "Found " . result.chars.Length . " clean characters"
-    if (result.rawChars.Length > 0) {
-        charDetails .= " (from " . result.rawChars.Length . " raw detections)`n`n"
+    ; Display character details (adapted for JoinText vs Individual methods)
+    if (useJoinText) {
+        charDetails := "JoinText Method: Found " . result.chars.Length . " matches`n`n"
     } else {
-        charDetails .= "`n`n"
+        charDetails := "Individual Method: Found " . result.chars.Length . " clean characters"
+        if (result.rawChars.Length > 0) {
+            charDetails .= " (from " . result.rawChars.Length . " raw detections)`n`n"
+        } else {
+            charDetails .= "`n`n"
+        }
     }
     
-    ; Show individual character info
-    for i, char in result.chars {
-        charDetails .= i . ": '" . char.id . "' at (" . char.x . "," . char.y . ")`n"
-    }
-    
-    if (result.chars.Length == 0 && result.rawChars.Length > 0) {
-        charDetails .= "`nRaw detections (filtered out):`n"
-        for i, char in result.rawChars {
-            charDetails .= i . ": '" . char.id . "' at (" . char.x . "," . char.y . ")`n"
+    ; Show results based on method
+    if (useJoinText) {
+        ; For JoinText, show the matches found
+        if (result.chars.Length > 0) {
+            charDetails .= "JOINTEXT MATCHES:`n"
+            for i, match in result.chars {
+                charDetails .= i . ": '" . match.id . "' at (" . match.x . "," . match.y . ")`n"
+            }
+        }
+    } else {
+        ; For Individual method, show clean characters (after filtering and prioritization)
+        if (result.chars.Length > 0) {
+            charDetails .= "CLEAN CHARACTERS (final result):`n"
+            for i, char in result.chars {
+                charDetails .= i . ": '" . char.id . "' at (" . char.x . "," . char.y . ")`n"
+            }
+        }
+        
+        ; Always show raw detections for analysis, sorted by x-location
+        if (result.rawChars.Length > 0) {
+            ; Sort raw characters by X coordinate
+            sortedRawChars := result.rawChars.Clone()
+            Loop sortedRawChars.Length - 1 {
+                i := A_Index
+                Loop sortedRawChars.Length - i {
+                    j := A_Index
+                    if (sortedRawChars[j].x > sortedRawChars[j+1].x) {
+                        temp := sortedRawChars[j]
+                        sortedRawChars[j] := sortedRawChars[j+1] 
+                        sortedRawChars[j+1] := temp
+                    }
+                }
+            }
+            
+            charDetails .= "`nRAW DETECTIONS (sorted by x-location):`n"
+            for i, char in sortedRawChars {
+                charDetails .= char.x . " " . char.id . "`n"
+            }
+        }
+        
+        ; Show filtering summary
+        if (result.rawChars.Length != result.chars.Length) {
+            filtered := result.rawChars.Length - result.chars.Length
+            charDetails .= "`nFiltering: " . result.rawChars.Length . " raw -> " . result.chars.Length . " clean (" . filtered . " removed)`n"
         }
     }
     

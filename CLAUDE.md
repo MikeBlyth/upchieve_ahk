@@ -4,7 +4,9 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 
 ## Files Created
 - `upchieve_waiting_detector.ahk` - Main script file
-- `alphabet.ahk` - Character patterns for name recognition
+- `alphabet.ahk` - Character patterns for name recognition (array format)
+- `ocr_functions.ahk` - Shared OCR functions for both detector and tester
+- `ocr_tester.ahk` - Standalone OCR testing application for tuning
 - `debug_log.txt` - OCR troubleshooting and results log
 - `block_names.txt` - Optional list of student names to skip (one per line)
 
@@ -56,12 +58,28 @@ The script now tracks three states to prevent unwanted scanning during active se
    - Shows personalized message: "Session with [Name] has opened" / "Found student [Name] waiting"
    - Continues monitoring for additional students (until Ctrl+Shift+Q or Ctrl+Shift+H)
 
-## Student Name Extraction
+## OCR System Architecture
+
+### Core Components
+- **alphabet.ahk**: Simplified array-based character patterns for A-Z, a-z, apostrophes, hyphens
+- **ocr_functions.ahk**: Shared OCR functions with pair-based character prioritization
+- **ocr_tester.ahk**: Standalone testing application for parameter tuning and pattern development
+
+### Student Name Extraction
 - **Search Region**: 720px left of WaitingTarget, 400px wide, 80px tall
-- **Tolerance**: (0.15, 0.05) optimized for grey background
-- **Filtering**: Removes noise characters (apostrophes) and proximity duplicates
-- **Assembly**: Manual character sorting by X-coordinate for reliable results
-- **Logging**: Results logged to debug_log.txt with timestamps
+- **Dual OCR Methods**: 
+  - Individual character matching with proximity filtering and prioritization
+  - JoinText sequential character matching (experimental)
+- **Character Prioritization**: Pair-based priority system (e.g., 'n' over 'r', 'd' over 'l')
+- **Proximity Filtering**: Configurable threshold to handle overlapping character detections
+- **Dynamic Alphabet Reloading**: Patterns can be updated and reloaded without restarting
+
+### OCR Testing Application
+- **Region Selection**: Click-and-drag screen region selection
+- **Parameter Controls**: Adjustable tolerance values and proximity thresholds
+- **Method Comparison**: Test both Individual and JoinText approaches
+- **Real-time Results**: Shows both clean characters and raw detections
+- **Pattern Development**: Auto-reload alphabet patterns for rapid iteration
 
 ## Student Blocking System
 - **Block File**: `block_names.txt` (optional, created by user)
@@ -106,3 +124,16 @@ Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 - AutoHotkey v2.0+
 - FindTextv2.ahk (included)
 - alphabet.ahk (character patterns for A-Z, a-z, apostrophe, hyphen)
+
+## Recent Improvements
+- **Modular Architecture**: Separated OCR functions into shared library
+- **Array-based Alphabet**: Simplified character pattern management from 60+ variables to single array
+- **Pair-based Prioritization**: Fixed character conflict resolution using explicit pair priorities
+- **OCR Testing Tool**: Built standalone application for rapid pattern development and parameter tuning
+- **Enhanced Debug Output**: Added sorted raw character display and method comparison
+- **Dynamic Reloading**: Alphabet patterns can be updated without application restart
+
+## Known Issues
+- JoinText method requires further refinement for optimal results
+- Character prioritization may need adjustment for specific font variations
+- Proximity threshold may need tuning based on screen resolution and font size
