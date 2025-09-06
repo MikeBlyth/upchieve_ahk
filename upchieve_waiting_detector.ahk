@@ -681,20 +681,20 @@ StartDetector() {
             Y := ""
             if (result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0.15, 0.05, WaitingTarget)) {
             global LiveMode
-            ToolTip "Found waiting student! Extracting name...", 10, 10
+            ToolTip "Found waiting student! Extracting and validating name...", 10, 10
             
-            ; Step 1: Extract student name and topic (RAW OCR only, no validation yet)
-            rawStudentName := ExtractStudentNameRaw(X, Y)
-            rawTopic := ExtractTopicRaw(X, Y)
+            ; Step 1: Extract and VALIDATE student name and topic (with corrections and confirmation)
+            validatedName := ExtractStudentNameValidated(X, Y)
+            validatedTopic := ExtractTopicValidated(X, Y)
             
-            ; Step 2: Check if RAW name is blocked BEFORE clicking
+            ; Step 2: Check if VALIDATED name is blocked BEFORE clicking
             global BlockedNames
-            if (rawStudentName != "" && IsNameBlocked(rawStudentName, BlockedNames)) {
-                WriteAppLog("BLOCKED: " . rawStudentName . " - student on block list (raw OCR)")
+            if (validatedName != "" && IsNameBlocked(validatedName, BlockedNames)) {
+                WriteAppLog("BLOCKED: " . validatedName . " - student on block list")
                 continue  ; Skip this student and continue monitoring
             }
             
-            ; Step 3: Click IMMEDIATELY (don't wait for name validation)
+            ; Step 3: Click the student (name validation and confirmation already completed)
             if (LiveMode) {
                 ; First click to activate window
                 Click X, Y
@@ -702,9 +702,9 @@ StartDetector() {
                 ; Second click to select student
                 Click X, Y
                 
-                ; Step 4: NOW validate the name and topic after clicking
-                validatedName := ExtractStudentNameValidated(X, Y)
-                validatedTopic := ExtractTopicValidated(X, Y)
+                ; IMMEDIATELY change state to IN_SESSION after clicking
+                global SessionState
+                SessionState := IN_SESSION
                 
                 ; Update session tracking variables
                 global LastStudentName, LastStudentTopic, SessionStartTime
@@ -724,23 +724,14 @@ StartDetector() {
                     ToolTip(toolTipMessage . " has opened", 10, 50)
                     SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
                 } else {
-                    logMessage := "Session started with unknown student (OCR: '" . rawStudentName . "')"
-                    if (rawTopic != "") {
-                        logMessage .= ", topic: '" . rawTopic . "'"
-                    }
+                    ; This should rarely happen since validation occurred
+                    logMessage := "Session started with student (name unclear after validation)"
                     ; Session details will be logged via end-session CSV dialog
-                    ToolTip("Session with student has opened (name unclear)", 10, 50) 
+                    ToolTip("Session with student has opened", 10, 50) 
                     SetTimer(() => ToolTip(), -3000)
                 }
-                
-                ; Change state to IN_SESSION after clicking
-                global SessionState
-                SessionState := IN_SESSION
             } else {
-                ; Validate name and topic for testing mode too
-                validatedName := ExtractStudentNameValidated(X, Y)
-                validatedTopic := ExtractTopicValidated(X, Y)
-                
+                ; TESTING mode - validation already completed above
                 ; Update session tracking variables
                 global LastStudentName, LastStudentTopic, SessionStartTime
                 LastStudentName := validatedName
@@ -749,7 +740,7 @@ StartDetector() {
                 
                 ; Log session start in testing mode with topic
                 if (validatedName != "") {
-                    logMessage := "TESTING: Session started with " . validatedName
+                    logMessage := "TESTING: Found student " . validatedName
                     toolTipMessage := "Found student " . validatedName
                     if (validatedTopic != "") {
                         logMessage .= ", " . validatedTopic
@@ -759,12 +750,9 @@ StartDetector() {
                     ToolTip(toolTipMessage . " waiting", 10, 50)
                     SetTimer(() => ToolTip(), -3000)
                 } else {
-                    logMessage := "TESTING: Session started with unknown student (OCR: '" . rawStudentName . "')"
-                    if (rawTopic != "") {
-                        logMessage .= ", topic: '" . rawTopic . "'"
-                    }
+                    logMessage := "TESTING: Found student waiting (name unclear after validation)"
                     ; Session details will be logged via end-session CSV dialog
-                    ToolTip("Found student waiting (name unclear)", 10, 50)
+                    ToolTip("Found student waiting", 10, 50)
                     SetTimer(() => ToolTip(), -3000)
                 }
                 ; In testing mode, also simulate being in session for state testing
