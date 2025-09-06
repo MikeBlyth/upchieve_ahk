@@ -53,14 +53,15 @@ The script now tracks three states to prevent unwanted scanning during active se
 4. **Manual control**: Ctrl+Shift+R hotkey to manually resume from IN_SESSION state
 
 ## How It Works
-1. Searches full screen for PageTarget ("Waiting Students" page) to establish reference coordinates
-2. Calculates upper-left reference point for window-position independence  
-3. Enters monitoring loop (scans every 0.05 seconds with 10-second PageTarget re-detection)
-4. When WaitingTarget ("< 1 minute") is found:
+1. **Initial Setup**: Searches full screen for PageTarget ("Waiting Students" page header) to establish reference coordinates
+2. **Header Detection**: Locates Student, Help Topic, and Wait Time column headers for precise positioning
+3. **Monitoring Loop**: Scans every 0.05 seconds with 10-second PageTarget/header re-detection
+4. **Student Detection**: When WaitingTarget ("< 1 minute") is found in Wait Time column:
    - **Immediately clicks** student (200ms delay between clicks) in LIVE mode for minimal delay
-   - **Raw OCR extraction** of student name from region 720px left of indicator
+   - **Simultaneous OCR extraction** of student name (Student column) and topic (Help Topic column)
    - **Post-click validation** with fuzzy matching and interactive correction dialog
-   - Shows personalized message: "Session with [Name] has opened" / "Found student [Name] waiting"
+   - **Enhanced logging**: "Session started with [Name], [Topic]" format
+   - Shows personalized message: "Session with [Name] ([Topic]) has opened"
    - Continues monitoring for additional students (until Ctrl+Shift+Q or Ctrl+Shift+H)
 
 ## OCR System Architecture
@@ -87,6 +88,16 @@ The script now tracks three states to prevent unwanted scanning during active se
 - **Learning System**: Automatically saves corrections to `student_corrections.txt`
 - **Performance Optimization**: Fast raw OCR extraction followed by post-click validation
 - **Whitespace Handling**: Proper trimming of leading/trailing spaces in student names
+
+### Topic Validation System
+- **Known Subjects Database**: Pre-defined list of 10 official Upchieve subjects
+  - 6th Grade Math, 7th Grade Math, 8th Grade Math
+  - Pre-algebra, Algebra, Integrated Math, Statistics
+  - Middle School Science, Computer Science A, Computer Science Principles
+- **Automatic Validation**: Fuzzy matching with edit distance algorithm
+- **Tolerance Levels**: 3-character tolerance for short topics, 4-character for longer names
+- **Fallback Processing**: Returns cleaned OCR result if no close match found
+- **Silent Correction**: Corrects common OCR errors without user intervention
 
 ### OCR Testing Application
 - **Region Selection**: Click-and-drag screen region selection
@@ -123,11 +134,21 @@ Upper-left x-coordinate: OutputVar.1.x - OutputVar.1.w / 2
 Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 ```
 
-### Search Zones (Relative to PageTarget4)
-- **PageTarget4 (Waiting Students)**: Full screen search to find reference point (143×16 pixels)
-- **WaitingTarget (< 1 minute)**: Offset (334, 309) from PageTarget upper-left, size 334×235
-- **UpgradeTarget (Update popup)**: Offset (654, 130) from PageTarget upper-left, size 325×300  
-- **Student Name Region**: 720px left of WaitingTarget, size 400×80
+### Header-Based Search Zones (Current System)
+The system now uses column headers to precisely locate search areas:
+
+- **Student Header** (`StudentHeaderTarget`): "Student" column header (71×25 pixels)
+- **Help Header** (`HelpHeaderTarget`): "Help Topic" column header (71×25 pixels)  
+- **Wait Time Header** (`WaitTimeHeaderTarget`): "Wait Time" column header (97×25 pixels)
+
+**Search Areas** (positioned below headers):
+- **Student Name Region**: StudentHeader position + 100px down ± 25px slack, 450×80 pixels
+- **Help Topic Region**: HelpHeader position + 100px down ± 25px slack, 450×80 pixels
+- **Wait Time Search**: WaitTimeHeader position + 100px down ± 25px slack, 384×235 pixels
+
+**Fallback Zones** (when headers not found):
+- **WaitingTarget (< 1 minute)**: Offset (334, 309) from PageTarget4 upper-left, size 334×235
+- **UpgradeTarget (Update popup)**: Offset (654, 130) from PageTarget4 upper-left, size 325×300
 
 ### Original Absolute Coordinates (3200×2000 screen reference)
 - PageTarget: (891, 889) to (1446, 1149)

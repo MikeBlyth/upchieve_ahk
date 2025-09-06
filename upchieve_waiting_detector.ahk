@@ -41,6 +41,20 @@ UpgradeTarget :="|<Upgrade>*197$75.zzzzzzzzzzzzzzzzzzzzzzzzzszss07zU7w07z7z700Ds
 EndSessionTarget :="|<EndSession>*194$193.00C0000000000000000000000000000000C0000000000000000000000000000000C0000000000000000000000000000000C0000000000000000000000000000000C000000000000000000000000000000060000000000000000000000000000000600000000000000000000000000000007000000000000000000000000000000030000000000000000000000000000000300000000000000000000000000000003U0000000000000000000000000000001U0000000000000000000000000000000k0000000000000000000000000000000k0000000000000000000000000000000M0000000000000000000000000000000Q0000000000000000000000000000000A000000000000000000000000000000060000000000000000S0000000000000070000000000000000D00000000000000300000000zzw000007U007w0000000001U0000000Tzy000003k00DzU000000000k0000000Dzz000001s00Dzs000000000s00000007U0000000w00D0S000000000M00000003k0000000S00D07000000000A00000001s00STU0zD007U103w03w0Ds600000000w00DTs0zzU03k007zU7zUTz300000000S007zy0zzk01w007zs7zsDzlU0000000D003w7Uw3s00zU07US7UQD1sk00000007zw1w3kS0w00DzU3U73k470MM00000003zy0w0sS0S003zw3k3Vs03k0A00000001zz0S0QD0D000TzVzzkzU1y0600000000w00D0C7U7U000zkzzsDz0Tw300000000S007U73k3k0001wTzw1zk3zVU0000000D003k3Vs1s0000SD0007w0Dsk00000007U01s1kw0w0080D7U000D00wQ00000003k00w0sD0S00C07Vs20U7V0C600000001s00S0Q7UT007k7Uw3ks3lkD300000000zzwD0C1zzU01zzUDzkTzkzzVU0000000Tzy7U70Txk00TzU3zk7zkDzUs0000000Dzz3k3U7ss003z00Tk0zU1z0A0000000000000000000000000000000600000000000000000000000000000003U0000000000000000000000000000000k0000000000000000000000000000000M000000000000000000000000000000060000000000000000000000000000000300000000000000000000000000000001k0000000000000000000000000000000M0000000000000000000000000000000600000000000000000000000000000003U0000000000000000000000000000000k0000000000000000000000000000000A0000000000000000000000000000000700000000000000000000000000000001k0000000000000000000000000000000Q0000000000000000000000000000000700000000000000000000000000000001k0000000000000000000000000000000Q0000000000000000000000000000000700000000000000000000000000000001s0000000000000000000000000000E"
 FinishTarget :="|<Finish>*225$127.01000000000000000000001U00000000000000000001U00000000000000000000U00000000000000000000k00000000000000000000E00000000000000000000E00000000000000000000M00000000000000000000800000000000000000000400000000000000000000400000000000000000000200000000000000000000300000000000000000000100000000000T0000w0000U0000000000DU000z0000E0000000Dzz7k000TU000M00000007zzXk0007U000800000003zzk000000000400000001s00000000000200000000w00000000000100000000S00D1tz0S0zk0U0000000D007UzzkD0zy0k00000007U03kTzw7Uzz0M00000003k01sDky3ky7kA00000001zz0w7kD1sS1k600000000zzkS3s7kwDU0300000000TzsD1s3sS7y01U0000000D007Uw1wD1zs0E00000007U03kS0y7UTz0800000003k01sD0T3k1zk400000001s00w7UDVs03s200000000w00S3k7kw60w100000000S00D1s3sS7Uy0k0000000D007Uw1wD3zz0800000007U03kS0y7Uzz0400000003k01sD0T3k7y02000000000000000000001U00000000000000000000E000000000000000000008000000000000000000002000000000000000000001000000000000000000000k0000000000000000000E"
 
+StudentHeaderTarget := "|<Student>*146$71.00000000000000000000001w3z00k000003sTzUDU000007nzzkT000000Djzzky000000TTUT1w000000yy0QTznw7k3txw0EzzbsDUTvvy01zzDkT1zzrzk3zyTUy3zzjzw0y0z1wDkzDzy1w1y3sT0yDzy3s3w7ky1w3zw7k7sDVw3s0TsDUDkT3s7m0DkT0TUy7kDa0DUy0z1wDUTT0z1w1y7sTVzzzy3zlzzkzzxzzs7zXzzUzztzzU7z3zD0znkTs03w3wS0T7U00000000000000000000001"
+HelpHeaderTarget := "|<HelpHeader>*147$71.0000000000000000000z0001y0T0001y0003w0y0003w0007s1w0007s000Dk3s000Dk000TU7k000TU000z0DU3w0z1sy1y0T0Ty1y3nz3w0y1zy3w7jz7s1w7zy7sDzyDzzsTVyDkTVyTzzky1wTUy3wzzzVzzsz1w3tzzz3zzly3s7nw0y7zzXw7kDbs1wDU07sDUTDk3sT00DkT1yTU7kz1sTUz3wz0DUzzkztzzly0T0zzUznzzXw0y0zy1z7ry7s1w0Tk1yDbk000000000T00000000000y01"
+WaitTimeHeaderTarget:="|<WaitTime>*148$97.000000000000000000000000D0000000C0z0T000Dk3007zzzUTUDU007sDU03zzzkDkDk003w7k01zzzs7s7s000w3s00zzzw3y3s00001w000DUS3z1w3y0Tbzw007kDVzUy7zkDnzy003s7kzky7zw7tzz001w3sQsT3zz3wzzU00y1wSSDXsTVy3s000T0yDD7UQ7kz1w000DUDbbXk07sTUy0007k7nnns0zwDkT0003s3tkxw3zy7sDU001w0xsSw3wT3w7k000y0TwDy3sDVy3s000T0Dy7z1wDkz1y000DU7y1z0zzyTUzw007k1z0zUTzzDkTy003s0zUTk7zTbs7z001w0TkDs1y7nw0z000y000000000000000000000000000000000E"
+
+if (ok:=FindText(&X, &Y, 802-150000, 1414-150000, 802+150000, 1414+150000, 0, 0, Text))
+{
+  ; FindText().Click(X, Y, "L")
+}
+
+if (ok:=FindText(&X, &Y, 428-150000, 1414-150000, 428+150000, 1414+150000, 0, 0, Text))
+{
+  ; FindText().Click(X, Y, "L")
+}
+
 
 ; Log function
 WriteLog(message) {
@@ -50,8 +64,80 @@ WriteLog(message) {
 }
 
 ; Convert FindText midpoint coordinates to upper-left coordinates
-GetUpperLeft(centerX, centerY, width, height) {
-    return {x: centerX - width / 2, y: centerY - height / 2}
+; Supports both explicit dimensions and automatic parsing from target patterns
+GetUpperLeft(centerX, centerY, widthOrTarget, height := 25) {
+    ; If third parameter is a string (target pattern), parse dimensions from it
+    if (Type(widthOrTarget) == "String") {
+        ; Parse width from target pattern format: "|<name>*tolerance$width.hexdata"
+        if (RegExMatch(widthOrTarget, "\$(\d+)\.", &match)) {
+            width := Integer(match[1])
+            return {x: centerX - width / 2, y: centerY - height / 2}
+        }
+        ; Fallback if pattern parsing fails
+        return {x: centerX - 50, y: centerY - 12}  ; Assume 100px width, 25px height
+    }
+    ; Otherwise treat as explicit width (original behavior)
+    else {
+        width := widthOrTarget
+        return {x: centerX - width / 2, y: centerY - height / 2}
+    }
+}
+
+; Find all header targets and store their positions for search zone calculations
+FindHeaders() {
+    global StudentHeaderTarget, HelpHeaderTarget, WaitTimeHeaderTarget
+    
+    ; Initialize header positions (will be empty if not found)
+    global studentHeaderPos := {x: 0, y: 0, found: false}
+    global helpHeaderPos := {x: 0, y: 0, found: false}
+    global waitTimeHeaderPos := {x: 0, y: 0, found: false}
+    
+    ; Search for Student Header
+    X := ""
+    Y := ""
+    if (result := FindText(&X, &Y, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.05, StudentHeaderTarget)) {
+        upperLeft := GetUpperLeft(X, Y, StudentHeaderTarget)
+        studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+    }
+    
+    ; Search for Help Header
+    X := ""
+    Y := ""
+    if (result := FindText(&X, &Y, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.05, HelpHeaderTarget)) {
+        upperLeft := GetUpperLeft(X, Y, HelpHeaderTarget)
+        helpHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+    }
+    
+    ; Search for Wait Time Header
+    X := ""
+    Y := ""
+    if (result := FindText(&X, &Y, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.05, WaitTimeHeaderTarget)) {
+        upperLeft := GetUpperLeft(X, Y, WaitTimeHeaderTarget)
+        waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+    }
+    
+    ; Log header detection results
+    headersFound := 0
+    headerStatus := ""
+    if (studentHeaderPos.found) {
+        headersFound++
+        headerStatus .= "Student "
+    }
+    if (helpHeaderPos.found) {
+        headersFound++
+        headerStatus .= "Help "
+    }
+    if (waitTimeHeaderPos.found) {
+        headersFound++
+        headerStatus .= "WaitTime "
+    }
+    
+    ; Log detailed results if not all headers found
+    if (headersFound < 3) {
+        WriteLog("Header detection: " . headersFound . "/3 found (" . Trim(headerStatus) . ")")
+    }
+    
+    return headersFound
 }
 
 ; Load blocked names from block_names.txt
@@ -96,19 +182,25 @@ IsNameBlocked(studentName, blockedNames) {
 }
 
 
-; Extract student name from region left of waiting indicator
-; Extract student name without validation (for speed)
+; Extract student name using header-based positioning with fallback
 ExtractStudentNameRaw(baseX, baseY) {
-    ; Adjust for center point: WaitingTarget is 134x35, so center is at +67,+17.5 from upper-left
-    ; To get upper-left of WaitingTarget: subtract half width and height
-    upperLeftX := baseX - 67
-    upperLeftY := baseY - 17
+    global studentHeaderPos
     
-    ; Search region: Updated based on testing (720px left, 400 wide, 80 tall)
-    searchX := upperLeftX - 720
-    searchY := upperLeftY - 10
-    searchWidth := 400 
-    searchHeight := 80
+    if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
+        ; Use header-based positioning: header position + 100px down, with 25px slack
+        searchX := Max(0, studentHeaderPos.x - 25)
+        searchY := Max(0, studentHeaderPos.y + 100)
+        searchWidth := Min(450, A_ScreenWidth - searchX)  ; 400 + 50 slack, bounded
+        searchHeight := Min(80, A_ScreenHeight - searchY)
+    } else {
+        ; Fallback to WaitingTarget-based positioning (original method)
+        upperLeftX := baseX - 67
+        upperLeftY := baseY - 17
+        searchX := upperLeftX - 720
+        searchY := upperLeftY - 10
+        searchWidth := 400 
+        searchHeight := 80
+    }
     
     ; Use shared OCR function with default parameters - RAW RESULT ONLY
     result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight)
@@ -129,6 +221,104 @@ ExtractStudentNameValidated(baseX, baseY) {
             WriteLog("OCR: '" . rawName . "' -> Validated: '" . validatedName . "'")
         }
         return validatedName
+    }
+    
+    return ""  ; Return empty string if no text detected
+}
+
+; Extract topic using header-based positioning with fallback
+ExtractTopicRaw(baseX, baseY) {
+    global helpHeaderPos
+    
+    if (helpHeaderPos.found && helpHeaderPos.x > 0 && helpHeaderPos.y > 0) {
+        ; Use header-based positioning: header position + 100px down, with 25px slack
+        searchX := Max(0, helpHeaderPos.x - 25)
+        searchY := Max(0, helpHeaderPos.y + 100)
+        searchWidth := Min(450, A_ScreenWidth - searchX)  ; 400 + 50 slack, bounded
+        searchHeight := Min(80, A_ScreenHeight - searchY)
+    } else {
+        ; Fallback: estimate topic position relative to student name position
+        ; Assume topic is roughly in the middle of the row
+        upperLeftX := baseX - 67
+        upperLeftY := baseY - 17
+        searchX := upperLeftX - 200  ; Position between student and wait time
+        searchY := upperLeftY - 10
+        searchWidth := 400
+        searchHeight := 80
+    }
+    
+    ; Use shared OCR function with default parameters - RAW RESULT ONLY
+    result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight)
+    
+    return result.text  ; Return raw OCR result without validation
+}
+
+; Validate topic against known Upchieve subjects with fuzzy matching
+ValidateTopicName(ocrResult) {
+    ; Define known Upchieve subjects
+    knownTopics := [
+        "6th Grade Math",
+        "7th Grade Math", 
+        "8th Grade Math",
+        "Pre-algebra",
+        "Algebra",
+        "Integrated Math",
+        "Statistics",
+        "Middle School Science",
+        "Computer Science A",
+        "Computer Science Principles"
+    ]
+    
+    cleanOCR := Trim(ocrResult)
+    if (cleanOCR == "") {
+        return ""
+    }
+    
+    ; First try exact matches (case insensitive)
+    for topic in knownTopics {
+        if (cleanOCR = topic) {
+            return topic
+        }
+    }
+    
+    ; Then try fuzzy matching with edit distance
+    bestMatch := ""
+    bestDistance := 999
+    
+    for topic in knownTopics {
+        distance := EditDistance(StrLower(cleanOCR), StrLower(topic))
+        ; Allow more tolerance for longer topic names
+        threshold := (StrLen(topic) > 15) ? 4 : 3
+        
+        if (distance <= threshold && distance < bestDistance) {
+            bestDistance := distance
+            bestMatch := topic
+        }
+    }
+    
+    ; If we found a close match, return it
+    if (bestMatch != "") {
+        return bestMatch
+    }
+    
+    ; No close match found - return cleaned OCR result
+    cleanTopic := RegExReplace(cleanOCR, "[^\w\s\-'/]", "")
+    return cleanTopic
+}
+
+; Extract and validate topic (for post-click processing)
+ExtractTopicValidated(baseX, baseY) {
+    ; Get raw OCR result
+    rawTopic := ExtractTopicRaw(baseX, baseY)
+    
+    ; Validate against known topics
+    if (rawTopic != "") {
+        validatedTopic := ValidateTopicName(rawTopic)
+        ; Log if correction was made
+        if (rawTopic != validatedTopic && validatedTopic != "") {
+            ; WriteLog("Topic OCR: '" . rawTopic . "' -> Validated: '" . validatedTopic . "'")
+        }
+        return validatedTopic
     }
     
     return ""  ; Return empty string if no text detected
@@ -212,16 +402,17 @@ StartDetector() {
         Sleep 100
     }
     
-    ; PageTarget found - calculate upper-left reference point
-    ; PageTarget dimensions: width=320, height=45
-    ; TODO: Consider converting to modern FindTextv2 object syntax in the future
-    pageUpperLeft := GetUpperLeft(X, Y, 320, 45)
+    ; PageTarget found - calculate upper-left reference point and find headers
+    pageUpperLeft := GetUpperLeft(X, Y, PageTarget)
     pageRefX := pageUpperLeft.x
     pageRefY := pageUpperLeft.y
     lastPageCheck := A_TickCount  ; Track when we last found PageTarget
     lastTooltipShow := A_TickCount  ; Track tooltip display timing
     
-    ToolTip "Found 'Waiting Students' page! Starting " . modeText . " mode detector...", 10, 50
+    ; Find all header targets for precise search zone positioning
+    headersFound := FindHeaders()
+    
+    ToolTip "Found 'Waiting Students' page! Found " . headersFound . "/3 headers. Starting " . modeText . " mode detector...", 10, 50
     Sleep 1000
     ToolTip ""
     
@@ -237,12 +428,14 @@ StartDetector() {
             tempX := ""
             tempY := ""
             if (tempResult := FindText(&tempX, &tempY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0, 0, PageTarget)) {
-                ; PageTarget found - update reference point
-                newUpperLeft := GetUpperLeft(tempX, tempY, 320, 45)
+                ; PageTarget found - update reference point and re-find headers
+                newUpperLeft := GetUpperLeft(tempX, tempY, PageTarget)
                 if (newUpperLeft.x != pageRefX || newUpperLeft.y != pageRefY) {
                     ; WriteLog("PageTarget moved: (" . pageRefX . "," . pageRefY . ") -> (" . newUpperLeft.x . "," . newUpperLeft.y . ")")
                     pageRefX := newUpperLeft.x
                     pageRefY := newUpperLeft.y
+                    ; Re-find headers since page position changed
+                    FindHeaders()
                 }
                 lastPageCheck := A_TickCount
             } else {
@@ -267,11 +460,13 @@ StartDetector() {
                 if (continueResult = "Yes") {
                     global SessionState
                     SessionState := WAITING_FOR_STUDENT
-                    ; Use the coordinates we just found  
-                    newUpperLeft := GetUpperLeft(tempX, tempY, 320, 45)
+                    ; Use the coordinates we just found and re-find headers
+                    newUpperLeft := GetUpperLeft(tempX, tempY, PageTarget)
                     pageRefX := newUpperLeft.x
                     pageRefY := newUpperLeft.y
                     lastPageCheck := A_TickCount
+                    ; Re-find headers since we're back on the waiting page
+                    FindHeaders()
                 } else if (continueResult = "No") {
                     CleanExit()
                 } else {  ; Cancel
@@ -317,19 +512,32 @@ StartDetector() {
         
         ; Only scan for waiting students if we're in the right state
         if (SessionState == WAITING_FOR_STUDENT) {
-            ; Search for waiting student indicator (relative to PageTarget)
-            waitingX1 := pageRefX + 334
-            waitingY1 := pageRefY + 309
-            waitingX2 := waitingX1 + 334
-            waitingY2 := waitingY1 + 235
+            ; Calculate search zones based on header positions with fallback
+            global waitTimeHeaderPos
+            
+            if (waitTimeHeaderPos.found && waitTimeHeaderPos.x > 0 && waitTimeHeaderPos.y > 0) {
+                ; Use header-based positioning: header position + 100px down, with 25px slack
+                waitingX1 := Max(0, waitTimeHeaderPos.x - 25)
+                waitingY1 := Max(0, waitTimeHeaderPos.y + 100)
+                waitingX2 := Min(A_ScreenWidth, waitingX1 + 334 + 50)  ; Original width + extra slack
+                waitingY2 := Min(A_ScreenHeight, waitingY1 + 235)
+            } else {
+                ; Fallback to PageTarget-based positioning
+                waitingX1 := Max(0, pageRefX + 334)
+                waitingY1 := Max(0, pageRefY + 309)
+                waitingX2 := Min(A_ScreenWidth, waitingX1 + 334)
+                waitingY2 := Min(A_ScreenHeight, waitingY1 + 235)
+            }
+            
             X := ""
             Y := ""
             if (result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0.15, 0.05, WaitingTarget)) {
             global LiveMode
             ToolTip "Found waiting student! Extracting name...", 10, 10
             
-            ; Step 1: Extract student name (RAW OCR only, no validation yet)
+            ; Step 1: Extract student name and topic (RAW OCR only, no validation yet)
             rawStudentName := ExtractStudentNameRaw(X, Y)
+            rawTopic := ExtractTopicRaw(X, Y)
             
             ; Step 2: Check if RAW name is blocked BEFORE clicking
             global BlockedNames
@@ -346,17 +554,27 @@ StartDetector() {
                 ; Second click to select student
                 Click X, Y
                 
-                ; Step 4: NOW validate the name after clicking
+                ; Step 4: NOW validate the name and topic after clicking
                 validatedName := ExtractStudentNameValidated(X, Y)
+                validatedTopic := ExtractTopicValidated(X, Y)
                 
-                ; Log session start with validated name
+                ; Log session start with validated name and topic
                 if (validatedName != "") {
-                    WriteLog("Session started with " . validatedName)
-                    ; Show notification with validated name
-                    ToolTip("Session with " . validatedName . " has opened", 10, 50)
+                    logMessage := "Session started with " . validatedName
+                    toolTipMessage := "Session with " . validatedName
+                    if (validatedTopic != "") {
+                        logMessage .= ", " . validatedTopic
+                        toolTipMessage .= " (" . validatedTopic . ")"
+                    }
+                    WriteLog(logMessage)
+                    ToolTip(toolTipMessage . " has opened", 10, 50)
                     SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
                 } else {
-                    WriteLog("Session started with unknown student (OCR: '" . rawStudentName . "')")
+                    logMessage := "Session started with unknown student (OCR: '" . rawStudentName . "')"
+                    if (rawTopic != "") {
+                        logMessage .= ", topic: '" . rawTopic . "'"
+                    }
+                    WriteLog(logMessage)
                     ToolTip("Session with student has opened (name unclear)", 10, 50) 
                     SetTimer(() => ToolTip(), -3000)
                 }
@@ -365,16 +583,27 @@ StartDetector() {
                 global SessionState
                 SessionState := IN_SESSION
             } else {
-                ; Validate name for testing mode too
+                ; Validate name and topic for testing mode too
                 validatedName := ExtractStudentNameValidated(X, Y)
+                validatedTopic := ExtractTopicValidated(X, Y)
                 
-                ; Log session start in testing mode  
+                ; Log session start in testing mode with topic
                 if (validatedName != "") {
-                    WriteLog("TESTING: Session started with " . validatedName)
-                    ToolTip("Found student " . validatedName . " waiting", 10, 50)
+                    logMessage := "TESTING: Session started with " . validatedName
+                    toolTipMessage := "Found student " . validatedName
+                    if (validatedTopic != "") {
+                        logMessage .= ", " . validatedTopic
+                        toolTipMessage .= " (" . validatedTopic . ")"
+                    }
+                    WriteLog(logMessage)
+                    ToolTip(toolTipMessage . " waiting", 10, 50)
                     SetTimer(() => ToolTip(), -3000)
                 } else {
-                    WriteLog("TESTING: Session started with unknown student (OCR: '" . rawStudentName . "')")
+                    logMessage := "TESTING: Session started with unknown student (OCR: '" . rawStudentName . "')"
+                    if (rawTopic != "") {
+                        logMessage .= ", topic: '" . rawTopic . "'"
+                    }
+                    WriteLog(logMessage)
                     ToolTip("Found student waiting (name unclear)", 10, 50)
                     SetTimer(() => ToolTip(), -3000)
                 }
