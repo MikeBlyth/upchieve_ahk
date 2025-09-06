@@ -18,6 +18,12 @@ IN_SESSION := "IN_SESSION"
 PAUSED := "PAUSED"
 SessionState := WAITING_FOR_STUDENT
 
+; Session tracking variables
+LastStudentName := ""
+LastStudentTopic := ""
+SessionStartTime := ""
+SessionEndTime := ""
+
 ; Function to play notification sound
 PlayNotificationSound() {
     SoundBeep(800, 500)  ; 800Hz beep for 500ms
@@ -56,11 +62,24 @@ if (ok:=FindText(&X, &Y, 428-150000, 1414-150000, 428+150000, 1414+150000, 0, 0,
 }
 
 
-; Log function
+; Debug log function
 WriteLog(message) {
     logFile := "debug_log.txt"
     timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
     FileAppend timestamp . " - " . message . "`n", logFile
+}
+
+; App log function for session data in CSV format
+WriteAppLog(message) {
+    logFile := "upchieve_app.log"
+    
+    ; Create header if file doesn't exist
+    if (!FileExist(logFile)) {
+        header := "Seq,,RTime,Time,Until,W,Name,Grd,Fav,Assgn,Subject,Topic,Math,Duration,Initial response,Serious question,Left abruptly,Stopped resp,Good progress,Last msg,Comments" . "`n"
+        FileAppend header, logFile
+    }
+    
+    FileAppend message . "`n", logFile
 }
 
 ; Convert FindText midpoint coordinates to upper-left coordinates
@@ -360,6 +379,118 @@ SuspendDetection() {
     }
 }
 
+; Show session feedback dialog and return continue choice
+ShowSessionFeedbackDialog() {
+    global LastStudentName, LastStudentTopic, SessionStartTime, SessionEndTime
+    
+    ; Set session end time
+    SessionEndTime := A_Now
+    
+    ; Create session feedback GUI
+    feedbackGui := Gui("+AlwaysOnTop", "Session Complete - Feedback")
+    
+    ; Student name (editable, pre-filled)
+    feedbackGui.AddText("xm y+10", "Student name:")
+    nameEdit := feedbackGui.AddEdit("xm y+5 w200")
+    nameEdit.Text := (LastStudentName ? LastStudentName : "")
+    
+    ; Additional fields
+    feedbackGui.AddText("xm y+15", "Grade:")
+    gradeEdit := feedbackGui.AddEdit("xm y+5 w50")
+    
+    feedbackGui.AddText("x+20 yp", "Subject:")
+    subjectEdit := feedbackGui.AddEdit("x+5 yp w150")
+    subjectEdit.Text := (LastStudentTopic ? LastStudentTopic : "")
+    
+    feedbackGui.AddText("xm y+15", "Topic:")
+    topicEdit := feedbackGui.AddEdit("xm y+5 w350")
+    
+    ; Math checkbox
+    mathCheck := feedbackGui.AddCheckbox("xm y+15", "Math subject")
+    
+    ; Session characteristic checkboxes
+    feedbackGui.AddText("xm y+15", "Session characteristics:")
+    initialCheck := feedbackGui.AddCheckbox("xm y+5 Checked", "Initial response")
+    seriousCheck := feedbackGui.AddCheckbox("x+120 yp Checked", "Serious question") 
+    leftCheck := feedbackGui.AddCheckbox("xm", "Left abruptly")
+    stoppedCheck := feedbackGui.AddCheckbox("x+120 yp", "Stopped responding")
+    feedbackGui.AddText("xm y+5", "Good progress (0-1):")
+    progressEdit := feedbackGui.AddEdit("x+10 yp w60")
+    progressEdit.Text := "1.0"
+    
+    ; Last response time
+    feedbackGui.AddText("xm y+15", "Last message time (HH:MM):")
+    lastMsgEdit := feedbackGui.AddEdit("xm y+5 w100")
+    
+    ; Comments
+    feedbackGui.AddText("xm y+15", "Comments:")
+    commentsEdit := feedbackGui.AddEdit("xm y+5 w350")
+    
+    ; Buttons
+    feedbackGui.AddText("xm y+15", "Continue looking for students?")
+    yesBtn := feedbackGui.AddButton("xm y+5 w80 h30", "Yes")
+    noBtn := feedbackGui.AddButton("x+10 yp w80 h30", "No") 
+    pauseBtn := feedbackGui.AddButton("x+10 yp w80 h30", "Pause")
+    
+    ; Button event handlers
+    result := ""
+    yesBtn.OnEvent("Click", (*) => (LogSessionFeedbackCSV(), result := "Yes", feedbackGui.Destroy()))
+    noBtn.OnEvent("Click", (*) => (LogSessionFeedbackCSV(), result := "No", feedbackGui.Destroy()))
+    pauseBtn.OnEvent("Click", (*) => (LogSessionFeedbackCSV(), result := "Cancel", feedbackGui.Destroy()))
+    
+    ; Function to log session feedback in CSV format
+    LogSessionFeedbackCSV() {
+        ; Calculate session duration in minutes
+        duration := ""
+        if (SessionStartTime != "" && SessionEndTime != "") {
+            startSecs := DateDiff(SessionStartTime, "19700101000000", "Seconds")
+            endSecs := DateDiff(SessionEndTime, "19700101000000", "Seconds")
+            duration := Round((endSecs - startSecs) / 60)
+        }
+        
+        ; Format times
+        rtime := FormatTime(SessionStartTime, "M/d/yy")
+        startTime := FormatTime(SessionStartTime, "H:mm")
+        endTime := FormatTime(SessionEndTime, "H:mm")
+        
+        ; Build CSV row following exact column specification
+        csvRow := ""
+        csvRow .= "," ; Column 1: blank
+        csvRow .= rtime . "," ; Column 2: date
+        csvRow .= startTime . "," ; Column 3: starting time
+        csvRow .= startTime . "," ; Column 4: starting time (same as column 3)
+        csvRow .= endTime . "," ; Column 5: ending time  
+        csvRow .= "," ; Column 6: blank
+        csvRow .= StrReplace(StrReplace(nameEdit.Text, "`n", " "), "`r", "") . "," ; Column 7: name
+        csvRow .= gradeEdit.Text . "," ; Column 8: grade
+        csvRow .= "," ; Column 9: blank
+        csvRow .= "," ; Column 10: blank (no dialog input)
+        csvRow .= StrReplace(StrReplace(subjectEdit.Text, "`n", " "), "`r", "") . "," ; Column 11: subject (from dialog)
+        csvRow .= StrReplace(StrReplace(topicEdit.Text, "`n", " "), "`r", "") . "," ; Column 12: Topic (from dialog)
+        csvRow .= (mathCheck.Value ? "1" : "0") . "," ; Column 13: Math
+        csvRow .= duration . "," ; Column 14: duration
+        csvRow .= (initialCheck.Value ? "1" : "0") . "," ; Column 15: Initial response
+        csvRow .= (seriousCheck.Value ? "1" : "0") . "," ; Column 16: Serious question  
+        csvRow .= (leftCheck.Value ? "1" : "0") . "," ; Column 17: Left abruptly
+        csvRow .= (stoppedCheck.Value ? "1" : "0") . "," ; Column 18: Stopped resp
+        csvRow .= progressEdit.Text . "," ; Column 19: Good progress (float 0-1)
+        csvRow .= lastMsgEdit.Text . "," ; Column 20: last response
+        csvRow .= StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "") ; Column 21: comments (no trailing comma)
+        
+        WriteAppLog(csvRow)
+    }
+    
+    ; Show dialog and wait for result
+    feedbackGui.Show("w370 h550")
+    
+    ; Wait for user action
+    while (result == "") {
+        Sleep(50)
+    }
+    
+    return result
+}
+
 ; Prevent system from going to sleep while script is running
 ; 0x80000003 = ES_SYSTEM_REQUIRED | ES_CONTINUOUS (keeps system awake)
 DllCall("kernel32.dll\SetThreadExecutionState", "UInt", 0x80000003)
@@ -434,7 +565,7 @@ StartDetector() {
     ToolTip ""
     
     ; Log application start
-    WriteLog("Upchieve Detector started in " . modeText . " mode")
+    WriteAppLog("Upchieve Detector started in " . modeText . " mode")
     
     IsActive := true
     
@@ -470,9 +601,9 @@ StartDetector() {
             tempX := ""
             tempY := ""
             if (tempResult := FindText(&tempX, &tempY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0, 0, PageTarget)) {
-                ; Session ended - show continuation dialog
-                WriteLog("Session ended")
-                continueResult := MsgBox("Session ended.`n`nDo you want to continue looking for students?", "Session Complete", "YNC Default1")
+                ; Session ended - show session feedback dialog
+                ; Session ended - feedback will be logged via CSV dialog
+                continueResult := ShowSessionFeedbackDialog()
                 
                 if (continueResult = "Yes") {
                     global SessionState
@@ -559,7 +690,7 @@ StartDetector() {
             ; Step 2: Check if RAW name is blocked BEFORE clicking
             global BlockedNames
             if (rawStudentName != "" && IsNameBlocked(rawStudentName, BlockedNames)) {
-                WriteLog("BLOCKED: " . rawStudentName . " - student on block list (raw OCR)")
+                WriteAppLog("BLOCKED: " . rawStudentName . " - student on block list (raw OCR)")
                 continue  ; Skip this student and continue monitoring
             }
             
@@ -575,6 +706,12 @@ StartDetector() {
                 validatedName := ExtractStudentNameValidated(X, Y)
                 validatedTopic := ExtractTopicValidated(X, Y)
                 
+                ; Update session tracking variables
+                global LastStudentName, LastStudentTopic, SessionStartTime
+                LastStudentName := validatedName
+                LastStudentTopic := validatedTopic
+                SessionStartTime := A_Now
+                
                 ; Log session start with validated name and topic
                 if (validatedName != "") {
                     logMessage := "Session started with " . validatedName
@@ -583,7 +720,7 @@ StartDetector() {
                         logMessage .= ", " . validatedTopic
                         toolTipMessage .= " (" . validatedTopic . ")"
                     }
-                    WriteLog(logMessage)
+                    ; Session details will be logged via end-session CSV dialog
                     ToolTip(toolTipMessage . " has opened", 10, 50)
                     SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
                 } else {
@@ -591,7 +728,7 @@ StartDetector() {
                     if (rawTopic != "") {
                         logMessage .= ", topic: '" . rawTopic . "'"
                     }
-                    WriteLog(logMessage)
+                    ; Session details will be logged via end-session CSV dialog
                     ToolTip("Session with student has opened (name unclear)", 10, 50) 
                     SetTimer(() => ToolTip(), -3000)
                 }
@@ -604,6 +741,12 @@ StartDetector() {
                 validatedName := ExtractStudentNameValidated(X, Y)
                 validatedTopic := ExtractTopicValidated(X, Y)
                 
+                ; Update session tracking variables
+                global LastStudentName, LastStudentTopic, SessionStartTime
+                LastStudentName := validatedName
+                LastStudentTopic := validatedTopic
+                SessionStartTime := A_Now
+                
                 ; Log session start in testing mode with topic
                 if (validatedName != "") {
                     logMessage := "TESTING: Session started with " . validatedName
@@ -612,7 +755,7 @@ StartDetector() {
                         logMessage .= ", " . validatedTopic
                         toolTipMessage .= " (" . validatedTopic . ")"
                     }
-                    WriteLog(logMessage)
+                    ; Session details will be logged via end-session CSV dialog
                     ToolTip(toolTipMessage . " waiting", 10, 50)
                     SetTimer(() => ToolTip(), -3000)
                 } else {
@@ -620,7 +763,7 @@ StartDetector() {
                     if (rawTopic != "") {
                         logMessage .= ", topic: '" . rawTopic . "'"
                     }
-                    WriteLog(logMessage)
+                    ; Session details will be logged via end-session CSV dialog
                     ToolTip("Found student waiting (name unclear)", 10, 50)
                     SetTimer(() => ToolTip(), -3000)
                 }

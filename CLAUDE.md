@@ -11,6 +11,8 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 - `student_names.txt` - Database of known student names for validation
 - `student_corrections.txt` - Learning database of OCR corrections
 - `debug_log.txt` - OCR troubleshooting and results log
+- `upchieve_app.log` - CSV session data log for spreadsheet import
+- `target_coordinate_finder.ahk` - Utility for measuring target coordinates
 - `block_names.txt` - Optional list of student names to skip (one per line)
 - `test_whitespace_fix.ahk` - Testing utility for whitespace handling validation
 
@@ -25,6 +27,8 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 - Auto-click functionality when waiting students are detected
 - LIVE/TESTING mode selection with pause/resume capability
 - **Sleep prevention** - Keeps laptop awake while monitoring for students
+- **Session feedback system** - CSV logging with comprehensive session data
+- **Enhanced end-session dialog** - Captures detailed session information for analysis
 
 ## Usage
 1. Run `upchieve_waiting_detector.ahk`
@@ -46,10 +50,12 @@ The script now tracks three states to prevent unwanted scanning during active se
 ### State Flow:
 1. **Student detected and clicked** → Changes to IN_SESSION state
 2. **While IN_SESSION**: Only monitors for "Waiting Students" page to detect session end
-3. **Session ends** (PageTarget appears) → Shows dialog: "Session ended. Continue looking for students?"
-   - Yes: Resume to WAITING_FOR_STUDENT state
-   - No: Exit application
-   - Cancel: Pause (shows pause dialog, then resumes to WAITING_FOR_STUDENT)
+3. **Session ends** (PageTarget appears) → Shows comprehensive feedback dialog with:
+   - Student name and subject (editable, pre-filled from OCR)
+   - Grade, topic, and session characteristics
+   - Session timing and progress metrics
+   - Comments field for additional notes
+   - Continue/Exit/Pause options
 4. **Manual control**: Ctrl+Shift+R hotkey to manually resume from IN_SESSION state
 
 ## How It Works
@@ -105,6 +111,46 @@ The script now tracks three states to prevent unwanted scanning during active se
 - **Method Comparison**: Test both Individual and JoinText approaches
 - **Real-time Results**: Shows both clean characters and raw detections
 - **Pattern Development**: Auto-reload alphabet patterns for rapid iteration
+
+## CSV Session Logging
+
+### Session Data Export
+The script automatically logs comprehensive session data in CSV format to `upchieve_app.log` for easy import into spreadsheets:
+
+**CSV Columns (21 total):**
+1. Seq (blank for manual numbering)
+2. Date (M/d/yy format)  
+3. Start time (H:mm)
+4. Start time (duplicate)
+5. End time (H:mm)
+6. Blank
+7. Student name (from OCR, editable)
+8. Grade (user input)
+9. Blank
+10. Blank  
+11. Subject (from OCR, editable)
+12. Topic (user input)
+13. Math subject (1/0 checkbox)
+14. Duration (auto-calculated minutes)
+15. Initial response (1/0 checkbox) 
+16. Serious question (1/0 checkbox)
+17. Left abruptly (1/0 checkbox)
+18. Stopped responding (1/0 checkbox)
+19. Good progress (float 0-1)
+20. Last message time (user input)
+21. Comments (user input)
+
+### End-Session Dialog
+When a session ends, a comprehensive feedback dialog appears with:
+- **Pre-filled fields**: Student name and subject from OCR detection
+- **Session metrics**: Grade, topic, math subject indicator
+- **Behavioral checkboxes**: Initial response, serious question, left abruptly, stopped responding
+- **Progress rating**: Float value 0-1 (defaults to 1.0)
+- **Timing**: Last message time, auto-calculated duration
+- **Comments**: Free-text notes
+- **Actions**: Continue monitoring, exit, or pause
+
+All data is automatically saved to CSV format with line-break protection for clean spreadsheet import.
 
 ## Student Blocking System
 - **Block File**: `block_names.txt` (optional, created by user)
