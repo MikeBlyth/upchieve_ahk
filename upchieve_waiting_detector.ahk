@@ -532,7 +532,7 @@ StartDetector() {
     global
     
     ; Combined startup dialog with mode selection
-    modeResult := MsgBox("Upchieve detector will search for 'Waiting Students' page and start monitoring automatically.`n`nYes = LIVE mode (clicks students)`nNo = TESTING mode (no clicking)`nCancel = Exit", "Upchieve Detector Startup", "YNC Default2")
+    modeResult := MsgBox("Upchieve detector will search for 'Waiting Students' page and start monitoring automatically.`n`nYes = LIVE mode (clicks students)`nNo = TESTING mode (no clicking)`nCancel = Exit", "Upchieve Detector Startup", "YNC Default2 4096")
     if (modeResult = "Cancel") {
         CleanExit()  ; Exit application
     }
