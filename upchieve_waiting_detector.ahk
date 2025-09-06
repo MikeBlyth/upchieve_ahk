@@ -45,12 +45,12 @@ StudentHeaderTarget := "|<Student>*146$71.00000000000000000000001w3z00k000003sTz
 HelpHeaderTarget := "|<HelpHeader>*147$71.0000000000000000000z0001y0T0001y0003w0y0003w0007s1w0007s000Dk3s000Dk000TU7k000TU000z0DU3w0z1sy1y0T0Ty1y3nz3w0y1zy3w7jz7s1w7zy7sDzyDzzsTVyDkTVyTzzky1wTUy3wzzzVzzsz1w3tzzz3zzly3s7nw0y7zzXw7kDbs1wDU07sDUTDk3sT00DkT1yTU7kz1sTUz3wz0DUzzkztzzly0T0zzUznzzXw0y0zy1z7ry7s1w0Tk1yDbk000000000T00000000000y01"
 WaitTimeHeaderTarget:="|<WaitTime>*148$97.000000000000000000000000D0000000C0z0T000Dk3007zzzUTUDU007sDU03zzzkDkDk003w7k01zzzs7s7s000w3s00zzzw3y3s00001w000DUS3z1w3y0Tbzw007kDVzUy7zkDnzy003s7kzky7zw7tzz001w3sQsT3zz3wzzU00y1wSSDXsTVy3s000T0yDD7UQ7kz1w000DUDbbXk07sTUy0007k7nnns0zwDkT0003s3tkxw3zy7sDU001w0xsSw3wT3w7k000y0TwDy3sDVy3s000T0Dy7z1wDkz1y000DU7y1z0zzyTUzw007k1z0zUTzzDkTy003s0zUTk7zTbs7z001w0TkDs1y7nw0z000y000000000000000000000000000000000E"
 
-if (ok:=FindText(&X, &Y, 802-150000, 1414-150000, 802+150000, 1414+150000, 0, 0, Text))
+if (ok:=FindText(&X, &Y, 802-150000, 1414-150000, 802+150000, 1414+150000, 0, 0, HelpHeaderTarget))
 {
   ; FindText().Click(X, Y, "L")
 }
 
-if (ok:=FindText(&X, &Y, 428-150000, 1414-150000, 428+150000, 1414+150000, 0, 0, Text))
+if (ok:=FindText(&X, &Y, 428-150000, 1414-150000, 428+150000, 1414+150000, 0, 0, StudentHeaderTarget))
 {
   ; FindText().Click(X, Y, "L")
 }
@@ -85,17 +85,24 @@ GetUpperLeft(centerX, centerY, widthOrTarget, height := 25) {
 
 ; Find all header targets and store their positions for search zone calculations
 FindHeaders() {
-    global StudentHeaderTarget, HelpHeaderTarget, WaitTimeHeaderTarget
+    global StudentHeaderTarget, HelpHeaderTarget, WaitTimeHeaderTarget, pageRefX, pageRefY
     
     ; Initialize header positions (will be empty if not found)
     global studentHeaderPos := {x: 0, y: 0, found: false}
     global helpHeaderPos := {x: 0, y: 0, found: false}
     global waitTimeHeaderPos := {x: 0, y: 0, found: false}
     
+    ; Define precise search areas for each header (250×90px)  
+    ; Based on PageTarget CENTER coordinates: Student=-459px, Help=-165px, WaitTime=+204px, Y=+198px
+    
     ; Search for Student Header
     X := ""
     Y := ""
-    if (result := FindText(&X, &Y, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.05, StudentHeaderTarget)) {
+    studentSearchX1 := Max(0, pageRefX - 484)
+    studentSearchY1 := Max(0, pageRefY + 173)
+    studentSearchX2 := Min(A_ScreenWidth, pageRefX - 234)
+    studentSearchY2 := Min(A_ScreenHeight, pageRefY + 263)
+    if (result := FindText(&X, &Y, studentSearchX1, studentSearchY1, studentSearchX2, studentSearchY2, 0.15, 0.10, StudentHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, StudentHeaderTarget)
         studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     }
@@ -103,7 +110,11 @@ FindHeaders() {
     ; Search for Help Header
     X := ""
     Y := ""
-    if (result := FindText(&X, &Y, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.05, HelpHeaderTarget)) {
+    helpSearchX1 := Max(0, pageRefX - 190)
+    helpSearchY1 := Max(0, pageRefY + 173)
+    helpSearchX2 := Min(A_ScreenWidth, pageRefX + 60)
+    helpSearchY2 := Min(A_ScreenHeight, pageRefY + 263)
+    if (result := FindText(&X, &Y, helpSearchX1, helpSearchY1, helpSearchX2, helpSearchY2, 0.15, 0.10, HelpHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, HelpHeaderTarget)
         helpHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     }
@@ -111,7 +122,11 @@ FindHeaders() {
     ; Search for Wait Time Header
     X := ""
     Y := ""
-    if (result := FindText(&X, &Y, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.05, WaitTimeHeaderTarget)) {
+    waitSearchX1 := Max(0, pageRefX + 179)
+    waitSearchY1 := Max(0, pageRefY + 173)
+    waitSearchX2 := Min(A_ScreenWidth, pageRefX + 429)
+    waitSearchY2 := Min(A_ScreenHeight, pageRefY + 263)
+    if (result := FindText(&X, &Y, waitSearchX1, waitSearchY1, waitSearchX2, waitSearchY2, 0.15, 0.10, WaitTimeHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, WaitTimeHeaderTarget)
         waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     }
@@ -187,11 +202,11 @@ ExtractStudentNameRaw(baseX, baseY) {
     global studentHeaderPos
     
     if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
-        ; Use header-based positioning: header position + 100px down, with 25px slack
-        searchX := Max(0, studentHeaderPos.x - 25)
-        searchY := Max(0, studentHeaderPos.y + 100)
-        searchWidth := Min(450, A_ScreenWidth - searchX)  ; 400 + 50 slack, bounded
-        searchHeight := Min(80, A_ScreenHeight - searchY)
+        ; Use header-based positioning: header position + 96px down, with 25px margins
+        searchX := Max(0, studentHeaderPos.x)
+        searchY := Max(0, studentHeaderPos.y + 96 - 25)
+        searchWidth := Min(250, A_ScreenWidth - searchX)  ; Match column width, bounded
+        searchHeight := Min(90, A_ScreenHeight - searchY)
     } else {
         ; Fallback to WaitingTarget-based positioning (original method)
         upperLeftX := baseX - 67
@@ -231,11 +246,11 @@ ExtractTopicRaw(baseX, baseY) {
     global helpHeaderPos
     
     if (helpHeaderPos.found && helpHeaderPos.x > 0 && helpHeaderPos.y > 0) {
-        ; Use header-based positioning: header position + 100px down, with 25px slack
-        searchX := Max(0, helpHeaderPos.x - 25)
-        searchY := Max(0, helpHeaderPos.y + 100)
-        searchWidth := Min(450, A_ScreenWidth - searchX)  ; 400 + 50 slack, bounded
-        searchHeight := Min(80, A_ScreenHeight - searchY)
+        ; Use header-based positioning: header position + 96px down, with 25px margins
+        searchX := Max(0, helpHeaderPos.x)
+        searchY := Max(0, helpHeaderPos.y + 96 - 25)
+        searchWidth := Min(250, A_ScreenWidth - searchX)  ; Match column width, bounded
+        searchHeight := Min(90, A_ScreenHeight - searchY)
     } else {
         ; Fallback: estimate topic position relative to student name position
         ; Assume topic is roughly in the middle of the row
@@ -243,7 +258,7 @@ ExtractTopicRaw(baseX, baseY) {
         upperLeftY := baseY - 17
         searchX := upperLeftX - 200  ; Position between student and wait time
         searchY := upperLeftY - 10
-        searchWidth := 400
+        searchWidth := 250  ; Limit to column width
         searchHeight := 80
     }
     
@@ -316,9 +331,11 @@ ExtractTopicValidated(baseX, baseY) {
         validatedTopic := ValidateTopicName(rawTopic)
         ; Log if correction was made
         if (rawTopic != validatedTopic && validatedTopic != "") {
-            ; WriteLog("Topic OCR: '" . rawTopic . "' -> Validated: '" . validatedTopic . "'")
+            WriteLog("Topic OCR: '" . rawTopic . "' -> Validated: '" . validatedTopic . "'")
         }
         return validatedTopic
+    } else {
+        WriteLog("Topic OCR: No text detected")
     }
     
     return ""  ; Return empty string if no text detected
