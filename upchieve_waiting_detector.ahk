@@ -301,8 +301,8 @@ StartDetector() {
         }
         
         ; Check for upgrade popup first (relative to PageTarget)
-        upgradeX1 := pageRefX + 702
-        upgradeY1 := pageRefY + 120
+        upgradeX1 := pageRefX + 654
+        upgradeY1 := pageRefY + 130
         upgradeX2 := upgradeX1 + 325
         upgradeY2 := upgradeY1 + 300
         X := ""
@@ -318,8 +318,8 @@ StartDetector() {
         ; Only scan for waiting students if we're in the right state
         if (SessionState == WAITING_FOR_STUDENT) {
             ; Search for waiting student indicator (relative to PageTarget)
-            waitingX1 := pageRefX + 382
-            waitingY1 := pageRefY + 299
+            waitingX1 := pageRefX + 334
+            waitingY1 := pageRefY + 309
             waitingX2 := waitingX1 + 334
             waitingY2 := waitingY1 + 235
             X := ""

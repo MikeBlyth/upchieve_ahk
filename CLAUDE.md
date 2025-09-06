@@ -3,12 +3,16 @@
 This AutoHotkey script automatically detects and clicks on waiting students in Upchieve, with personalized student name extraction.
 
 ## Files Created
-- `upchieve_waiting_detector.ahk` - Main script file
-- `alphabet.ahk` - Character patterns for name recognition (array format)
-- `ocr_functions.ahk` - Shared OCR functions for both detector and tester
-- `ocr_tester.ahk` - Standalone OCR testing application for tuning
+- `upchieve_waiting_detector.ahk` - Main script file with optimized performance and state management
+- `alphabet.ahk` - Character patterns for name recognition (array format with multiple patterns per character)
+- `ocr_functions.ahk` - Shared OCR functions with pair-based prioritization and configurable tolerances
+- `ocr_tester.ahk` - Standalone OCR testing application for tuning parameters and patterns
+- `student_database.ahk` - Student name validation with fuzzy matching and interactive correction
+- `student_names.txt` - Database of known student names for validation
+- `student_corrections.txt` - Learning database of OCR corrections
 - `debug_log.txt` - OCR troubleshooting and results log
 - `block_names.txt` - Optional list of student names to skip (one per line)
+- `test_whitespace_fix.ahk` - Testing utility for whitespace handling validation
 
 ## Features
 - Uses FindTextv2 library for fast image recognition
@@ -50,11 +54,12 @@ The script now tracks three states to prevent unwanted scanning during active se
 
 ## How It Works
 1. Searches full screen for PageTarget ("Waiting Students" page) to establish reference coordinates
-2. Calculates upper-left reference point for window-position independence
-3. Enters monitoring loop (scans every 0.05 seconds with 5-second PageTarget re-detection)
+2. Calculates upper-left reference point for window-position independence  
+3. Enters monitoring loop (scans every 0.05 seconds with 10-second PageTarget re-detection)
 4. When WaitingTarget ("< 1 minute") is found:
-   - Double-clicks student (200ms delay between clicks) in LIVE mode
-   - Extracts student name from region 720px left of indicator
+   - **Immediately clicks** student (200ms delay between clicks) in LIVE mode for minimal delay
+   - **Raw OCR extraction** of student name from region 720px left of indicator
+   - **Post-click validation** with fuzzy matching and interactive correction dialog
    - Shows personalized message: "Session with [Name] has opened" / "Found student [Name] waiting"
    - Continues monitoring for additional students (until Ctrl+Shift+Q or Ctrl+Shift+H)
 
@@ -67,12 +72,21 @@ The script now tracks three states to prevent unwanted scanning during active se
 
 ### Student Name Extraction
 - **Search Region**: 720px left of WaitingTarget, 400px wide, 80px tall
+- **Default Tolerances**: (0.15, 0.10) optimized for grey background text
 - **Dual OCR Methods**: 
   - Individual character matching with proximity filtering and prioritization
   - JoinText sequential character matching (experimental)
-- **Character Prioritization**: Pair-based priority system (e.g., 'n' over 'r', 'd' over 'l')
-- **Proximity Filtering**: Configurable threshold to handle overlapping character detections
+- **Character Prioritization**: Comprehensive pair-based priority system (e.g., 'n' over 'r', 'd' over 'l', 'h' over 'r')
+- **Multiple Pattern Support**: Characters like 'y', 't', 'd' have multiple patterns for font variations
+- **Proximity Filtering**: Configurable 8px threshold to handle overlapping character detections
 - **Dynamic Alphabet Reloading**: Patterns can be updated and reloaded without restarting
+
+### Student Database System
+- **Fuzzy Matching**: Edit distance algorithm for finding similar student names
+- **Interactive Correction**: User dialogs for OCR validation with up to 3 alternatives
+- **Learning System**: Automatically saves corrections to `student_corrections.txt`
+- **Performance Optimization**: Fast raw OCR extraction followed by post-click validation
+- **Whitespace Handling**: Proper trimming of leading/trailing spaces in student names
 
 ### OCR Testing Application
 - **Region Selection**: Click-and-drag screen region selection
@@ -109,10 +123,10 @@ Upper-left x-coordinate: OutputVar.1.x - OutputVar.1.w / 2
 Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 ```
 
-### Search Zones (Relative to PageTarget)
-- **PageTarget (Waiting Students)**: Full screen search to find reference point
-- **WaitingTarget (< 1 minute)**: Offset (382, 299) from PageTarget upper-left, size 334×235
-- **UpgradeTarget (Update popup)**: Offset (702, 120) from PageTarget upper-left, size 325×300  
+### Search Zones (Relative to PageTarget4)
+- **PageTarget4 (Waiting Students)**: Full screen search to find reference point (143×16 pixels)
+- **WaitingTarget (< 1 minute)**: Offset (334, 309) from PageTarget upper-left, size 334×235
+- **UpgradeTarget (Update popup)**: Offset (654, 130) from PageTarget upper-left, size 325×300  
 - **Student Name Region**: 720px left of WaitingTarget, size 400×80
 
 ### Original Absolute Coordinates (3200×2000 screen reference)
@@ -126,14 +140,33 @@ Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 - alphabet.ahk (character patterns for A-Z, a-z, apostrophe, hyphen)
 
 ## Recent Improvements
-- **Modular Architecture**: Separated OCR functions into shared library
+- **Modular Architecture**: Separated OCR functions into shared library (`ocr_functions.ahk`)
 - **Array-based Alphabet**: Simplified character pattern management from 60+ variables to single array
-- **Pair-based Prioritization**: Fixed character conflict resolution using explicit pair priorities
+- **Pair-based Prioritization**: Comprehensive character conflict resolution using explicit pair priorities
+- **Student Database Integration**: Fuzzy matching with edit distance algorithm and interactive correction
+- **Performance Optimization**: Separated fast raw OCR from slower validation for minimal click delays
 - **OCR Testing Tool**: Built standalone application for rapid pattern development and parameter tuning
+- **Multiple Character Patterns**: Support for multiple patterns per character (especially 'y', 't', 'd')
 - **Enhanced Debug Output**: Added sorted raw character display and method comparison
 - **Dynamic Reloading**: Alphabet patterns can be updated without application restart
+- **PageTarget Optimization**: Updated coordinates for smaller PageTarget4 (143×16 vs original 271×45)
+- **Tolerance Tuning**: Default OCR tolerances optimized to (0.15, 0.10) for better accuracy
+
+## Performance Considerations
+- **Initial PageTarget search**: 170-200ms (full screen)
+- **WaitingTarget detection**: <50ms (localized search area)
+- **Student click response**: Immediate (raw OCR extraction is fast)
+- **Name validation**: Post-click (doesn't delay student interaction)
+- **PageTarget re-detection**: Every 10 seconds to handle window movement
+
+## Troubleshooting
+- **No WaitingTarget found**: Check PageTarget coordinates match current page layout
+- **OCR accuracy issues**: Use `ocr_tester.ahk` to tune tolerance values and test patterns
+- **Performance problems**: Monitor `debug_log.txt` for timing and detection patterns
+- **Window scaling issues**: Ensure browser zoom is at 100% for optimal pattern matching
 
 ## Known Issues
-- JoinText method requires further refinement for optimal results
-- Character prioritization may need adjustment for specific font variations
-- Proximity threshold may need tuning based on screen resolution and font size
+- JoinText method requires further refinement for optimal results  
+- Some characters (especially 'y') require multiple patterns due to descender positioning
+- Window occlusion/shading significantly impacts FindText performance (3-5 seconds vs 170-200ms)
+- Character prioritization may need adjustment for specific font variations or new text rendering
