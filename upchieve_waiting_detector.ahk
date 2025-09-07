@@ -215,6 +215,34 @@ IsNameBlocked(studentName, blockedNames) {
     return false
 }
 
+; Apply only known corrections from database without user prompts
+ApplyKnownCorrections(ocrResult) {
+    global correctionDatabase, knownStudents
+    
+    cleanOCR := Trim(ocrResult)
+    if (cleanOCR == "") {
+        return ""
+    }
+    
+    ; Check if we have a known correction for this exact OCR result
+    if (correctionDatabase.Has(cleanOCR)) {
+        return correctionDatabase[cleanOCR]
+    }
+    if (correctionDatabase.Has(ocrResult)) {
+        return correctionDatabase[ocrResult]
+    }
+    
+    ; Check for exact match in known students (case-insensitive)
+    for student in knownStudents {
+        if (StrLower(cleanOCR) == StrLower(student)) {
+            return student  ; Return with proper casing
+        }
+    }
+    
+    ; Return cleaned OCR result if no corrections found
+    return cleanOCR
+}
+
 
 ; Extract student name using header-based positioning with fallback
 ExtractStudentNameRaw(baseX, baseY) {
@@ -532,13 +560,21 @@ StartDetector() {
     global
     
     ; Combined startup dialog with mode selection
-    modeResult := MsgBox("Upchieve detector will search for 'Waiting Students' page and start monitoring automatically.`n`nYes = LIVE mode (clicks students)`nNo = TESTING mode (no clicking)`nCancel = Exit", "Upchieve Detector Startup", "YNC Default2 4096")
+    modeResult := MsgBox("Upchieve detector will search for 'Waiting Students' page and start monitoring automatically.`n`nSelect mode, then click OK and immediately click in the UPchieve browser window to identify it.`n`nYes = LIVE mode (clicks students)`nNo = TESTING mode (no clicking)`nCancel = Exit", "Upchieve Detector - Select Mode & Click Window", "YNC Default2 4096")
     if (modeResult = "Cancel") {
         CleanExit()  ; Exit application
     }
     
     LiveMode := (modeResult = "Yes")
     modeText := LiveMode ? "LIVE" : "TESTING"
+    
+    ; Wait for user to click and capture the window
+    global targetWindowID := ""
+    KeyWait("LButton", "D")  ; Wait for left mouse button down
+    MouseGetPos(&mouseX, &mouseY, &targetWindowID)  ; Get window ID under mouse
+    
+    ; Confirm window selection
+    MsgBox("Window selected! Starting " . modeText . " mode detector...", "Window Selected", "OK 4096")
     
     ; Wait for PageTarget to appear with debug info
     pageCheckCount := 0
@@ -681,26 +717,47 @@ StartDetector() {
             Y := ""
             if (result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0.15, 0.05, WaitingTarget)) {
             global LiveMode
-            ToolTip "Found waiting student! Extracting and validating name...", 10, 10
+            ToolTip "Found waiting student! Checking name...", 10, 10
             
-            ; Step 1: Extract and VALIDATE student name and topic (with corrections and confirmation)
-            validatedName := ExtractStudentNameValidated(X, Y)
-            validatedTopic := ExtractTopicValidated(X, Y)
+            ; Step 1: Extract raw student name and topic
+            rawStudentName := ExtractStudentNameRaw(X, Y)
+            rawTopic := ExtractTopicRaw(X, Y)
             
-            ; Step 2: Check if VALIDATED name is blocked BEFORE clicking
+            ; Step 2: Apply automatic corrections (no prompts)
+            correctedName := ApplyKnownCorrections(rawStudentName)
+            
+            ; Step 3: Check blocking scenarios
             global BlockedNames
-            if (validatedName != "" && IsNameBlocked(validatedName, BlockedNames)) {
-                WriteAppLog("BLOCKED: " . validatedName . " - student on block list")
-                continue  ; Skip this student and continue monitoring
-            }
+            rawBlocked := (rawStudentName != "" && IsNameBlocked(rawStudentName, BlockedNames))
+            correctedBlocked := (correctedName != "" && IsNameBlocked(correctedName, BlockedNames))
             
-            ; Step 3: Click the student (name validation and confirmation already completed)
+            ; Handle blocking scenarios
+            if (rawBlocked && !correctedBlocked) {
+                ; OCR result was blocked but correction is not - ask user
+                response := MsgBox("OCR detected: '" . rawStudentName . "' (BLOCKED)`nAuto-correction suggests: '" . correctedName . "'`n`nAccept correction and proceed to session?", "Blocked Name Correction", "YesNo 4096")
+                if (response == "No") {
+                    WriteAppLog("BLOCKED: " . rawStudentName . " -> " . correctedName . " (user declined correction)")
+                    continue  ; Skip this student
+                }
+                ; User accepted, proceed with corrected name
+            } else if (correctedBlocked) {
+                ; Either raw or corrected (or both) is blocked
+                WriteAppLog("BLOCKED: " . (rawBlocked ? rawStudentName : "'" . rawStudentName . "' -> '" . correctedName . "'"))
+                continue  ; Skip this student
+            }
+            ; If neither raw nor corrected is blocked, proceed immediately
+            
+            ; Step 4: Click the student
             if (LiveMode) {
-                ; First click to activate window
+                ; Activate the identified window
+                WinActivate("ahk_id " . targetWindowID)
+                Sleep 50  ; Brief pause for window activation
+                ; Click on the waiting target
                 Click X, Y
-                Sleep 200  ; Wait 200ms to avoid double-click detection
-                ; Second click to select student
-                Click X, Y
+                
+                ; Wait for session to start loading, then maximize window
+                Sleep 1000  ; Wait 1 second for session to begin loading
+                WinMaximize("ahk_id " . targetWindowID)
                 
                 ; IMMEDIATELY change state to IN_SESSION after clicking
                 global SessionState
@@ -708,53 +765,38 @@ StartDetector() {
                 
                 ; Update session tracking variables
                 global LastStudentName, LastStudentTopic, SessionStartTime
-                LastStudentName := validatedName
-                LastStudentTopic := validatedTopic
+                LastStudentName := correctedName
+                LastStudentTopic := ValidateTopicName(rawTopic)  ; Apply topic auto-correction
                 SessionStartTime := A_Now
                 
-                ; Log session start with validated name and topic
-                if (validatedName != "") {
-                    logMessage := "Session started with " . validatedName
-                    toolTipMessage := "Session with " . validatedName
-                    if (validatedTopic != "") {
-                        logMessage .= ", " . validatedTopic
-                        toolTipMessage .= " (" . validatedTopic . ")"
-                    }
-                    ; Session details will be logged via end-session CSV dialog
-                    ToolTip(toolTipMessage . " has opened", 10, 50)
-                    SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
-                } else {
-                    ; This should rarely happen since validation occurred
-                    logMessage := "Session started with student (name unclear after validation)"
-                    ; Session details will be logged via end-session CSV dialog
-                    ToolTip("Session with student has opened", 10, 50) 
-                    SetTimer(() => ToolTip(), -3000)
+                ; Log session start
+                logMessage := "Session started with " . correctedName
+                toolTipMessage := "Session with " . correctedName
+                if (LastStudentTopic != "") {
+                    logMessage .= ", " . LastStudentTopic
+                    toolTipMessage .= " (" . LastStudentTopic . ")"
                 }
+                ; Session details will be logged via end-session CSV dialog
+                ToolTip(toolTipMessage . " has opened", 10, 50)
+                SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
             } else {
-                ; TESTING mode - validation already completed above
-                ; Update session tracking variables
+                ; TESTING mode - use same corrected data
                 global LastStudentName, LastStudentTopic, SessionStartTime
-                LastStudentName := validatedName
-                LastStudentTopic := validatedTopic
+                LastStudentName := correctedName
+                LastStudentTopic := ValidateTopicName(rawTopic)  ; Apply topic auto-correction
                 SessionStartTime := A_Now
                 
-                ; Log session start in testing mode with topic
-                if (validatedName != "") {
-                    logMessage := "TESTING: Found student " . validatedName
-                    toolTipMessage := "Found student " . validatedName
-                    if (validatedTopic != "") {
-                        logMessage .= ", " . validatedTopic
-                        toolTipMessage .= " (" . validatedTopic . ")"
-                    }
-                    ; Session details will be logged via end-session CSV dialog
-                    ToolTip(toolTipMessage . " waiting", 10, 50)
-                    SetTimer(() => ToolTip(), -3000)
-                } else {
-                    logMessage := "TESTING: Found student waiting (name unclear after validation)"
-                    ; Session details will be logged via end-session CSV dialog
-                    ToolTip("Found student waiting", 10, 50)
-                    SetTimer(() => ToolTip(), -3000)
+                ; Log session start in testing mode
+                logMessage := "TESTING: Found student " . correctedName
+                toolTipMessage := "Found student " . correctedName
+                if (LastStudentTopic != "") {
+                    logMessage .= ", " . LastStudentTopic
+                    toolTipMessage .= " (" . LastStudentTopic . ")"
                 }
+                ; Session details will be logged via end-session CSV dialog
+                ToolTip(toolTipMessage . " waiting", 10, 50)
+                SetTimer(() => ToolTip(), -3000)
+                
                 ; In testing mode, also simulate being in session for state testing
                 global SessionState
                 SessionState := IN_SESSION
@@ -770,11 +812,7 @@ StartDetector() {
             
             ; Step 5: Show message box with session message
             modePrefix := LiveMode ? "Session with " : "Found student "
-            if (validatedName != "") {
-                MsgBox(modePrefix . validatedName . (LiveMode ? " has opened" : " waiting"), LiveMode ? "Session Started" : "Student Detected", "OK")
-            } else {
-                MsgBox(LiveMode ? "A session has opened" : "A student is waiting", LiveMode ? "Session Started" : "Student Detected", "OK")
-            }
+            MsgBox(modePrefix . correctedName . (LiveMode ? " has opened" : " waiting"), LiveMode ? "Session Started" : "Student Detected", "OK 4096")
             
             ; Step 6: When OK is clicked, stop the sound and continue monitoring
             if (SoundTimerFunc != "") {
