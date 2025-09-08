@@ -60,16 +60,22 @@ StudentHeaderTarget := "|<Student>*146$71.00000000000000000000001w3z00k000003sTz
 HelpHeaderTarget := "|<HelpHeader>*147$71.0000000000000000000z0001y0T0001y0003w0y0003w0007s1w0007s000Dk3s000Dk000TU7k000TU000z0DU3w0z1sy1y0T0Ty1y3nz3w0y1zy3w7jz7s1w7zy7sDzyDzzsTVyDkTVyTzzky1wTUy3wzzzVzzsz1w3tzzz3zzly3s7nw0y7zzXw7kDbs1wDU07sDUTDk3sT00DkT1yTU7kz1sTUz3wz0DUzzkztzzly0T0zzUznzzXw0y0zy1z7ry7s1w0Tk1yDbk000000000T00000000000y01"
 WaitTimeHeaderTarget:="|<WaitTime>*148$97.000000000000000000000000D0000000C0z0T000Dk3007zzzUTUDU007sDU03zzzkDkDk003w7k01zzzs7s7s000w3s00zzzw3y3s00001w000DUS3z1w3y0Tbzw007kDVzUy7zkDnzy003s7kzky7zw7tzz001w3sQsT3zz3wzzU00y1wSSDXsTVy3s000T0yDD7UQ7kz1w000DUDbbXk07sTUy0007k7nnns0zwDkT0003s3tkxw3zy7sDU001w0xsSw3wT3w7k000y0TwDy3sDVy3s000T0Dy7z1wDkz1y000DU7y1z0zzyTUzw007k1z0zUTzzDkTy003s0zUTk7zTbs7z001w0TkDs1y7nw0z000y000000000000000000000000000000000E"
 
-if (ok:=FindText(&X, &Y, 802-150000, 1414-150000, 802+150000, 1414+150000, 0, 0, HelpHeaderTarget))
-{
-  ; FindText().Click(X, Y, "L")
-}
+SessionEndedTarget := "|<SessionEnded>*195$237.zzzzzzzzzzzzs7zzzzzzzzzzzzzzzzsDzzzzz1zzs0zzzzzzzzzz0zzzzzzzzzzzzzzzzz1zzzzzsDzw01zzzzzzzzzs7zzzzzzzzzzzzzzzzsDzzzzz1zz007zzzzzzzzzVzzzzzzzzzzzzzzzzz1zzzzzsDzk30TzzzzzzzzzzzzzzzzzzzzzzzzzzsDzzzzz1zy3y3zzzzzzzzzzzzzzzzzzzzzzzzzzz1zzzzzsDzkTszk3zk3zU7wDw0zkk7zzy0Tks7zUMDw1zw31zy3zjw07s07k0DVy01y40Tzz01y00Tk01y03y00DzkDzy00S00Q00wDU07k01zzk07k01w00DU0DU01zy07zkA3kA3UM7Vw30y0kDzy1US0EDU81s20w30Dzk03w7sC3sw7lwD0y3kD1zzUz3kD0s7kD1w70y1zz00DUz1kTjUzTVsDkS3s7zw7sC3w71y1kTksDkDzy00Q00C0Dw0TwD1z3kTUzzU01kTUsDsC0071z1zzw03U01s0Dk0TVsDsC3w7zw00C3w71z1k00sDsDzzz0Q00DU0z01wD1z1kTUzzU01kTUsDsC0071z1zzzy1Uzzz03y07VsDsS3w7zw7zy3w71z1kTzsDsDztzkA7zzzUTz0wD1y3kTUzzUzzkTUsDkC3zz1y1zy7y3UT3tz1ny3Vs7kS3w7zw3sy3w70y1sDVs7kDzU70S0UC1UQ30wDUM7kTUzzkA3kTUw10D0M7UM1zy007s03k03U07Vw00y3w7zy00S3w7U01w01w00Dzs01zU0z00y01wDk0DkTUzzs07kTUy08Dk0Tk11zzk0zy0Tw0Ts0zVzU7y3w7zzk3y3w7w31zU7zUMDzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzU"
 
-if (ok:=FindText(&X, &Y, 428-150000, 1414-150000, 428+150000, 1414+150000, 0, 0, StudentHeaderTarget))
-{
-  ; FindText().Click(X, Y, "L")
-}
+PencilTipTarget :="|<PencilTip>**50$69.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001zs000000007w3y0000000DU00T0000007U000S000003U0000Q00001k00k00s0000Q00D003U000C001w0070003U00Nk00Q000k0076000k00A001ks003003000A3U00A00k003UA000k0A000ryk00303000Dzz000A0M001k0Q001U6000Q01U0061U00700C000MA000k00s0033000C003U00AE003U00A000a000s001k006U0060007000I001k000Q003U00Q0003U00M0070000C001000k0000s00800C00003001003U0000Q00000s00001k0000600000700001k00000M0000Q000003U0007000000C0000s000000s000C0M0k1U3U001k7UD0C0Q000D0y1w3s7U001wCsRkvVw000BnXb7CCTU001bsDkTUzQ000Ay0w1s3nU001XU3U70CQ000A8080E0XU001U000000Q04"
 
+SubjectTargets := [ 
+    "|<7th Grade Math>*126$48.Tzw00300Tzw3030000Q3030000s3030000k3030001Uzz37k03Uzz3Tw030303wS070303kC060303U70C0303U70A0303U70Q0303070Q0303070M0303070M0303070s0303070s0303070s03X3070s03z3070s00y307U",
+    "|<8th grade math>*128$48.000003003y000300Dz030300C7U30300Q1k30300M1k30300M1kzz37kQ1kzz3TwQ1k703wSD7U303kC7z0303U7Dz0303U7S3k303U7s0k30307s0s30307k0s30307k0s30307s0s30307s1s30307S3k3X307DzU3z3073y00y307U",
+    "|<9th grade math>*129$49.000001k0000000s00TU000Q00zw0A0C00wD060700w1U303U0Q0s1U1k0C0A7zkty7073zsRzXU3UA0Dltk3k607UCw1s303U7D3g1U1k3Xzq0k0s0kTX0M0Q0M01UA0C0A01k60706E0s303U3Q0M1U1k1j0Q0k0s0nkw0QMQ0Mzw07wC0A7s01w707",
+    "|<Pre-algebra>*128$45.zw000007zk00000kD0000060Q00000k1U000060C6D0TUk1krsDz60C7k3kwk1Uw0Q3a0Q7070CkD0s0k1rzk70606zw0s0zzq00707zyk00s0k060070600k00s0s0600703UCk00s0S3a00701zsk00s03y4",
+    "|<Algebra>*130$47.0D01k0000S03U0001w0700003w0C001k6M0Q007UQs0s0Tw0tk1k3zk1VU3U73k73U70Q3UA70C0k3Us70Q1U71kC0s30C30A1k70sDzw3UD3kTzs70Dz1k0sC0Ts3U1kQ1U0601Us300Q03Us700s071yDznU071wDzk00000k1k0000301U000060300000C0D",
+    "|<Statistics>*129$40.1z00000Tz07003kT0Q00C0Q1k01k0s7007003zw3Q00Dzkxk00707Xk00Q0QDy01k0UDz070007z0Q0001w1k0401s701k03UQ0S8061k1nU0s70C703UQ0sDUw0sVkTzU3z7kTs07k7U",
+    "|<Integrated math>*131$39.s000007000060s0000k7000060s0000k70lw0zys6zs7zr0z7U60s7UQ0k70s1k60s70C0k70s1k60s60C0k70k1k60s60C0k70k1k60s60C0k70k1k60s60C0sr0k1k3ys60C0DY",
+    "|<Science>*131$50.00007001k0003k00Tk0D0w007y03k7001zU0w0000Ts0T00007r07k0001xk1g1k1wTA0v0Q1zrnUAk70wDws7A1kC0z61n0Q70DlkMk71k1wACA1kM0T3XX0Q607kskk71U1w6QA1kM0T1a30Q707kRUk71k3w3sA1kC0z0w30Q3kzk70k70Txw1kA1k1yS",
+    "|<CSA>*129$84.000000000000Q0000000000000y0000000000000y0000000000000q0000000000001r0My00z00z0001b0PzU3zk3zk003XUT3k7Vs7Vs003XUS1kD0s70s0031UQ0kC0MC0Q0071kM0sA00A0Q0071kM0sQ00A0A00C0kM0sQ00Dzw00C0sM0sQ00Dzw00DzsM0sQ00A0000TzwM0sA00A0000Q0QM0sC0QC0000s0AM0sD0M70Q00s0CM0s7Vs7Us00k0CM0s3zk3zk01k07M0s0z00zU01k07U",
+    "|<CSP>*137$35.00000Dzw000Tzw000z0w000C0Q000Q0s000s0sMwDk1krsTU3Vw0z0C3k1y0Q703w3kC07zz0Q0Dzw0s0TU01k0z003U1y00703w00C07s00Q0Dk00s0TU01k0z003U1k00000E"
+]
 
 ; Debug log function
 WriteLog(message) {
@@ -269,8 +275,8 @@ ExtractStudentNameRaw(baseX, baseY) {
         searchHeight := 80
     }
     
-    ; Use shared OCR function with default parameters - RAW RESULT ONLY
-    result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight)
+    ; Use shared OCR function with "names" context (excludes digits) - RAW RESULT ONLY
+    result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, 8, false, "names")
     
     return result.text  ; Return raw OCR result without validation
 }
@@ -314,8 +320,8 @@ ExtractTopicRaw(baseX, baseY) {
         searchHeight := 80
     }
     
-    ; Use shared OCR function with default parameters - RAW RESULT ONLY
-    result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight)
+    ; Use shared OCR function with "subjects" context (includes digits 6,7,8) - RAW RESULT ONLY
+    result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, 8, false, "subjects")
     
     return result.text  ; Return raw OCR result without validation
 }
@@ -734,8 +740,8 @@ StartDetector() {
         if (UpgradeTarget != "" && (result := FindText(&X, &Y, upgradeX1, upgradeY1, upgradeX2, upgradeY2, 0.15, 0.05, UpgradeTarget))) {
             ToolTip "Found upgrade popup! Clicking...", 10, 10
             Click X, Y
-            MsgBox "Clicked upgrade popup at " X ", " Y
-            Sleep 1000
+   ;         MsgBox "Clicked upgrade popup at " X ", " Y
+   ;         Sleep 1000
             continue  ; Skip to next iteration after handling upgrade
         }
         
@@ -819,7 +825,6 @@ StartDetector() {
                 WinActivate("ahk_id " . targetWindowID)
                 Sleep 200  ; Longer pause to ensure window activation
                 ; Click on the waiting target
-                WriteLog("Clicking at (" . X . "," . Y . ")")
                 Click X, Y
                 
                 ; Wait for session to start loading, then maximize window
