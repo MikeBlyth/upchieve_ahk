@@ -37,7 +37,7 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 4. The script will monitor and automatically extract student names and show personalized messages
 5. **Hotkeys:**
    - **Ctrl+Shift+H** - Pause/resume detection
-   - **Ctrl+Shift+R** - Manual resume from IN_SESSION state  
+   - **Ctrl+Shift+A** - Manual end session (shows feedback dialog)
    - **Ctrl+Shift+Q** - Quit application
 
 ## Session State Management
@@ -56,29 +56,31 @@ The script now tracks three states to prevent unwanted scanning during active se
    - Session timing and progress metrics
    - Comments field for additional notes
    - Continue/Exit/Pause options
-4. **Manual control**: Ctrl+Shift+R hotkey to manually resume from IN_SESSION state
+4. **Manual control**: Ctrl+Shift+A hotkey to manually end session and show feedback dialog
 
 ## How It Works
 1. **Initial Setup**: Searches full screen for PageTarget ("Waiting Students" page header) to establish reference coordinates
 2. **Header Detection**: Locates Student, Help Topic, and Wait Time column headers for precise positioning
 3. **Monitoring Loop**: Scans every 0.05 seconds with 10-second PageTarget/header re-detection
 4. **Student Detection**: When WaitingTarget ("< 1 minute") is found in Wait Time column:
-   - **Immediately clicks** student (200ms delay between clicks) in LIVE mode for minimal delay
-   - **Simultaneous OCR extraction** of student name (Student column) and topic (Help Topic column)
-   - **Post-click validation** with fuzzy matching and interactive correction dialog
+   - **Fast OCR extraction** of student name (Student column) and topic (Help Topic column)
+   - **Blocking check** against `block_names.txt` list
+   - **Click student** (200ms delay for window activation) in LIVE mode 
+   - **Session state change** to IN_SESSION immediately after click
    - **Enhanced logging**: "Session started with [Name], [Topic]" format
    - Shows personalized message: "Session with [Name] ([Topic]) has opened"
-   - Continues monitoring for additional students (until Ctrl+Shift+Q or Ctrl+Shift+H)
+   - Continues monitoring for additional students (until Ctrl+Shift+Q or Ctrl+Shift+A)
 
 ## OCR System Architecture
 
 ### Core Components
-- **alphabet.ahk**: Simplified array-based character patterns for A-Z, a-z, apostrophes, hyphens
-- **ocr_functions.ahk**: Shared OCR functions with pair-based character prioritization
+- **alphabet.ahk**: Dual array system with `name_characters` (A-Z, a-z, apostrophes, hyphens) and `number_characters` (6, 7, 8)
+- **ocr_functions.ahk**: Shared OCR functions with context-aware character filtering and pair-based prioritization
 - **ocr_tester.ahk**: Standalone testing application for parameter tuning and pattern development
 
 ### Student Name Extraction
-- **Search Region**: 720px left of WaitingTarget, 400px wide, 80px tall
+- **Search Region**: Header-based positioning (250×90px) or fallback to WaitingTarget relative positioning
+- **Character Context**: Uses `name_characters` only (excludes digits 6,7,8 to prevent false matches)
 - **Default Tolerances**: (0.15, 0.10) optimized for grey background text
 - **Dual OCR Methods**: 
   - Individual character matching with proximity filtering and prioritization
@@ -95,15 +97,16 @@ The script now tracks three states to prevent unwanted scanning during active se
 - **Performance Optimization**: Fast raw OCR extraction followed by post-click validation
 - **Whitespace Handling**: Proper trimming of leading/trailing spaces in student names
 
-### Topic Validation System
-- **Known Subjects Database**: Pre-defined list of 10 official Upchieve subjects
-  - 6th Grade Math, 7th Grade Math, 8th Grade Math
+### Subject Detection System
+- **Direct Pattern Matching**: Uses `SubjectTargets` array with pre-defined subject patterns for instant recognition
+- **Supported Subjects**: 
+  - 7th Grade Math, 8th Grade Math, 9th Grade Math
   - Pre-algebra, Algebra, Integrated Math, Statistics
-  - Middle School Science, Computer Science A, Computer Science Principles
-- **Automatic Validation**: Fuzzy matching with edit distance algorithm
-- **Tolerance Levels**: 3-character tolerance for short topics, 4-character for longer names
-- **Fallback Processing**: Returns cleaned OCR result if no close match found
-- **Silent Correction**: Corrects common OCR errors without user intervention
+  - Middle School Science, Computer Science A (CSA), Computer Science Principles (CSP)
+- **Performance**: Direct pattern recognition (~25ms) vs OCR character assembly (~100ms+)
+- **Accuracy**: 100% accurate pattern matches, no OCR errors
+- **Fallback**: Returns empty string if no patterns match (manual entry in session dialog)
+- **Tolerances**: 0.15/0.10 for pattern matching to handle font variations
 
 ### OCR Testing Application
 - **Region Selection**: Click-and-drag screen region selection
@@ -141,14 +144,15 @@ The script automatically logs comprehensive session data in CSV format to `upchi
 21. Comments (user input)
 
 ### End-Session Dialog
-When a session ends, a comprehensive feedback dialog appears with:
-- **Pre-filled fields**: Student name and subject from OCR detection
+When a session ends (automatically detected or manually triggered with Ctrl+Shift+A), a comprehensive feedback dialog appears with:
+- **Pre-filled fields**: Student name (from OCR) and subject (from pattern matching or OCR)
 - **Session metrics**: Grade, topic, math subject indicator
 - **Behavioral checkboxes**: Initial response, serious question, left abruptly, stopped responding
 - **Progress rating**: Float value 0-1 (defaults to 1.0)
 - **Timing**: Last message time, auto-calculated duration
 - **Comments**: Free-text notes
 - **Actions**: Continue monitoring, exit, or pause
+- **Learning System**: Manual corrections to names/subjects are automatically saved to `student_corrections.txt`
 
 All data is automatically saved to CSV format with line-break protection for clean spreadsheet import.
 
@@ -169,6 +173,9 @@ All data is automatically saved to CSV format with line-break protection for cle
 - **PageTarget**: "Waiting Students" page indicator
 - **WaitingTarget**: "< 1 minute" waiting time indicator  
 - **UpgradeTarget**: Update popup dismissal
+- **SubjectTargets**: Direct pattern recognition for 10 Upchieve subjects
+- **SessionEndedTarget**: Session completion detection
+- **PencilTipTarget**: Additional UI element detection
 
 ## Positioning System
 The script uses **window-position independent** relative positioning:
@@ -204,26 +211,31 @@ The system now uses column headers to precisely locate search areas:
 ## Dependencies
 - AutoHotkey v2.0+
 - FindTextv2.ahk (included)
-- alphabet.ahk (character patterns for A-Z, a-z, apostrophe, hyphen)
+- alphabet.ahk (dual character arrays: `name_characters` + `number_characters`)
 
 ## Recent Improvements
+- **Dual Array System**: Separated character patterns into `name_characters` and `number_characters` for context-aware OCR
+- **Direct Subject Recognition**: Replaced OCR-based subject detection with instant pattern matching using `SubjectTargets`
+- **Context-Aware Character Filtering**: Student names exclude digits, subjects include grade-level numbers (6,7,8)  
+- **Manual Session Control**: Added Ctrl+Shift+A hotkey for manual session ending
+- **Improved Session Flow**: Enhanced session end detection with 2-second intervals and proper tolerances (0.15, 0.10)
+- **Learning System Integration**: Session feedback dialog automatically saves manual corrections to database
+- **Performance Optimization**: Subject detection now ~4x faster (pattern matching vs character OCR)
+- **Scan Timing Analysis**: Added 20-scan average timing measurement for performance monitoring
 - **Modular Architecture**: Separated OCR functions into shared library (`ocr_functions.ahk`)
-- **Array-based Alphabet**: Simplified character pattern management from 60+ variables to single array
 - **Pair-based Prioritization**: Comprehensive character conflict resolution using explicit pair priorities
 - **Student Database Integration**: Fuzzy matching with edit distance algorithm and interactive correction
-- **Performance Optimization**: Separated fast raw OCR from slower validation for minimal click delays
 - **OCR Testing Tool**: Built standalone application for rapid pattern development and parameter tuning
 - **Multiple Character Patterns**: Support for multiple patterns per character (especially 'y', 't', 'd')
-- **Enhanced Debug Output**: Added sorted raw character display and method comparison
-- **Dynamic Reloading**: Alphabet patterns can be updated without application restart
-- **PageTarget Optimization**: Updated coordinates for smaller PageTarget4 (143×16 vs original 271×45)
-- **Tolerance Tuning**: Default OCR tolerances optimized to (0.15, 0.10) for better accuracy
+- **Dynamic Reloading**: Character patterns can be updated and reloaded without application restart
 
 ## Performance Considerations
 - **Initial PageTarget search**: 170-200ms (full screen)
-- **WaitingTarget detection**: <50ms (localized search area)
-- **Student click response**: Immediate (raw OCR extraction is fast)
-- **Name validation**: Post-click (doesn't delay student interaction)
+- **WaitingTarget detection**: ~25ms average (measured over 20 scans, localized search area)
+- **Subject detection**: ~25ms (direct pattern matching vs ~100ms+ OCR)
+- **Student name OCR**: Context-aware character filtering (excludes digits 6,7,8)
+- **Session end detection**: Every 2 seconds during IN_SESSION state (0.15, 0.10 tolerances)
+- **Click response**: 200ms window activation + immediate click
 - **PageTarget re-detection**: Every 10 seconds to handle window movement
 
 ## Troubleshooting
