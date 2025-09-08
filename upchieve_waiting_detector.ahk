@@ -5,7 +5,7 @@
 #Include student_database.ahk
 
 ; Upchieve Waiting Student Detector
-; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+R to resume from session
+; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+A to end session
 
 TargetWindow := "UPchieve"
 IsActive := false
@@ -21,8 +21,17 @@ SessionState := WAITING_FOR_STUDENT
 ; Session tracking variables
 LastStudentName := ""
 LastStudentTopic := ""
+LastRawStudentName := ""  ; Original OCR result for student name
+LastRawStudentTopic := ""  ; Original OCR result for subject
 SessionStartTime := ""
 SessionEndTime := ""
+
+; Scan timing variables
+ScanTimes := []
+ScanCount := 0
+
+; Session end detection timing
+lastSessionEndCheck := 0
 
 ; Function to play notification sound
 PlayNotificationSound() {
@@ -311,8 +320,10 @@ ExtractTopicRaw(baseX, baseY) {
     return result.text  ; Return raw OCR result without validation
 }
 
-; Validate topic against known Upchieve subjects with fuzzy matching
+; Validate topic against known Upchieve subjects with fuzzy matching and corrections database
 ValidateTopicName(ocrResult) {
+    global correctionDatabase
+    
     ; Define known Upchieve subjects
     knownTopics := [
         "6th Grade Math",
@@ -332,9 +343,17 @@ ValidateTopicName(ocrResult) {
         return ""
     }
     
+    ; Check if we have a known correction for this exact OCR result
+    if (correctionDatabase.Has(cleanOCR)) {
+        return correctionDatabase[cleanOCR]
+    }
+    if (correctionDatabase.Has(ocrResult)) {
+        return correctionDatabase[ocrResult]
+    }
+    
     ; First try exact matches (case insensitive)
     for topic in knownTopics {
-        if (cleanOCR = topic) {
+        if (StrLower(cleanOCR) == StrLower(topic)) {
             return topic
         }
     }
@@ -464,6 +483,25 @@ ShowSessionFeedbackDialog() {
     
     ; Function to log session feedback in CSV format
     LogSessionFeedbackCSV() {
+        ; Save corrections if user modified the names/subjects
+        global LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic
+        
+        ; Check if student name was corrected
+        finalName := Trim(nameEdit.Text)
+        if (finalName != "" && LastRawStudentName != "" && finalName != LastStudentName) {
+            ; User corrected the student name - save correction mapping from raw OCR to final name
+            SaveCorrection(LastRawStudentName, finalName)
+            WriteLog("Saved name correction: '" . LastRawStudentName . "' -> '" . finalName . "'")
+        }
+        
+        ; Check if subject was corrected  
+        finalSubject := Trim(subjectEdit.Text)
+        if (finalSubject != "" && LastRawStudentTopic != "" && finalSubject != LastStudentTopic) {
+            ; User corrected the subject - save correction mapping from raw OCR to final subject
+            SaveCorrection(LastRawStudentTopic, finalSubject)
+            WriteLog("Saved subject correction: '" . LastRawStudentTopic . "' -> '" . finalSubject . "'")
+        }
+        
         ; Calculate session duration in minutes
         duration := ""
         if (SessionStartTime != "" && SessionEndTime != "") {
@@ -525,15 +563,25 @@ LoadAlphabetCharacters()
 ; Load blocked names list
 BlockedNames := LoadBlockedNames()
 
-; Manual resume from IN_SESSION state
-ResumeFromSession() {
+; Manual end session function
+EndSession() {
     global SessionState
     if (SessionState == IN_SESSION) {
-        SessionState := WAITING_FOR_STUDENT
-        ; WriteLog("Manual resume: State changed from IN_SESSION to WAITING_FOR_STUDENT")
-        MsgBox("Resumed looking for students", "Manual Resume", "OK")
+        ; Show session feedback dialog
+        continueResult := ShowSessionFeedbackDialog()
+        
+        if (continueResult = "Yes") {
+            SessionState := WAITING_FOR_STUDENT
+            WriteLog("Manual session end - resumed looking for students")
+        } else if (continueResult = "No") {
+            CleanExit()
+        } else {  ; Cancel
+            SessionState := PAUSED
+            SuspendDetection()
+            SessionState := WAITING_FOR_STUDENT  ; Resume after pause dialog
+        }
     } else {
-        MsgBox("Not currently in session. State: " . SessionState, "Manual Resume", "OK")
+        MsgBox("Not currently in session. State: " . SessionState, "Manual End Session", "OK")
     }
 }
 
@@ -547,7 +595,7 @@ CleanExit() {
 ; Hotkey definitions
 ^+q::CleanExit()
 ^+h::SuspendDetection()
-^+r::ResumeFromSession()
+^+a::EndSession()
 
 ; Auto-start detection on script launch
 StartDetector()
@@ -628,11 +676,11 @@ StartDetector() {
             }
         }
         
-        ; Check for session end: PageTarget appears while we're IN_SESSION  
-        if (SessionState == IN_SESSION) {
+        ; Check for session end: PageTarget appears while we're IN_SESSION (every 2 seconds)
+        if (SessionState == IN_SESSION && (A_TickCount - lastSessionEndCheck > 2000)) {
             tempX := ""
             tempY := ""
-            if (tempResult := FindText(&tempX, &tempY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0, 0, PageTarget)) {
+            if (tempResult := FindText(&tempX, &tempY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.10, PageTarget)) {
                 ; Session ended - show session feedback dialog
                 ; Session ended - feedback will be logged via CSV dialog
                 continueResult := ShowSessionFeedbackDialog()
@@ -656,6 +704,7 @@ StartDetector() {
                     SessionState := WAITING_FOR_STUDENT  ; Resume after pause dialog
                 }
             }
+            lastSessionEndCheck := A_TickCount
         }
         
         ; Debug: Show current state briefly (1 second every 5 seconds)
@@ -711,12 +760,32 @@ StartDetector() {
             
             X := ""
             Y := ""
-            if (result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0.15, 0.05, WaitingTarget)) {
-            global LiveMode
-            WriteLog("WaitingTarget found at (" . X . "," . Y . ")")
-            ToolTip "Found waiting student! Checking name...", 10, 10
+            scanStart := A_TickCount
+            result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0.15, 0.05, WaitingTarget)
+            scanTime := A_TickCount - scanStart
             
-            ; Step 1: Extract raw student name and topic
+            ; Track scan timing for first 20 scans
+            global ScanTimes, ScanCount
+            if (ScanCount < 20) {
+                ScanTimes.Push(scanTime)
+                ScanCount++
+                if (ScanCount == 20) {
+                    ; Calculate and log average
+                    total := 0
+                    for time in ScanTimes {
+                        total += time
+                    }
+                    average := Round(total / 20, 1)
+                    WriteLog("Average WaitingTarget scan time over 20 scans: " . average . "ms")
+                }
+            }
+            
+            if (result) {
+            global LiveMode
+            WriteLog("WaitingTarget found at (" . X . "," . Y . ") in " . scanTime . "ms")
+            ToolTip "Found waiting student! Extracting name...", 10, 10
+            
+            ; Step 1: Extract raw student name and topic FIRST (before clicking)
             rawStudentName := ExtractStudentNameRaw(X, Y)
             rawTopic := ExtractTopicRaw(X, Y)
             
@@ -742,7 +811,7 @@ StartDetector() {
                 WriteAppLog("BLOCKED: " . (rawBlocked ? rawStudentName : "'" . rawStudentName . "' -> '" . correctedName . "'"))
                 continue  ; Skip this student
             }
-            ; If neither raw nor corrected is blocked, proceed immediately
+            ; If neither raw nor corrected is blocked, proceed to click
             
             ; Step 4: Click the student
             if (LiveMode) {
@@ -762,7 +831,9 @@ StartDetector() {
                 SessionState := IN_SESSION
                 
                 ; Update session tracking variables
-                global LastStudentName, LastStudentTopic, SessionStartTime
+                global LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic, SessionStartTime
+                LastRawStudentName := rawStudentName  ; Store original OCR result
+                LastRawStudentTopic := rawTopic       ; Store original OCR result
                 LastStudentName := correctedName
                 LastStudentTopic := ValidateTopicName(rawTopic)  ; Apply topic auto-correction
                 SessionStartTime := A_Now
@@ -779,7 +850,9 @@ StartDetector() {
                 SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
             } else {
                 ; TESTING mode - use same corrected data
-                global LastStudentName, LastStudentTopic, SessionStartTime
+                global LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic, SessionStartTime
+                LastRawStudentName := rawStudentName  ; Store original OCR result
+                LastRawStudentTopic := rawTopic       ; Store original OCR result
                 LastStudentName := correctedName
                 LastStudentTopic := ValidateTopicName(rawTopic)  ; Apply topic auto-correction
                 SessionStartTime := A_Now
