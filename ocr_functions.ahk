@@ -113,14 +113,14 @@ GetPriorityCharacter(char1, char2) {
 
 ; Load alphabet characters for name extraction
 LoadAlphabetCharacters() {
-    global name_characters, number_characters
+    global name_characters
     
     ; Re-read alphabet.ahk file to pick up any changes
     try {
         alphabetContent := FileRead("alphabet.ahk")
         
-        ; Execute the file content to update the character arrays
-        ; This safely evaluates the array definitions
+        ; Execute the file content to update the character array
+        ; This safely evaluates the array definition
         tempCode := ""
         lines := StrSplit(alphabetContent, "`n")
         i := 1
@@ -142,40 +142,21 @@ LoadAlphabetCharacters() {
                     i++
                 }
             }
-            ; Handle number_characters array
-            else if (InStr(line, "number_characters := [")) {
-                tempCode .= line . "`n"
-                i++
-                ; Read until we find the closing bracket
-                while (i <= lines.Length) {
-                    line := Trim(lines[i])
-                    tempCode .= line . "`n"
-                    if (InStr(line, "]") && !InStr(line, "|<")) {
-                        break
-                    }
-                    i++
-                }
-            }
             i++
         }
         
-        ; Execute the array definitions to update the global variables
+        ; Execute the array definition to update the global variable
         if (tempCode != "") {
-            %tempCode%  ; This updates the global character arrays
+            %tempCode%  ; This updates the global character array
         }
     } catch {
-        ; If file reading fails, fall back to existing arrays
+        ; If file reading fails, fall back to existing array
     }
     
-    ; Combine all patterns from both arrays for FindText library registration
+    ; Combine all patterns from the array for FindText library registration
     Text := ""
     if (IsObject(name_characters)) {
         for pattern in name_characters {
-            Text .= pattern
-        }
-    }
-    if (IsObject(number_characters)) {
-        for pattern in number_characters {
             Text .= pattern
         }
     }
@@ -185,27 +166,9 @@ LoadAlphabetCharacters() {
 }
 
 ; Extract text from a specified screen region with configurable parameters
-ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, proximityThreshold := 8, useJoinText := false, context := "names") {
-    global name_characters, number_characters
-    
-    ; Build character sets based on context
-    characterPatterns := []
-    if (context == "subjects") {
-        ; Include both letters and digits for subjects like "6th Grade Math"
-        for pattern in name_characters {
-            characterPatterns.Push(pattern)
-        }
-        for pattern in number_characters {
-            characterPatterns.Push(pattern)
-        }
-        allowedChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-678"
-    } else {
-        ; Default to names - only letters, no digits
-        for pattern in name_characters {
-            characterPatterns.Push(pattern)
-        }
-        allowedChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"
-    }
+ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, proximityThreshold := 8, useJoinText := false) {
+    ; Define character set for names
+    nameChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"
     X := ""
     Y := ""
     
@@ -213,7 +176,7 @@ ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, pr
     if (useJoinText) {
         ; Use JoinText for sequential character matching
         ; JoinText expects to find characters in sequence, so we search for any text
-        if (ok := FindText(&X, &Y, x1, y1, x2, y2, tolerance1, tolerance2, FindText().PicN(characterPatterns*), 1, 1, 0, 0, 0, 1)) {
+        if (ok := FindText(&X, &Y, x1, y1, x2, y2, tolerance1, tolerance2, FindText().PicN(nameChars), 1, 1, 0, 0, 0, 1)) {
             ; With JoinText, we should get sequential text results
             ; Sort results by position and build text
             if (ok.Length > 0) {
@@ -235,12 +198,7 @@ ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, pr
                 for char in ok {
                     extractedText .= char.id
                 }
-                ; Filter based on context
-                if (context == "subjects") {
-                    extractedText := RegExReplace(extractedText, "[^a-zA-Z' -678]", "")
-                } else {
-                    extractedText := RegExReplace(extractedText, "[^a-zA-Z' -]", "")
-                }
+                extractedText := RegExReplace(extractedText, "[^a-zA-Z' -]", "")
                 finalText := Trim(extractedText)
                 
                 ; Return result with JoinText data
@@ -249,7 +207,7 @@ ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, pr
         }
     } else {
         ; Use individual character matching (original method)
-        if (ok := FindText(&X, &Y, x1, y1, x2, y2, tolerance1, tolerance2, FindText().PicN(characterPatterns*))) {
+        if (ok := FindText(&X, &Y, x1, y1, x2, y2, tolerance1, tolerance2, FindText().PicN(nameChars))) {
             ; Filter and manually assemble characters
             cleanChars := Array()
             for i, char in ok {
@@ -305,12 +263,8 @@ ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, pr
                     extractedText .= char.id
                 }
                 
-                ; Clean up any remaining artifacts - filter based on context
-                if (context == "subjects") {
-                    extractedText := RegExReplace(extractedText, "[^a-zA-Z' -678]", "")
-                } else {
-                    extractedText := RegExReplace(extractedText, "[^a-zA-Z' -]", "")
-                }
+                ; Clean up any remaining artifacts
+                extractedText := RegExReplace(extractedText, "[^a-zA-Z' -]", "")
                 finalText := Trim(extractedText)
                 
                 ; Return both the final text and the raw character array for analysis

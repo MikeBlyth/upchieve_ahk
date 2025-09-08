@@ -65,7 +65,7 @@ SessionEndedTarget := "|<SessionEnded>*195$237.zzzzzzzzzzzzs7zzzzzzzzzzzzzzzzsDz
 PencilTipTarget :="|<PencilTip>**50$69.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001zs000000007w3y0000000DU00T0000007U000S000003U0000Q00001k00k00s0000Q00D003U000C001w0070003U00Nk00Q000k0076000k00A001ks003003000A3U00A00k003UA000k0A000ryk00303000Dzz000A0M001k0Q001U6000Q01U0061U00700C000MA000k00s0033000C003U00AE003U00A000a000s001k006U0060007000I001k000Q003U00Q0003U00M0070000C001000k0000s00800C00003001003U0000Q00000s00001k0000600000700001k00000M0000Q000003U0007000000C0000s000000s000C0M0k1U3U001k7UD0C0Q000D0y1w3s7U001wCsRkvVw000BnXb7CCTU001bsDkTUzQ000Ay0w1s3nU001XU3U70CQ000A8080E0XU001U000000Q04"
 
 SubjectTargets :=  
-    "|<7th Grade Math>*126$48.Tzw00300Tzw3030000Q3030000s3030000k3030001Uzz37k03Uzz3Tw030303wS070303kC060303U70C0303U70A0303U70Q0303070Q0303070M0303070M0303070s0303070s0303070s03X3070s03z3070s00y307U" .
+    "<7th Grade Math>*126$48.Tzw00300Tzw3030000Q3030000s3030000k3030001Uzz37k03Uzz3Tw030303wS070303kC060303U70C0303U70A0303U70Q0303070Q0303070M0303070M0303070s0303070s0303070s03X3070s03z3070s00y307U" .
     "|<8th grade math>*128$48.000003003y000300Dz030300C7U30300Q1k30300M1k30300M1kzz37kQ1kzz3TwQ1k703wSD7U303kC7z0303U7Dz0303U7S3k303U7s0k30307s0s30307k0s30307k0s30307s0s30307s1s30307S3k3X307DzU3z3073y00y307U" .
     "|<9th grade math>*129$49.000001k0000000s00TU000Q00zw0A0C00wD060700w1U303U0Q0s1U1k0C0A7zkty7073zsRzXU3UA0Dltk3k607UCw1s303U7D3g1U1k3Xzq0k0s0kTX0M0Q0M01UA0C0A01k60706E0s303U3Q0M1U1k1j0Q0k0s0nkw0QMQ0Mzw07wC0A7s01w707" .
     "|<Pre-algebra>*128$45.zw000007zk00000kD0000060Q00000k1U000060C6D0TUk1krsDz60C7k3kwk1Uw0Q3a0Q7070CkD0s0k1rzk70606zw0s0zzq00707zyk00s0k060070600k00s0s0600703UCk00s0S3a00701zsk00s03y4" .
@@ -275,8 +275,8 @@ ExtractStudentNameRaw(baseX, baseY) {
         searchHeight := 80
     }
     
-    ; Use shared OCR function with "names" context (excludes digits) - RAW RESULT ONLY
-    result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, 8, false, "names")
+    ; Use shared OCR function for name extraction - RAW RESULT ONLY
+    result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, 8, false)
     
     return result.text  ; Return raw OCR result without validation
 }
@@ -321,11 +321,9 @@ ExtractTopicRaw(baseX, baseY) {
     }
     
     ; Use direct subject pattern matching (much faster and more accurate)
-    X := ""
-    Y := ""
-    if (result := FindText(&X, &Y, searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, SubjectTargets)) {
+    if (result := FindText(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, SubjectTargets)) {
         ; Return the exact subject name from pattern match
-        return result.id  ; This will be something like "7th Grade Math"
+        return result[1].id  ; This will be something like "7th Grade Math"
     }
     
     ; No subject pattern matched - return empty string for manual entry

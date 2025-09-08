@@ -249,3 +249,65 @@ The system now uses column headers to precisely locate search areas:
 - Some characters (especially 'y') require multiple patterns due to descender positioning
 - Window occlusion/shading significantly impacts FindText performance (3-5 seconds vs 170-200ms)
 - Character prioritization may need adjustment for specific font variations or new text rendering
+
+## FindText Library Usage Patterns
+
+This section documents the correct usage patterns for the FindText library to avoid future implementation errors.
+
+### Object-Oriented Search Syntax (Recommended)
+
+**Pattern Definition:**
+```autohotkey
+; Correct: First pattern has no leading |, subsequent patterns do
+SubjectTargets := 
+    "|<7th Grade Math>*126$48.hexdata..." .
+    "|<8th grade math>*128$48.hexdata..." .
+    "|<Pre-algebra>*128$45.hexdata..."
+
+; WRONG: Leading | on first pattern (deprecated, may prevent first pattern from being found)
+SubjectTargets := 
+    "|<7th Grade Math>*126$48.hexdata..." .
+```
+
+**Search Syntax:**
+```autohotkey
+; Correct: New object syntax returns array of match objects
+if (result := FindText(x1, y1, x2, y2, tolerance1, tolerance2, patterns)) {
+    foundID := result[1].id        ; Pattern name like "7th Grade Math"
+    foundX := result[1].x          ; Center X coordinate  
+    foundY := result[1].y          ; Center Y coordinate
+    foundWidth := result[1].w      ; Pattern width
+    foundHeight := result[1].h     ; Pattern height
+}
+
+; WRONG: Old coordinate syntax (doesn't return .id property correctly)
+if (result := FindText(&X, &Y, x1, y1, x2, y2, tolerance1, tolerance2, patterns)) {
+    // X and Y contain coordinates, but result.id may not work properly
+}
+```
+
+**OCR Character Search:**
+```autohotkey
+; Correct: Use PicN with simple character strings
+nameChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"
+if (result := FindText(x1, y1, x2, y2, tolerance1, tolerance2, FindText().PicN(nameChars))) {
+    // Process character results
+}
+
+; WRONG: Trying to use PicN with pattern arrays  
+characterPatterns := ["|<a>*100$18.hex...", "|<b>*133$21.hex..."]
+FindText().PicN(characterPatterns*)  // ERROR: Too many parameters
+```
+
+### Key Differences
+
+1. **New Object Syntax**: Returns array of match objects with `.id`, `.x`, `.y`, `.w`, `.h` properties
+2. **Old Coordinate Syntax**: Primarily for getting X,Y coordinates, `.id` property may not work correctly
+3. **Leading Pipe**: Deprecated on first pattern, can cause first pattern to never be found
+4. **PicN Usage**: Only for simple character strings like "abc123", not for complex pattern arrays
+
+### Migration Notes
+
+- **Subject Detection**: Uses new object syntax with direct pattern concatenation
+- **Name OCR**: Uses PicN with simple character strings, registered via PicLib
+- **Pattern Registration**: PicLib(patterns, 1) for registration, PicLib("name1|name2") for retrieval
