@@ -166,10 +166,6 @@ FindHeaders() {
         headerStatus .= "WaitTime "
     }
     
-    ; Log detailed results if not all headers found
-    if (headersFound < 3) {
-        WriteLog("Header detection: " . headersFound . "/3 found (" . Trim(headerStatus) . ")")
-    }
     
     return headersFound
 }
@@ -717,6 +713,7 @@ StartDetector() {
             Y := ""
             if (result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0.15, 0.05, WaitingTarget)) {
             global LiveMode
+            WriteLog("WaitingTarget found at (" . X . "," . Y . ")")
             ToolTip "Found waiting student! Checking name...", 10, 10
             
             ; Step 1: Extract raw student name and topic
@@ -751,8 +748,9 @@ StartDetector() {
             if (LiveMode) {
                 ; Activate the identified window
                 WinActivate("ahk_id " . targetWindowID)
-                Sleep 50  ; Brief pause for window activation
+                Sleep 200  ; Longer pause to ensure window activation
                 ; Click on the waiting target
+                WriteLog("Clicking at (" . X . "," . Y . ")")
                 Click X, Y
                 
                 ; Wait for session to start loading, then maximize window
