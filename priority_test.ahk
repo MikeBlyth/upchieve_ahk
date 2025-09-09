@@ -86,9 +86,9 @@ TestMohammadCase() {
             
             priorityChar := GetPriorityCharacter(char, existingChar)
             Print("  WINNER: '" . priorityChar.id . "'")
+            Print("  DEBUG: priorityChar.id = '" . priorityChar.id . "', existingChar.id = '" . existingChar.id . "'")
             
-            if (priorityChar.id != existingChar.id) {
-                ; Replace existing character with higher priority one
+            if (priorityChar != existingChar) { ; Compare objects directly
                 cleanChars[conflictIndex] := priorityChar
                 Print("  REPLACED '" . existingChar.id . "' with '" . priorityChar.id . "'")
             } else {
@@ -107,6 +107,71 @@ TestMohammadCase() {
     Print("`nFinal text: '" . finalText . "'")
     Print("Expected: 'Mohammad'")
     Print("Success: " . (finalText == "Mohammad" ? "YES" : "NO"))
+}
+
+; Test the I, l, L case
+TestILlCase() {
+    Print("`n`n=== TESTING I, l, L CASE ===")
+    Print("Raw detections (sorted by x-location):")
+    
+    rawChars := [
+        CreateChar("I", 2462),
+        CreateChar("l", 2463),
+        CreateChar("L", 2467)
+    ]
+    
+    for i, char in rawChars {
+        Print(char.x . " " . char.id)
+    }
+    
+    Print("`n--- PROCESSING CHARACTERS ---")
+    
+    proximityThreshold := 10
+    cleanChars := []
+    
+    for i, char in rawChars {
+        Print("`nProcessing '" . char.id . "' at x=" . char.x)
+        
+        conflictIndex := -1
+        for j, existingChar in cleanChars {
+            xDiff := Abs(char.x - existingChar.x)
+            if (xDiff < proximityThreshold) {
+                Print("  CONFLICT with '" . existingChar.id . "' at x=" . existingChar.x . " (diff=" . xDiff . ")")
+                conflictIndex := j
+                break
+            }
+        }
+        
+        if (conflictIndex == -1) {
+            cleanChars.Push(char)
+            Print("  ADDED to cleanChars (no conflict)")
+        } else {
+            existingChar := cleanChars[conflictIndex]
+            Print("  PRIORITY COMPARISON: '" . char.id . "' vs '" . existingChar.id . "'")
+            
+            priorityChar := GetPriorityCharacter(char, existingChar)
+            Print("  WINNER: '" . priorityChar.id . "'")
+            Print("  DEBUG: priorityChar.id = '" . priorityChar.id . "', existingChar.id = '" . existingChar.id . "'")
+            
+            if (priorityChar != existingChar) { ; Compare objects directly
+                cleanChars[conflictIndex] := priorityChar
+                Print("  REPLACED '" . existingChar.id . "' with '" . priorityChar.id . "'")
+            } else {
+                Print("  KEPT existing '" . existingChar.id . "'")
+            }
+        }
+    }
+    
+    Print("`n--- FINAL RESULTS ---")
+    finalText := ""
+    for i, char in cleanChars {
+        finalText .= char.id
+        Print(i . ": '" . char.id . "' at x=" . char.x)
+    }
+    
+    Print("`nFinal text: '" . finalText . "'")
+    Print("Expected: 'L'")
+    Print("Success: " . (finalText == "L" ? "YES" : "NO"))
 }
 
 ; Test direct priority comparisons
@@ -161,6 +226,7 @@ Print("PRIORITY ALGORITHM TEST RESULTS")
 Print("===============================")
 
 TestMohammadCase()
+TestILlCase()
 TestDirectPriorities() 
 TestProximityEdgeCases()
 

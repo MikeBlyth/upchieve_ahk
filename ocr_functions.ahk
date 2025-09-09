@@ -7,26 +7,26 @@
 ; Character prioritization for ambiguous matches
 ; Returns the higher priority character when two characters occupy the same position
 GetPriorityCharacter(char1, char2) {
-    ; Define character pair priorities using normalized pairs (alphabetically sorted)
+    ; Define character pair priorities (base pairs only - inverse pairs auto-generated)
     ; Format: "char1,char2" -> preferred character
     pairPriorities := Map(
         ; Common ambiguous pairs - lowercase
-        "n,r", "n",  ; n over r
-        "m,r", "m",  ; m over r
-        "h,r", "h",  ; h over r  
-        "p,r", "p",  ; p over r
-        "h,n", "h",  ; h over n
-        "h,l", "h",  ; h over l
+        "r,n", "n",  ; n over r
+        "r,m", "m",  ; m over r
+        "r,h", "h",  ; h over r  
+        "r,p", "p",  ; p over r
+        "n,h", "h",  ; h over n
+        "l,h", "h",  ; h over l
         "c,e", "e",  ; e over c
-        "a,o", "a",  ; a over o
-        "e,o", "e",  ; e over o
-        "d,o", "d",  ; d over o
-        "i,l", "l",  ; l over i
+        "o,a", "a",  ; a over o
+        "o,e", "e",  ; e over o
+        "o,d", "d",  ; d over o
+        "l,i", "l",  ; l over i
         "l,t", "t",  ; t over l
-        "d,l", "d",  ; d over l
+        "l,d", "d",  ; d over l
         "m,n", "m",  ; m over n
-        "d,q", "d",  ; d over q
-
+        "q,d", "d",  ; q over d
+        
         ; Uppercase pairs
         "I,b", "b",  ; b over I
         "I,d", "d",  ; d over I
@@ -37,38 +37,53 @@ GetPriorityCharacter(char1, char2) {
         "I,q", "q",  ; q over I
         "I,t", "t",  ; t over I
         "C,G", "G",  ; G over C
+        "O,G", "G",  ; G over O
         "O,Q", "Q",  ; Q over O
-        "B,I", "B",  ; B over I
-        "D,I", "D",  ; D over I
-        "E,I", "E",  ; E over I
-        "F,I", "F",  ; F over I
-        "H,I", "H",  ; H over I
+        "I,B", "B",  ; B over I
+        "I,D", "D",  ; D over I
+        "I,E", "E",  ; E over I
+        "F,E", "E",  ; E over F
+        "I,F", "F",  ; F over I
+        "I,H", "H",  ; H over I
         "I,J", "J",  ; J over I
         "I,L", "L",  ; L over I
+        "l,L", "L",  ; L over l
         "I,M", "M",  ; M over I
         "I,N", "N",  ; N over I
         "I,P", "P",  ; P over I
         "I,R", "R",  ; R over I
+        "F,T", "T",  ; F over T
         "I,T", "T",  ; T over I
         "I,U", "U"   ; U over I
     )
     
-    ; Normalize the pair by sorting characters alphabetically
-    char1Id := char1.id
-    char2Id := char2.id
+    ; Auto-generate inverse pairs to avoid manual duplication
+    inversePairs := Map()
+    for pairKey, winner in pairPriorities {
+        ; For "r,n" -> "n", also add "n,r" -> "n"
+        chars := StrSplit(pairKey, ",")
+        inversePair := chars[2] . "," . chars[1]
+        if (!pairPriorities.Has(inversePair)) {
+            inversePairs[inversePair] := winner
+        }
+    }
+    
+    ; Merge inverse pairs into main map
+    for pairKey, winner in inversePairs {
+        pairPriorities[pairKey] := winner
+    }
     
     ; Early hyphen check - hyphen loses to any other character
-    if (char1Id == "-" && char2Id != "-")
+    if (char1.id == "-" && char2.id != "-")
         return char2
-    if (char2Id == "-" && char1Id != "-")
+    if (char2.id == "-" && char1.id != "-")
         return char1
     
-    sortedPair := (StrCompare(char1Id, char2Id) <= 0) ? char1Id . "," . char2Id : char2Id . "," . char1Id
-    
     ; Check for specific pair priority
-    if (pairPriorities.Has(sortedPair)) {
-        preferred := pairPriorities[sortedPair]
-        return (preferred == char1Id) ? char1 : char2
+    pairKey := char1.id . "," . char2.id
+    if (pairPriorities.Has(pairKey)) {
+        preferred := pairPriorities[pairKey]
+        return (preferred == char1.id) ? char1 : char2
     }
     
     ; If no specific pair rule, prefer character with longer match string
@@ -188,7 +203,7 @@ ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, pr
             ; Check proximity to existing characters and handle prioritization
             conflictIndex := -1
             for j, existingChar in cleanChars {
-                if (Abs(char.x - existingChar.x) < proximityThreshold && Abs(char.y - existingChar.y) < proximityThreshold) {
+                if (Abs(char.x - existingChar.x) < proximityThreshold) {
                     conflictIndex := j
                     break
                 }
@@ -202,7 +217,7 @@ ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, pr
                 existingChar := cleanChars[conflictIndex]
                 priorityChar := GetPriorityCharacter(char, existingChar)
                 ; Debug: Track priority decisions
-                if (priorityChar.id != existingChar.id) {
+                if (priorityChar != existingChar) {
                     ; Replace existing character with higher priority one
                     cleanChars[conflictIndex] := priorityChar
                 }
