@@ -18,6 +18,10 @@ GetPriorityCharacter(char1, char2) {
         "n,h", "h",  ; h over n
         "l,h", "h",  ; h over l
         "i,j", "j",  ; j over i
+        "l,j", "j",  ; j over l
+        "I,j", "j",  ; j over I
+        "I,k", "k",  ; j over I
+        "l,k", "k",  ; j over I
         "c,e", "e",  ; e over c
         "o,a", "a",  ; a over o
         "o,e", "e",  ; e over o
