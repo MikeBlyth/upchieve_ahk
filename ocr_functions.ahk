@@ -17,6 +17,7 @@ GetPriorityCharacter(char1, char2) {
         "r,p", "p",  ; p over r
         "n,h", "h",  ; h over n
         "l,h", "h",  ; h over l
+        "i,j", "j",  ; j over i
         "c,e", "e",  ; e over c
         "o,a", "a",  ; a over o
         "o,e", "e",  ; e over o
@@ -44,6 +45,7 @@ GetPriorityCharacter(char1, char2) {
         "I,E", "E",  ; E over I
         "F,E", "E",  ; E over F
         "I,F", "F",  ; F over I
+        "T,F", "F",  ; F over T
         "I,H", "H",  ; H over I
         "I,J", "J",  ; J over I
         "I,L", "L",  ; L over I
@@ -104,6 +106,8 @@ ReplaceLetterCombinations(text) {
     ; Handle wide M character that gets detected as MI or Ml
     text := StrReplace(text, "MI", "M")
     text := StrReplace(text, "Ml", "M")
+    text := StrReplace(text, "NI", "N")
+    text := StrReplace(text, "UI", "U")
     
     return text
 }
