@@ -6,6 +6,8 @@
 ; OCR Testing Application
 ; Tool for tuning OCR parameters and testing character recognition
 
+CoordMode("Mouse", "Screen")
+
 ; Global variables
 SelectionStartX := 0
 SelectionStartY := 0
@@ -57,7 +59,6 @@ ProximityEdit.OnEvent("Change", (*) => ProximitySlider.Value := Integer(Proximit
 ; Test Section
 MainGui.AddText("Section xm y+20", "3. Testing:")
 AutoReloadCheckbox := MainGui.AddCheckbox("Checked", "Auto-reload alphabet on each test")
-JoinTextCheckbox := MainGui.AddCheckbox("xm", "Use JoinText (sequential character matching)")
 TestBtn := MainGui.AddButton("xm w100 h30", "Test OCR")
 TestBtn.OnEvent("Click", (*) => RunOCRTest())
 
@@ -182,11 +183,8 @@ RunOCRTest() {
     tolerance2 := Float(Tolerance2Edit.Value)  
     proximityThreshold := Integer(ProximityEdit.Value)
     
-    ; Get JoinText option
-    useJoinText := JoinTextCheckbox.Value
-    
     ; Run OCR with current parameters
-    result := ExtractTextFromRegion(SelectionStartX, SelectionStartY, SelectionEndX, SelectionEndY, tolerance1, tolerance2, proximityThreshold, useJoinText)
+    result := ExtractTextFromRegion(SelectionStartX, SelectionStartY, SelectionEndX, SelectionEndY, tolerance1, tolerance2, proximityThreshold)
     
     ; Display main result with method indicator
     methodText := result.HasOwnProp("method") ? " [" . result.method . "]" : ""
@@ -196,63 +194,48 @@ RunOCRTest() {
         ResultText.Value := "No text extracted from selected region" . methodText
     }
     
-    ; Display character details (adapted for JoinText vs Individual methods)
-    if (useJoinText) {
-        charDetails := "JoinText Method: Found " . result.chars.Length . " matches`n`n"
+    ; Display character details
+    charDetails := "Individual Method: Found " . result.chars.Length . " clean characters"
+    if (result.rawChars.Length > 0) {
+        charDetails .= " (from " . result.rawChars.Length . " raw detections)`n`n"
     } else {
-        charDetails := "Individual Method: Found " . result.chars.Length . " clean characters"
-        if (result.rawChars.Length > 0) {
-            charDetails .= " (from " . result.rawChars.Length . " raw detections)`n`n"
-        } else {
-            charDetails .= "`n`n"
+        charDetails .= "`n`n"
+    }
+    
+    ; Show clean characters (after filtering and prioritization)
+    if (result.chars.Length > 0) {
+        charDetails .= "CLEAN CHARACTERS (final result):`n"
+        for i, char in result.chars {
+            charDetails .= i . ": '" . char.id . "' at (" . char.x . "," . char.y . ")`n"
         }
     }
     
-    ; Show results based on method
-    if (useJoinText) {
-        ; For JoinText, show the matches found
-        if (result.chars.Length > 0) {
-            charDetails .= "JOINTEXT MATCHES:`n"
-            for i, match in result.chars {
-                charDetails .= i . ": '" . match.id . "' at (" . match.x . "," . match.y . ")`n"
-            }
-        }
-    } else {
-        ; For Individual method, show clean characters (after filtering and prioritization)
-        if (result.chars.Length > 0) {
-            charDetails .= "CLEAN CHARACTERS (final result):`n"
-            for i, char in result.chars {
-                charDetails .= i . ": '" . char.id . "' at (" . char.x . "," . char.y . ")`n"
-            }
-        }
-        
-        ; Always show raw detections for analysis, sorted by x-location
-        if (result.rawChars.Length > 0) {
-            ; Sort raw characters by X coordinate
-            sortedRawChars := result.rawChars.Clone()
-            Loop sortedRawChars.Length - 1 {
-                i := A_Index
-                Loop sortedRawChars.Length - i {
-                    j := A_Index
-                    if (sortedRawChars[j].x > sortedRawChars[j+1].x) {
-                        temp := sortedRawChars[j]
-                        sortedRawChars[j] := sortedRawChars[j+1] 
-                        sortedRawChars[j+1] := temp
-                    }
+    ; Always show raw detections for analysis, sorted by x-location
+    if (result.rawChars.Length > 0) {
+        ; Sort raw characters by X coordinate
+        sortedRawChars := result.rawChars.Clone()
+        Loop sortedRawChars.Length - 1 {
+            i := A_Index
+            Loop sortedRawChars.Length - i {
+                j := A_Index
+                if (sortedRawChars[j].x > sortedRawChars[j+1].x) {
+                    temp := sortedRawChars[j]
+                    sortedRawChars[j] := sortedRawChars[j+1] 
+                    sortedRawChars[j+1] := temp
                 }
             }
-            
-            charDetails .= "`nRAW DETECTIONS (sorted by x-location):`n"
-            for i, char in sortedRawChars {
-                charDetails .= char.x . " " . char.id . "`n"
-            }
         }
         
-        ; Show filtering summary
-        if (result.rawChars.Length != result.chars.Length) {
-            filtered := result.rawChars.Length - result.chars.Length
-            charDetails .= "`nFiltering: " . result.rawChars.Length . " raw -> " . result.chars.Length . " clean (" . filtered . " removed)`n"
+        charDetails .= "`nRAW DETECTIONS (sorted by x-location):`n"
+        for i, char in sortedRawChars {
+            charDetails .= char.x . " " . char.id . "`n"
         }
+    }
+    
+    ; Show filtering summary
+    if (result.rawChars.Length != result.chars.Length) {
+        filtered := result.rawChars.Length - result.chars.Length
+        charDetails .= "`nFiltering: " . result.rawChars.Length . " raw -> " . result.chars.Length . " clean (" . filtered . " removed)`n"
     }
     
     CharDetailsText.Value := charDetails

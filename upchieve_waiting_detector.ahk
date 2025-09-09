@@ -279,7 +279,7 @@ ExtractStudentNameRaw(baseX, baseY) {
     }
     
     ; Use shared OCR function for name extraction - RAW RESULT ONLY
-    result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, 8, false)
+    result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, 8)
     
     return result.text  ; Return raw OCR result without validation
 }
