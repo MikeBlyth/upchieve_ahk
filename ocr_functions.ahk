@@ -25,7 +25,7 @@ GetPriorityCharacter(char1, char2) {
         "l,t", "t",  ; t over l
         "d,l", "d",  ; d over l
         "m,n", "m",  ; m over n
-        "d,q", "d"   ; d over q
+        "d,q", "d",  ; d over q
 
         ; Uppercase pairs
         "I,b", "b",  ; b over I
@@ -58,10 +58,12 @@ GetPriorityCharacter(char1, char2) {
     char2Id := char2.id
     
     ; Early hyphen check - hyphen loses to any other character
-    if (char1Id == "-" && char2Id != "-") return char2
-    if (char2Id == "-" && char1Id != "-") return char1
+    if (char1Id == "-" && char2Id != "-")
+        return char2
+    if (char2Id == "-" && char1Id != "-")
+        return char1
     
-    sortedPair := (char1Id <= char2Id) ? char1Id . "," . char2Id : char2Id . "," . char1Id
+    sortedPair := (StrCompare(char1Id, char2Id) <= 0) ? char1Id . "," . char2Id : char2Id . "," . char1Id
     
     ; Check for specific pair priority
     if (pairPriorities.Has(sortedPair)) {

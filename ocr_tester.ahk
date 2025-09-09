@@ -44,15 +44,15 @@ Tolerance1Edit.OnEvent("Change", (*) => Tolerance1Slider.Value := Float(Toleranc
 
 ; Tolerance 2 (error2) 
 MainGui.AddText("xm", "Tolerance 2 (0.0 - 1.0):")
-Tolerance2Edit := MainGui.AddEdit("w100 h20", "0.05")
-Tolerance2Slider := MainGui.AddSlider("w200 h30 Range0-100 TickInterval10", 5)
+Tolerance2Edit := MainGui.AddEdit("w100 h20", "0.10")
+Tolerance2Slider := MainGui.AddSlider("w200 h30 Range0-100 TickInterval10", 10)
 Tolerance2Slider.OnEvent("Change", (*) => Tolerance2Edit.Value := Format("{:.2f}", Tolerance2Slider.Value / 100))
 Tolerance2Edit.OnEvent("Change", (*) => Tolerance2Slider.Value := Float(Tolerance2Edit.Value) * 100)
 
 ; Proximity threshold
 MainGui.AddText("xm", "Proximity Threshold (pixels):")
-ProximityEdit := MainGui.AddEdit("w100 h20", "8")
-ProximitySlider := MainGui.AddSlider("w200 h30 Range1-50 TickInterval5", 8)
+ProximityEdit := MainGui.AddEdit("w100 h20", "10")
+ProximitySlider := MainGui.AddSlider("w200 h30 Range1-50 TickInterval5", 10)
 ProximitySlider.OnEvent("Change", (*) => ProximityEdit.Value := ProximitySlider.Value)
 ProximityEdit.OnEvent("Change", (*) => ProximitySlider.Value := Integer(ProximityEdit.Value))
 
