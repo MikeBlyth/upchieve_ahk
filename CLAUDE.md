@@ -286,6 +286,81 @@ if (result := FindText(&X, &Y, x1, y1, x2, y2, tolerance1, tolerance2, patterns)
 }
 ```
 
+From documentation:
+```
+;--------------------------------
+;  FindText - Capture screen image into text and then find it
+;  Version : 10.0  (2024-10-06)
+;--------------------------------
+;  returnArray:=FindText(
+;      &OutputX --> The name of the variable used to store the returned X coordinate
+;    , &OutputY --> The name of the variable used to store the returned Y coordinate
+;    , X1 --> the search scope's upper left corner X coordinates
+;    , Y1 --> the search scope's upper left corner Y coordinates
+;    , X2 --> the search scope's lower right corner X coordinates
+;    , Y2 --> the search scope's lower right corner Y coordinates
+;    , err1 --> Fault tolerance percentage of text       (0.1=10%)
+;    , err0 --> Fault tolerance percentage of background (0.1=10%)
+;      Setting err1<0 or err0<0 can enable the left and right dilation algorithm
+;      to ignore slight misalignment of text lines, the fault tolerance must be very small
+;      In FindPic mode, err0 can set the number of rows and columns to be skipped
+;    , Text --> can be a lot of text parsed into images, separated by '|'
+;    , ScreenShot --> if the value is 0, the last screenshot will be used
+;    , FindAll --> if the value is 0, Just find one result and return
+;    , JoinText --> if you want to combine find, it can be 1, or an array of words to find
+;    , offsetX --> Set the max text offset (X) for combination lookup
+;    , offsetY --> Set the max text offset (Y) for combination lookup
+;    , dir --> Nine directions for searching: up, down, left, right and center
+;      Default dir=0, the returned result will be sorted by the smallest error,
+;      Even if set a large fault tolerance, the first result still has the smallest error
+;    , zoomW --> Zoom percentage of image width  (1.0=100%)
+;    , zoomH --> Zoom percentage of image height (1.0=100%)
+;  )
+;
+;  The function returns an Array containing all lookup results,
+;  any result is a object with the following values:
+;  {1:X, 2:Y, 3:W, 4:H, x:X+W//2, y:Y+H//2, id:Comment}
+;  If no image is found, the function returns 0.
+;  All coordinates are relative to Screen, colors are in RGB format
+;  All 'RRGGBB' can use 'Black', 'White', 'Red', 'Green', 'Blue', 'Yellow'
+;  All 'DRDGDB' can use similarity '1.0'(100%), it's floating-point number
+;
+;  If the return variable is set to 'ok', ok[1] is the first result found.
+;  ok[1].1, ok[1].2 is the X, Y coordinate of the upper left corner of the found image,
+;  ok[1].3, ok[1].4 is the width, height of the found image,
+;  ok[1].x <==> ok[1].1+ok[1].3//2 ( is the Center X coordinate of the found image ),
+;  ok[1].y <==> ok[1].2+ok[1].4//2 ( is the Center Y coordinate of the found image ),
+;  ok[1].id is the comment text, which is included in the <> of its parameter.
+;
+;  If OutputX is equal to 'wait' or 'wait1'(appear), or 'wait0'(disappear)
+;  it means using a loop to wait for the image to appear or disappear.
+;  the OutputY is the wait time in seconds, time less than 0 means infinite waiting
+;  Timeout means failure, return 0, and return other values means success
+;  If you want to appear and the image is found, return the found array object
+;  If you want to disappear and the image cannot be found, return 1
+;  Example 1: FindText(&X:='wait', &Y:=3, 0,0,0,0,0,0,Text)   ; Wait 3 seconds for appear
+;  Example 2: FindText(&X:='wait0', &Y:=-1, 0,0,0,0,0,0,Text) ; Wait indefinitely for disappear
+;
+;  <FindMultiColor> or <FindColor> : FindColor is FindMultiColor with only one point
+;  Text:='|<>##DRDGDB $ 0/0/RRGGBB1-DRDGDB1/RRGGBB2, xn/yn/-RRGGBB3/RRGGBB4, ...'
+;  Color behind '##' (0xDRDGDB) is the default allowed variation for all colors
+;  Initial point (0,0) match 0xRRGGBB1(+/-0xDRDGDB1) or 0xRRGGBB2(+/-0xDRDGDB),
+;  point (xn,yn) match not 0xRRGGBB3(+/-0xDRDGDB) and not 0xRRGGBB4(+/-0xDRDGDB)
+;  Starting with '-' after a point coordinate means excluding all subsequent colors
+;  Each point can take up to 10 sets of colors (xn/yn/RRGGBB1/.../RRGGBB10)
+;
+;  <FindShape> : Similar to FindMultiColor, just replacing the color with
+;  whether the point is similar in color to the first point
+;  Text:='|<>##DRDGDB $ 0/0/1, x1/y1/0, x2/y2/1, xn/yn/0, ...'
+;
+;  <FindPic> : Text parameter require manual input
+;  Text:='|<>##DRDGDB/RRGGBB1-DRDGDB1/RRGGBB2... $ d:\a.bmp'
+;  Color behind '##' (0xDRDGDB) is the default allowed variation for all colors
+;  the 0xRRGGBB1(+/-0xDRDGDB1) and 0xRRGGBB2(+/-0xDRDGDB) both transparent colors
+;
+;--------------------------------
+```
+
 **OCR Character Search:**
 ```autohotkey
 ; Correct: Use PicN with simple character strings

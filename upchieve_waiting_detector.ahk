@@ -4,6 +4,9 @@
 #Include ocr_functions.ahk
 #Include student_database.ahk
 
+; Set coordinate mode to screen coordinates (same as FindText uses)
+CoordMode("Mouse", "Screen")
+
 ; Upchieve Waiting Student Detector
 ; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+A to end session
 
@@ -65,7 +68,7 @@ SessionEndedTarget := "|<SessionEnded>*195$237.zzzzzzzzzzzzs7zzzzzzzzzzzzzzzzsDz
 PencilTipTarget :="|<PencilTip>**50$69.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001zs000000007w3y0000000DU00T0000007U000S000003U0000Q00001k00k00s0000Q00D003U000C001w0070003U00Nk00Q000k0076000k00A001ks003003000A3U00A00k003UA000k0A000ryk00303000Dzz000A0M001k0Q001U6000Q01U0061U00700C000MA000k00s0033000C003U00AE003U00A000a000s001k006U0060007000I001k000Q003U00Q0003U00M0070000C001000k0000s00800C00003001003U0000Q00000s00001k0000600000700001k00000M0000Q000003U0007000000C0000s000000s000C0M0k1U3U001k7UD0C0Q000D0y1w3s7U001wCsRkvVw000BnXb7CCTU001bsDkTUzQ000Ay0w1s3nU001XU3U70CQ000A8080E0XU001U000000Q04"
 
 SubjectTargets :=  
-    "<7th Grade Math>*126$48.Tzw00300Tzw3030000Q3030000s3030000k3030001Uzz37k03Uzz3Tw030303wS070303kC060303U70C0303U70A0303U70Q0303070Q0303070M0303070M0303070s0303070s0303070s03X3070s03z3070s00y307U" .
+    "|<7th Grade Math>*126$48.Tzw00300Tzw3030000Q3030000s3030000k3030001Uzz37k03Uzz3Tw030303wS070303kC060303U70C0303U70A0303U70Q0303070Q0303070M0303070M0303070s0303070s0303070s03X3070s03z3070s00y307U" .
     "|<8th grade math>*128$48.000003003y000300Dz030300C7U30300Q1k30300M1k30300M1kzz37kQ1kzz3TwQ1k703wSD7U303kC7z0303U7Dz0303U7S3k303U7s0k30307s0s30307k0s30307k0s30307s0s30307s1s30307S3k3X307DzU3z3073y00y307U" .
     "|<9th grade math>*129$49.000001k0000000s00TU000Q00zw0A0C00wD060700w1U303U0Q0s1U1k0C0A7zkty7073zsRzXU3UA0Dltk3k607UCw1s303U7D3g1U1k3Xzq0k0s0kTX0M0Q0M01UA0C0A01k60706E0s303U3Q0M1U1k1j0Q0k0s0nkw0QMQ0Mzw07wC0A7s01w707" .
     "|<Pre-algebra>*128$45.zw000007zk00000kD0000060Q00000k1U000060C6D0TUk1krsDz60C7k3kwk1Uw0Q3a0Q7070CkD0s0k1rzk70606zw0s0zzq00707zyk00s0k060070600k00s0s0600703UCk00s0S3a00701zsk00s03y4" .
@@ -321,7 +324,9 @@ ExtractTopicRaw(baseX, baseY) {
     }
     
     ; Use direct subject pattern matching (much faster and more accurate)
-    if (result := FindText(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, SubjectTargets)) {
+    X := ""
+    Y := ""
+    if (result := FindText(&X, &Y, searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, SubjectTargets)) {
         ; Return the exact subject name from pattern match
         return result[1].id  ; This will be something like "7th Grade Math"
     }
@@ -792,15 +797,32 @@ StartDetector() {
             
             if (result) {
             global LiveMode
-            WriteLog("WaitingTarget found at (" . X . "," . Y . ") in " . scanTime . "ms")
-            ToolTip "Found waiting student! Extracting name...", 10, 10
+            detectionStartTime := A_TickCount  ; Start timing from WaitingTarget detection
+;            WriteLog("WaitingTarget found at (" . X . "," . Y . ") - CENTER coordinates in " . scanTime . "ms")
+;            ToolTip "Found waiting student! Extracting name...", 10, 10
             
             ; Step 1: Extract raw student name and topic FIRST (before clicking)
+            ; Also get the student name coordinates for clicking
             rawStudentName := ExtractStudentNameRaw(X, Y)
             rawTopic := ExtractTopicRaw(X, Y)
             
+            ; Find clickable student name coordinates
+            global studentHeaderPos
+            if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
+                ; Click on student name area (same region where we extracted the name)
+                clickX := studentHeaderPos.x + 100  ; Center of student name region
+                clickY := studentHeaderPos.y + 96   ; Row position (same as name extraction)
+            } else {
+                ; Fallback: offset left from WaitingTarget to approximate student name position
+                clickX := X - 400  ; Move left from WaitingTarget to student name area
+                clickY := Y        ; Same row
+            }
+            
             ; Step 2: Apply automatic corrections (no prompts)
             correctedName := ApplyKnownCorrections(rawStudentName)
+            
+            ; Calculate extraction time (detection through name/subject extraction completion)
+            extractionTime := A_TickCount - detectionStartTime
             
             ; Step 3: Check blocking scenarios
             global BlockedNames
@@ -827,9 +849,10 @@ StartDetector() {
             if (LiveMode) {
                 ; Activate the identified window
                 WinActivate("ahk_id " . targetWindowID)
-                Sleep 200  ; Longer pause to ensure window activation
+                Sleep 100  ; Longer pause to ensure window activation
                 ; Click on the waiting target
-                Click X, Y
+                Click X, Y  ; FindText returns screen coordinates, Click uses them directly
+                clickTime := A_TickCount - detectionStartTime  ; Measure right after click
                 
                 ; Wait for session to start loading, then maximize window
                 Sleep 1000  ; Wait 1 second for session to begin loading
@@ -854,6 +877,8 @@ StartDetector() {
                     logMessage .= ", " . LastStudentTopic
                     toolTipMessage .= " (" . LastStudentTopic . ")"
                 }
+                logMessage .= " (extraction: " . extractionTime . "ms, total: " . clickTime . "ms)"
+                WriteLog(logMessage)
                 ; Session details will be logged via end-session CSV dialog
                 ToolTip(toolTipMessage . " has opened", 10, 50)
                 SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
@@ -873,6 +898,8 @@ StartDetector() {
                     logMessage .= ", " . LastStudentTopic
                     toolTipMessage .= " (" . LastStudentTopic . ")"
                 }
+                logMessage .= " (extraction: " . extractionTime . "ms)"
+                WriteLog(logMessage)
                 ; Session details will be logged via end-session CSV dialog
                 ToolTip(toolTipMessage . " waiting", 10, 50)
                 SetTimer(() => ToolTip(), -3000)
