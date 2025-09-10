@@ -767,6 +767,16 @@ StartDetector() {
     while (!(result := FindText(&X, &Y, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.1, PageTarget))) {
         pageCheckCount++
         ToolTip "Looking for 'Waiting Students' page... Check #" pageCheckCount, 10, 50
+        
+        ; Check for upgrade popup that might be blocking the page
+        upgradeX := ""
+        upgradeY := ""
+        if (UpgradeTarget != "" && (upgradeResult := FindText(&upgradeX, &upgradeY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.05, UpgradeTarget))) {
+            ToolTip "Found upgrade popup blocking page! Clicking to dismiss...", 10, 50
+            Click upgradeX, upgradeY
+            Sleep 1000  ; Wait for popup to dismiss
+        }
+        
         Sleep 100
     }
     
@@ -784,8 +794,8 @@ StartDetector() {
     Sleep 1000
     ToolTip ""
     
-    ; Log application start
-    WriteAppLog("Upchieve Detector started in " . modeText . " mode")
+    ; Log application start to debug log only
+    WriteLog("Upchieve Detector started in " . modeText . " mode")
     
     IsActive := true
     
@@ -864,18 +874,12 @@ StartDetector() {
             ToolTip ""
         }
         
-        ; Check for upgrade popup first (relative to PageTarget)
-        upgradeX1 := pageRefX - 250
-        upgradeY1 := pageRefY - 250
-        upgradeX2 := upgradeX1 + 600
-        upgradeY2 := upgradeY1 + 400
+        ; Check for upgrade popup first (full screen search)
         X := ""
         Y := ""
-        if (UpgradeTarget != "" && (result := FindText(&X, &Y, upgradeX1, upgradeY1, upgradeX2, upgradeY2, 0.15, 0.05, UpgradeTarget))) {
+        if (UpgradeTarget != "" && (result := FindText(&X, &Y, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.05, UpgradeTarget))) {
             ToolTip "Found upgrade popup! Clicking...", 10, 10
             Click X, Y
-   ;         MsgBox "Clicked upgrade popup at " X ", " Y
-   ;         Sleep 1000
             continue  ; Skip to next iteration after handling upgrade
         }
         
