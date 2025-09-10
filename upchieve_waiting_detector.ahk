@@ -750,12 +750,12 @@ StartDetector() {
     ; Show tooltip that follows mouse cursor
     while (!GetKeyState("LButton", "P")) {
         MouseGetPos(&mouseX, &mouseY)
-        ToolTip "Click on the UPchieve browser window now..."
+        ToolTip "Click on the UPchieve browser window now...", , , 3
         Sleep(50)
     }
     KeyWait("LButton", "U")  ; Wait for button release
     MouseGetPos(&mouseX, &mouseY, &targetWindowID)  ; Get window ID under mouse
-    ToolTip ""  ; Clear tooltip
+    ToolTip "", , , 3  ; Clear tooltip ID 3
     
     ; Confirm window selection
     MsgBox("Window selected! Starting " . modeText . " mode detector...", "Window Selected", "OK 4096")
@@ -857,21 +857,20 @@ StartDetector() {
             lastSessionEndCheck := A_TickCount
         }
         
-        ; Debug: Show current state briefly (1 second every 5 seconds)
-        if (A_TickCount - lastTooltipShow > 5000) {
-            ; Time to show tooltip again
-            stateText := "State: " . SessionState . " | "
-            if (SessionState == WAITING_FOR_STUDENT) {
-                ToolTip stateText . "Scanning for upgrade popup and waiting students...", 10, 10
-            } else if (SessionState == IN_SESSION) {
-                ToolTip stateText . "In session - monitoring for session end...", 10, 10
-            } else {
-                ToolTip stateText . "Paused", 10, 10
-            }
-            lastTooltipShow := A_TickCount
-        } else if (A_TickCount - lastTooltipShow > 1000) {
-            ; Hide tooltip after 1 second
-            ToolTip ""
+        ; Permanent status tooltip - update every loop iteration
+        stateText := "State: " . SessionState . " | "
+        
+        ; Get UPchieve window position and show tooltip inside it
+        WinGetPos(&winX, &winY, , , "ahk_id " . targetWindowID)
+        tooltipX := winX + 600
+        tooltipY := winY + 225
+        
+        if (SessionState == WAITING_FOR_STUDENT) {
+            ToolTip stateText . "Scanning for upgrade popup and waiting students...", tooltipX, tooltipY, 2
+        } else if (SessionState == IN_SESSION) {
+            ToolTip stateText . "In session - monitoring for session end...", tooltipX, tooltipY, 2
+        } else {
+            ToolTip stateText . "Paused", tooltipX, tooltipY, 2
         }
         
         ; Check for upgrade popup first (full screen search)
