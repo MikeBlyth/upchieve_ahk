@@ -631,8 +631,15 @@ StartDetector() {
     
     ; Wait for user to click and capture the window
     global targetWindowID := ""
-    KeyWait("LButton", "D")  ; Wait for left mouse button down
+    ; Show tooltip that follows mouse cursor
+    while (!GetKeyState("LButton", "P")) {
+        MouseGetPos(&mouseX, &mouseY)
+        ToolTip "Click on the UPchieve browser window now..."
+        Sleep(50)
+    }
+    KeyWait("LButton", "U")  ; Wait for button release
     MouseGetPos(&mouseX, &mouseY, &targetWindowID)  ; Get window ID under mouse
+    ToolTip ""  ; Clear tooltip
     
     ; Confirm window selection
     MsgBox("Window selected! Starting " . modeText . " mode detector...", "Window Selected", "OK 4096")
@@ -742,10 +749,10 @@ StartDetector() {
         }
         
         ; Check for upgrade popup first (relative to PageTarget)
-        upgradeX1 := pageRefX + 654
-        upgradeY1 := pageRefY + 130
-        upgradeX2 := upgradeX1 + 325
-        upgradeY2 := upgradeY1 + 300
+        upgradeX1 := pageRefX - 250
+        upgradeY1 := pageRefY - 250
+        upgradeX2 := upgradeX1 + 600
+        upgradeY2 := upgradeY1 + 400
         X := ""
         Y := ""
         if (UpgradeTarget != "" && (result := FindText(&X, &Y, upgradeX1, upgradeY1, upgradeX2, upgradeY2, 0.15, 0.05, UpgradeTarget))) {
