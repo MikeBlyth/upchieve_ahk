@@ -860,10 +860,10 @@ StartDetector() {
         ; Permanent status tooltip - update every loop iteration
         stateText := "State: " . SessionState . " | "
         
-        ; Get UPchieve window position and show tooltip inside it
-        WinGetPos(&winX, &winY, , , "ahk_id " . targetWindowID)
-        tooltipX := winX + 600
-        tooltipY := winY + 225
+        ; Use window-relative coordinates for tooltip
+        CoordMode("ToolTip", "Window")
+        tooltipX := 600
+        tooltipY := 225
         
         if (SessionState == WAITING_FOR_STUDENT) {
             ToolTip stateText . "Scanning for upgrade popup and waiting students...", tooltipX, tooltipY, 2
