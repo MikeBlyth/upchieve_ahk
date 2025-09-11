@@ -4,8 +4,9 @@
 #Include ocr_functions.ahk
 #Include student_database.ahk
 
-; Set coordinate mode to screen coordinates (same as FindText uses)
-CoordMode("Mouse", "Screen")
+; Set coordinate mode to window coordinates for unified coordinate system
+CoordMode("Mouse", "Window")
+CoordMode("Pixel", "Window")
 
 ; Upchieve Waiting Student Detector
 ; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+A to end session
@@ -102,8 +103,8 @@ WriteAppLog(message) {
     FileAppend message . "`n", logFile
 }
 
-; Convert FindText midpoint coordinates to upper-left coordinates
-; Supports both explicit dimensions and automatic parsing from target patterns
+; Simple function to convert FindText center coordinates to upper-left coordinates
+; Simplified for window coordinate system
 GetUpperLeft(centerX, centerY, widthOrTarget, height := 25) {
     ; If third parameter is a string (target pattern), parse dimensions from it
     if (Type(widthOrTarget) == "String") {
@@ -123,51 +124,58 @@ GetUpperLeft(centerX, centerY, widthOrTarget, height := 25) {
 }
 
 ; Find all header targets and store their positions for search zone calculations
+; Uses PageTarget as anchor point with known relative offsets (window coordinates)
 FindHeaders() {
-    global StudentHeaderTarget, HelpHeaderTarget, WaitTimeHeaderTarget, pageRefX, pageRefY
+    global StudentHeaderTarget, HelpHeaderTarget, WaitTimeHeaderTarget, pageTargetX, pageTargetY, targetWindowID
     
     ; Initialize header positions (will be empty if not found)
     global studentHeaderPos := {x: 0, y: 0, found: false}
     global helpHeaderPos := {x: 0, y: 0, found: false}
     global waitTimeHeaderPos := {x: 0, y: 0, found: false}
     
-    ; Define precise search areas for each header (250×90px)  
-    ; Based on PageTarget CENTER coordinates: Student=-459px, Help=-165px, WaitTime=+204px, Y=+198px
+    ; Get window client area dimensions for boundary checking
+    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
     
-    ; Search for Student Header
+    ; Headers are in fluid container spanning 700-1600px, positioned ~200px below PageTarget
+    ; Search full width for all headers since they can move with window resizing
+    
+    headerY1 := Max(0, pageTargetY + 175)  ; ~200px below PageTarget minus margin
+    headerY2 := Min(winHeight, pageTargetY + 225)  ; ~200px below PageTarget plus margin
+    
+    ; Search for Student Header across full container width
     X := ""
     Y := ""
-    studentSearchX1 := Max(0, pageRefX - 484)
-    studentSearchY1 := Max(0, pageRefY + 173)
-    studentSearchX2 := Min(A_ScreenWidth, pageRefX - 234)
-    studentSearchY2 := Min(A_ScreenHeight, pageRefY + 263)
-    if (result := FindText(&X, &Y, studentSearchX1, studentSearchY1, studentSearchX2, studentSearchY2, 0.15, 0.10, StudentHeaderTarget)) {
+    WriteLog("DEBUG: Student header search zone: 700," . headerY1 . " to 1600," . headerY2)
+    if (result := FindText(&X, &Y, 700, headerY1, 1600, headerY2, 0.15, 0.10, StudentHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, StudentHeaderTarget)
         studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+        WriteLog("DEBUG: Student header found at " . X . "," . Y . " (upper-left: " . upperLeft.x . "," . upperLeft.y . ")")
+    } else {
+        WriteLog("DEBUG: Student header NOT found in search zone")
     }
     
-    ; Search for Help Header
+    ; Search for Help Header across full container width
     X := ""
     Y := ""
-    helpSearchX1 := Max(0, pageRefX - 190)
-    helpSearchY1 := Max(0, pageRefY + 173)
-    helpSearchX2 := Min(A_ScreenWidth, pageRefX + 60)
-    helpSearchY2 := Min(A_ScreenHeight, pageRefY + 263)
-    if (result := FindText(&X, &Y, helpSearchX1, helpSearchY1, helpSearchX2, helpSearchY2, 0.15, 0.10, HelpHeaderTarget)) {
+    WriteLog("DEBUG: Help header search zone: 700," . headerY1 . " to 1600," . headerY2)
+    if (result := FindText(&X, &Y, 700, headerY1, 1600, headerY2, 0.15, 0.10, HelpHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, HelpHeaderTarget)
         helpHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+        WriteLog("DEBUG: Help header found at " . X . "," . Y . " (upper-left: " . upperLeft.x . "," . upperLeft.y . ")")
+    } else {
+        WriteLog("DEBUG: Help header NOT found in search zone")
     }
     
-    ; Search for Wait Time Header
+    ; Search for Wait Time Header across full container width
     X := ""
     Y := ""
-    waitSearchX1 := Max(0, pageRefX + 179)
-    waitSearchY1 := Max(0, pageRefY + 173)
-    waitSearchX2 := Min(A_ScreenWidth, pageRefX + 429)
-    waitSearchY2 := Min(A_ScreenHeight, pageRefY + 263)
-    if (result := FindText(&X, &Y, waitSearchX1, waitSearchY1, waitSearchX2, waitSearchY2, 0.15, 0.10, WaitTimeHeaderTarget)) {
+    WriteLog("DEBUG: Wait Time header search zone: 700," . headerY1 . " to 1600," . headerY2)
+    if (result := FindText(&X, &Y, 700, headerY1, 1600, headerY2, 0.15, 0.10, WaitTimeHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, WaitTimeHeaderTarget)
         waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+        WriteLog("DEBUG: Wait Time header found at " . X . "," . Y . " (upper-left: " . upperLeft.x . "," . upperLeft.y . ")")
+    } else {
+        WriteLog("DEBUG: Wait Time header NOT found in search zone")
     }
     
     ; Log header detection results
@@ -175,18 +183,18 @@ FindHeaders() {
     headerStatus := ""
     if (studentHeaderPos.found) {
         headersFound++
-        headerStatus .= "Student "
+        headerStatus .= "Student(" . studentHeaderPos.x . "," . studentHeaderPos.y . ") "
     }
     if (helpHeaderPos.found) {
         headersFound++
-        headerStatus .= "Help "
+        headerStatus .= "Help(" . helpHeaderPos.x . "," . helpHeaderPos.y . ") "
     }
     if (waitTimeHeaderPos.found) {
         headersFound++
-        headerStatus .= "WaitTime "
+        headerStatus .= "WaitTime(" . waitTimeHeaderPos.x . "," . waitTimeHeaderPos.y . ") "
     }
     
-    
+    WriteLog("DEBUG: Found " . headersFound . "/3 headers from PageTarget(" . pageTargetX . "," . pageTargetY . "): " . headerStatus)
     return headersFound
 }
 
@@ -261,23 +269,32 @@ ApplyKnownCorrections(ocrResult) {
 
 
 ; Extract student name using header-based positioning with fallback
+; Uses header positions (found relative to PageTarget) with known offsets
 ExtractStudentNameRaw(baseX, baseY) {
-    global studentHeaderPos
+    global studentHeaderPos, targetWindowID
+    
+    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
     
     if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
-        ; Use header-based positioning: header position + 96px down, with 25px margins
+        ; Use precise header-based positioning: header position + 96px down for data rows
         searchX := Max(0, studentHeaderPos.x)
-        searchY := Max(0, studentHeaderPos.y + 96 - 25)
-        searchWidth := Min(250, A_ScreenWidth - searchX)  ; Match column width, bounded
-        searchHeight := Min(90, A_ScreenHeight - searchY)
+        searchY := Max(0, studentHeaderPos.y + 96 - 25)  ; Header + row offset - margin
+        searchWidth := Min(250, winWidth - searchX)  ; Column width, bounded
+        searchHeight := Min(90, winHeight - searchY)
     } else {
-        ; Fallback to WaitingTarget-based positioning (original method)
-        upperLeftX := baseX - 67
-        upperLeftY := baseY - 17
-        searchX := upperLeftX - 720
-        searchY := upperLeftY - 10
-        searchWidth := 400 
-        searchHeight := 80
+        ; Fallback to PageTarget-based positioning: names are left edge to x=930, 300-400px below PageTarget
+        global pageTargetX, pageTargetY
+        searchX := 700  ; Left edge of container
+        searchY := Max(0, pageTargetY + 300)  ; 300px below PageTarget center
+        searchWidth := Min(230, 930 - searchX)  ; From left edge to x=930
+        searchHeight := 100  ; 300-400px range below PageTarget
+        
+        ; Ensure fallback coordinates stay within window bounds
+        searchX := Max(0, searchX)
+        searchY := Max(0, searchY)
+        searchWidth := Min(searchWidth, winWidth - searchX)
+        searchHeight := Min(searchHeight, winHeight - searchY)
+        WriteLog("DEBUG: Using fallback student name zone: " . searchX . "," . searchY . " to " . (searchX + searchWidth) . "," . (searchY + searchHeight))
     }
     
     ; Use shared OCR function for name extraction - RAW RESULT ONLY
@@ -305,24 +322,32 @@ ExtractStudentNameValidated(baseX, baseY) {
 }
 
 ; Extract topic using header-based positioning with fallback
+; Uses header positions (found relative to PageTarget) with known offsets
 ExtractTopicRaw(baseX, baseY) {
-    global helpHeaderPos, SubjectTargets
+    global helpHeaderPos, SubjectTargets, targetWindowID
+    
+    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
     
     if (helpHeaderPos.found && helpHeaderPos.x > 0 && helpHeaderPos.y > 0) {
-        ; Use header-based positioning: header position + 96px down, with 25px margins
+        ; Use precise header-based positioning: header position + 96px down for data rows
         searchX := Max(0, helpHeaderPos.x)
-        searchY := Max(0, helpHeaderPos.y + 96 - 25)
-        searchWidth := Min(250, A_ScreenWidth - searchX)  ; Match column width, bounded
-        searchHeight := Min(90, A_ScreenHeight - searchY)
+        searchY := Max(0, helpHeaderPos.y + 96 - 25)  ; Header + row offset - margin
+        searchWidth := Min(250, winWidth - searchX)   ; Column width, bounded
+        searchHeight := Min(90, winHeight - searchY)
     } else {
-        ; Fallback: estimate topic position relative to student name position
-        ; Assume topic is roughly in the middle of the row
-        upperLeftX := baseX - 67
-        upperLeftY := baseY - 17
-        searchX := upperLeftX - 200  ; Position between student and wait time
-        searchY := upperLeftY - 10
-        searchWidth := 250  ; Limit to column width
-        searchHeight := 80
+        ; Fallback to PageTarget-based positioning: subjects are x=940 to x=1260, 300-400px below PageTarget
+        global pageTargetX, pageTargetY
+        searchX := 940  ; Subject column start
+        searchY := Max(0, pageTargetY + 300)  ; 300px below PageTarget center
+        searchWidth := 320  ; From x=940 to x=1260
+        searchHeight := 100  ; 300-400px range below PageTarget
+        
+        ; Ensure fallback coordinates stay within window bounds
+        searchX := Max(0, searchX)
+        searchY := Max(0, searchY)
+        searchWidth := Min(searchWidth, winWidth - searchX)
+        searchHeight := Min(searchHeight, winHeight - searchY)
+        WriteLog("DEBUG: Using fallback subject zone: " . searchX . "," . searchY . " to " . (searchX + searchWidth) . "," . (searchY + searchHeight))
     }
     
     ; Use direct subject pattern matching (much faster and more accurate)
@@ -580,11 +605,13 @@ LoadAlphabetCharacters()
 ; Load blocked names list
 BlockedNames := LoadBlockedNames()
 
-; Manual end session function
+; Manual session start/end function
 EndSession() {
-    global SessionState
+    WriteLog("DEBUG: EndSession() called - Current state: " . SessionState)
+    global SessionState, LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic, SessionStartTime
+    
     if (SessionState == IN_SESSION) {
-        ; Show session feedback dialog
+        ; Currently in session - end it with feedback dialog
         continueResult := ShowSessionFeedbackDialog()
         
         if (continueResult = "Yes") {
@@ -598,7 +625,20 @@ EndSession() {
             SessionState := WAITING_FOR_STUDENT  ; Resume after pause dialog
         }
     } else {
-        MsgBox("Not currently in session. State: " . SessionState, "Manual End Session", "OK")
+        ; Not in session - start a manual session
+        MsgBox("Starting session", "Manual Session Start", "OK 4096")
+        
+        ; Clear previous session data since we don't have OCR info
+        LastStudentName := ""
+        LastStudentTopic := ""
+        LastRawStudentName := ""
+        LastRawStudentTopic := ""
+        SessionStartTime := A_Now
+        
+        ; Change to IN_SESSION state
+        SessionState := IN_SESSION
+        global lastSessionEndCheck := A_TickCount  ; Initialize session end check timer
+        WriteLog("Manual session start - no OCR data available, initialized session end detection")
     }
 }
 
@@ -728,7 +768,10 @@ CleanExit() {
 ; Hotkey definitions
 ^+q::CleanExit()
 ^+h::SuspendDetection()
-^+a::EndSession()
+^+a::{
+    WriteLog("DEBUG: Ctrl+Shift+A hotkey triggered")
+    EndSession()
+}
 
 ; Auto-start detection on script launch
 StartDetector()
@@ -757,38 +800,73 @@ StartDetector() {
     MouseGetPos(&mouseX, &mouseY, &targetWindowID)  ; Get window ID under mouse
     ToolTip "", , , 3  ; Clear tooltip ID 3
     
+    ; Bind FindText to the selected window for improved performance and reliability
+    ; Mode 4 is essential for proper window targeting
+    bindResult := FindText().BindWindow(targetWindowID, 4)
+    WriteLog("DEBUG: BindWindow result for ID " . targetWindowID . " with mode 4: " . (bindResult ? "Success" : "Failed"))
+    
+    ; Verify BindWindow is working by checking bound ID and mode
+    boundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
+    boundMode := FindText().BindWindow(0, 0, 0, 1)  ; get_mode = 1
+    WriteLog("DEBUG: Currently bound to ID " . boundID . " with mode " . boundMode)
+    
     ; Confirm window selection
     MsgBox("Window selected! Starting " . modeText . " mode detector...", "Window Selected", "OK 4096")
     
     ; Wait for PageTarget to appear with debug info
+    ; Uses proven coordinates for reliable PageTarget detection
     pageCheckCount := 0
     X := ""
     Y := ""
-    while (!(result := FindText(&X, &Y, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.1, PageTarget))) {
+    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)  ; Get window dimensions
+    WriteLog("DEBUG: Initial PageTarget search - Window: " . winWidth . "x" . winHeight . ", Bound to ID: " . targetWindowID)
+    while (!(result := FindText(&X, &Y, 850, 300, 1400, 1100, 0.15, 0.1, PageTarget))) {
+        ; Break out of PageTarget search if session was manually started
+        if (SessionState == IN_SESSION) {
+            WriteLog("DEBUG: Breaking PageTarget search - session manually started")
+            break
+        }
+        
         pageCheckCount++
         ToolTip "Looking for 'Waiting Students' page... Check #" pageCheckCount, 10, 50
+        if (pageCheckCount == 1) {
+            WriteLog("DEBUG: PageTarget not found on first attempt. Search zone: 850,300 to 1400,1100")
+        }
         
         ; Check for upgrade popup that might be blocking the page
         upgradeX := ""
         upgradeY := ""
-        if (UpgradeTarget != "" && (upgradeResult := FindText(&upgradeX, &upgradeY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.05, UpgradeTarget))) {
+        if (UpgradeTarget != "" && (upgradeResult := FindText(&upgradeX, &upgradeY, 0, 0, winWidth, winHeight, 0.15, 0.05, UpgradeTarget))) {
             ToolTip "Found upgrade popup blocking page! Clicking to dismiss...", 10, 50
-            Click upgradeX, upgradeY
+            WriteLog("DEBUG: Found upgrade popup at " . upgradeX . "," . upgradeY)
+            Click upgradeX, upgradeY  ; Window coordinates work directly
             Sleep 1000  ; Wait for popup to dismiss
         }
         
         Sleep 100
     }
-    
-    ; PageTarget found - calculate upper-left reference point and find headers
-    pageUpperLeft := GetUpperLeft(X, Y, PageTarget)
-    pageRefX := pageUpperLeft.x
-    pageRefY := pageUpperLeft.y
-    lastPageCheck := A_TickCount  ; Track when we last found PageTarget
-    lastTooltipShow := A_TickCount  ; Track tooltip display timing
-    
-    ; Find all header targets for precise search zone positioning
-    headersFound := FindHeaders()
+    ; Handle PageTarget setup (skip if session was manually started)
+    if (SessionState != IN_SESSION) {
+        WriteLog("DEBUG: PageTarget found at " . X . "," . Y . " after " . pageCheckCount . " attempts")
+        WriteLog("DEBUG: PageTarget initial position: (" . X . "," . Y . ") in window coordinates")
+        
+        ; PageTarget found - store its position as anchor point for header positioning
+        pageTargetX := X  ; Center X coordinate in window coordinates
+        pageTargetY := Y  ; Center Y coordinate in window coordinates
+        lastPageCheck := A_TickCount  ; Track when we last found PageTarget
+        lastTooltipShow := A_TickCount  ; Track tooltip display timing
+        
+        ; Find all header targets using PageTarget as anchor
+        headersFound := FindHeaders()
+    } else {
+        WriteLog("DEBUG: Skipping PageTarget setup - in manual session")
+        ; Initialize basic values for manual session
+        pageTargetX := 1300  ; Approximate center of search zone
+        pageTargetY := 1050
+        WriteLog("DEBUG: PageTarget set to approximate position for manual session: (" . pageTargetX . "," . pageTargetY . ")")
+        lastPageCheck := A_TickCount
+        headersFound := 0
+    }
     
     ToolTip "Found 'Waiting Students' page! Found " . headersFound . "/3 headers. Starting " . modeText . " mode detector...", 10, 50
     Sleep 1000
@@ -801,49 +879,64 @@ StartDetector() {
     
     ; Main detection loop
     while (IsActive) {
-        ; Periodic PageTarget re-detection (every 10 seconds) to handle window movement
-        if (A_TickCount - lastPageCheck > 10000) {
+        ; Periodic PageTarget verification (every 30 seconds) - only verify, don't re-detect unless necessary
+        ; Only do this when WAITING_FOR_STUDENT, not during sessions
+        if (SessionState == WAITING_FOR_STUDENT && A_TickCount - lastPageCheck > 30000) {
+            WriteLog("DEBUG: Starting PageTarget verification - Current position: (" . pageTargetX . "," . pageTargetY . ")")
             tempX := ""
             tempY := ""
-            if (tempResult := FindText(&tempX, &tempY, 0, 0, A_ScreenWidth, A_ScreenHeight, 0, 0, PageTarget)) {
-                ; PageTarget found - update reference point and re-find headers
-                newUpperLeft := GetUpperLeft(tempX, tempY, PageTarget)
-                if (newUpperLeft.x != pageRefX || newUpperLeft.y != pageRefY) {
-                    ; WriteLog("PageTarget moved: (" . pageRefX . "," . pageRefY . ") -> (" . newUpperLeft.x . "," . newUpperLeft.y . ")")
-                    pageRefX := newUpperLeft.x
-                    pageRefY := newUpperLeft.y
-                    ; Re-find headers since page position changed
-                    FindHeaders()
+            if (tempResult := FindText(&tempX, &tempY, 850, 300, 1400, 1100, 0, 0, PageTarget)) {
+                ; PageTarget found - only update if it moved significantly (>10 pixels)
+                moveDistance := Sqrt((tempX - pageTargetX)**2 + (tempY - pageTargetY)**2)
+                if (moveDistance > 10) {
+                    WriteLog("WARNING: PageTarget moved " . Round(moveDistance) . " pixels from " . pageTargetX . "," . pageTargetY . " to " . tempX . "," . tempY . " - updating headers")
+                    pageTargetX := tempX
+                    pageTargetY := tempY
+                    FindHeaders()  ; Re-find headers with new PageTarget position
+                } else {
+                    WriteLog("DEBUG: PageTarget verified at " . tempX . "," . tempY . " (stable)")
                 }
                 lastPageCheck := A_TickCount
             } else {
-                ; PageTarget not found - keep using previous coordinates
-                ; Reduced frequency: only warn every 60 seconds instead of every 5 seconds
-                if (A_TickCount - lastPageCheck > 60000) {
-                    ; WriteLog("WARNING: PageTarget re-detection failed for >60 seconds")
-                }
-                lastPageCheck := A_TickCount  ; Reset timer to avoid spam
+                ; PageTarget not found - this shouldn't happen with window binding
+                WriteLog("WARNING: PageTarget verification failed - page may have changed")
+                lastPageCheck := A_TickCount
             }
         }
         
         ; Check for session end: SessionEndedTarget appears while we're IN_SESSION (every 2 seconds)
-        if (SessionState == IN_SESSION && (A_TickCount - lastSessionEndCheck > 2000)) {
+        ; SessionEndedTarget is located in upper-right area: width-600,0 to width,350
+        if (SessionState == IN_SESSION) {
+            if (A_TickCount - lastSessionEndCheck > 2000) {
             tempX := ""
             tempY := ""
-            if (tempResult := FindText(&tempX, &tempY, A_ScreenWidth/2, 0, A_ScreenWidth, A_ScreenHeight/2, 0.0, 0.03, SessionEndedTarget)) {
+            WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
+            sessionEndX1 := Max(0, winWidth - 600)  ; Right side of window minus 600px
+            sessionEndY1 := 0                       ; Top of window
+            sessionEndX2 := winWidth                ; Right edge of window
+            sessionEndY2 := Min(winHeight, 350)     ; Upper 350px of window
+            
+            sessionEndX1 := 0
+            sessionEndY1 := 0
+            sessionEndY2 := winHeight
+            ; Debug: Log session end search attempts (every 10th check to avoid spam)
+            static sessionEndCheckCount := 0
+            sessionEndCheckCount++
+            if (Mod(sessionEndCheckCount, 10) == 1) {
+                WriteLog("DEBUG: SessionEnd search #" . sessionEndCheckCount . " - Zone: " . sessionEndX1 . "," . sessionEndY1 . " to " . sessionEndX2 . "," . sessionEndY2 . " (Window: " . winWidth . "x" . winHeight . ")")
+            }
+            
+            if (tempResult := FindText(&tempX, &tempY, sessionEndX1, sessionEndY1, sessionEndX2, sessionEndY2, 0.0, 0.03, SessionEndedTarget)) {
+                WriteLog("DEBUG: SessionEndedTarget found at " . tempX . "," . tempY)
                 ; Session ended - show session feedback dialog
-                ; Session ended - feedback will be logged via CSV dialog
                 continueResult := ShowSessionFeedbackDialog()
                 
                 if (continueResult = "Yes") {
                     global SessionState
                     SessionState := WAITING_FOR_STUDENT
-                    ; Use the coordinates we just found and re-find headers
-                    newUpperLeft := GetUpperLeft(tempX, tempY, PageTarget)
-                    pageRefX := newUpperLeft.x
-                    pageRefY := newUpperLeft.y
-                    lastPageCheck := A_TickCount
                     ; Re-find headers since we're back on the waiting page
+                    WriteLog("DEBUG: Returning to WAITING_FOR_STUDENT state - PageTarget position: (" . pageTargetX . "," . pageTargetY . ")")
+                    lastPageCheck := A_TickCount
                     FindHeaders()
                 } else if (continueResult = "No") {
                     CleanExit()
@@ -854,51 +947,64 @@ StartDetector() {
                     SessionState := WAITING_FOR_STUDENT  ; Resume after pause dialog
                 }
             }
+            
+            ; Always update the timer, whether target was found or not
             lastSessionEndCheck := A_TickCount
+            }
         }
         
         ; Permanent status tooltip - update every loop iteration
-        stateText := "State: " . SessionState . " | "
-        
         ; Use window-relative coordinates for tooltip
         CoordMode("ToolTip", "Window")
         tooltipX := 600
         tooltipY := 225
         
+        ; Debug: Log state changes and check session end timing
+        static lastLoggedState := ""
+        if (SessionState != lastLoggedState) {
+            WriteLog("DEBUG: State changed from '" . lastLoggedState . "' to '" . SessionState . "'")
+            lastLoggedState := SessionState
+        }
+        
         if (SessionState == WAITING_FOR_STUDENT) {
             ToolTip "State: Waiting for Student", tooltipX, tooltipY, 2
         } else if (SessionState == IN_SESSION) {
-            ToolTip "State: In Session", tooltipX, tooltipY, 2
+            timeSinceLastCheck := A_TickCount - lastSessionEndCheck
+            ToolTip "State: In Session (SessionEnd check in " . (2000 - timeSinceLastCheck) . "ms)", tooltipX, tooltipY, 2
         } else {
             ToolTip "State: Paused", tooltipX, tooltipY, 2
         }
         
-        ; Check for upgrade popup first (full screen search)
-        X := ""
-        Y := ""
-        if (UpgradeTarget != "" && (result := FindText(&X, &Y, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.15, 0.05, UpgradeTarget))) {
-            ToolTip "Found upgrade popup! Clicking...", 10, 10
-            Click X, Y
-            continue  ; Skip to next iteration after handling upgrade
+        ; Check for upgrade popup first (window search) - only when waiting for students
+        if (SessionState == WAITING_FOR_STUDENT) {
+            X := ""
+            Y := ""
+            WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
+            if (UpgradeTarget != "" && (result := FindText(&X, &Y, 0, 0, winWidth, winHeight, 0.15, 0.05, UpgradeTarget))) {
+                ToolTip "Found upgrade popup! Clicking...", 10, 10
+                Click X, Y  ; Window coordinates work directly
+                continue  ; Skip to next iteration after handling upgrade
+            }
         }
         
         ; Only scan for waiting students if we're in the right state
         if (SessionState == WAITING_FOR_STUDENT) {
-            ; Calculate search zones based on header positions with fallback
+            ; Calculate search zones based on header positions with window coordinates
             global waitTimeHeaderPos
+            WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
             
             if (waitTimeHeaderPos.found && waitTimeHeaderPos.x > 0 && waitTimeHeaderPos.y > 0) {
                 ; Use header-based positioning: header position + 100px down, with 25px slack
                 waitingX1 := Max(0, waitTimeHeaderPos.x - 25)
                 waitingY1 := Max(0, waitTimeHeaderPos.y + 100)
-                waitingX2 := Min(A_ScreenWidth, waitingX1 + 334 + 50)  ; Original width + extra slack
-                waitingY2 := Min(A_ScreenHeight, waitingY1 + 235)
+                waitingX2 := Min(winWidth, waitingX1 + 334 + 50)  ; Original width + extra slack
+                waitingY2 := Min(winHeight, waitingY1 + 235)
             } else {
-                ; Fallback to PageTarget-based positioning
-                waitingX1 := Max(0, pageRefX + 334)
-                waitingY1 := Max(0, pageRefY + 309)
-                waitingX2 := Min(A_ScreenWidth, waitingX1 + 334)
-                waitingY2 := Min(A_ScreenHeight, waitingY1 + 235)
+                ; Fallback to right portion of window for WaitingTarget
+                waitingX1 := Max(0, winWidth * 0.6)  ; Right 40% of window
+                waitingY1 := winHeight * 0.3  ; Below header area
+                waitingX2 := winWidth
+                waitingY2 := winHeight * 0.8  ; Most of window height
             }
             
             X := ""
@@ -906,6 +1012,13 @@ StartDetector() {
             scanStart := A_TickCount
             result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0.15, 0.05, WaitingTarget)
             scanTime := A_TickCount - scanStart
+            
+            ; Debug: Only log when student is found (first detection)
+            if (result) {
+                static studentDetectionCount := 0
+                studentDetectionCount++
+                WriteLog("DETECTION #" . studentDetectionCount . ": WaitingTarget found at " . X . "," . Y . " (scan time: " . scanTime . "ms)")
+            }
             
             ; Track scan timing for first 20 scans
             global ScanTimes, ScanCount
@@ -934,16 +1047,16 @@ StartDetector() {
             rawStudentName := ExtractStudentNameRaw(X, Y)
             rawTopic := ExtractTopicRaw(X, Y)
             
-            ; Find clickable student name coordinates
+            ; Find clickable student name coordinates (window coordinates)
             global studentHeaderPos
             if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
                 ; Click on student name area (same region where we extracted the name)
                 clickX := studentHeaderPos.x + 100  ; Center of student name region
                 clickY := studentHeaderPos.y + 96   ; Row position (same as name extraction)
             } else {
-                ; Fallback: offset left from WaitingTarget to approximate student name position
-                clickX := X - 400  ; Move left from WaitingTarget to student name area
-                clickY := Y        ; Same row
+                ; Fallback: click in left portion of window on same row as waiting target
+                clickX := winWidth * 0.2  ; Left area of window
+                clickY := Y        ; Same row as waiting target
             }
             
             ; Step 2: Apply automatic corrections (no prompts)
@@ -975,12 +1088,12 @@ StartDetector() {
             
             ; Step 4: Click the student
             if (LiveMode) {
-                ; Activate the identified window
-                WinActivate("ahk_id " . targetWindowID)
-                Sleep 100  ; Longer pause to ensure window activation
-                ; Click on the waiting target
-                Click X, Y  ; FindText returns screen coordinates, Click uses them directly
-                clickTime := A_TickCount - detectionStartTime  ; Measure right after click
+                ; Click directly using window coordinates (no activation needed with binding)
+                preClickTime := A_TickCount
+                Click X, Y  ; FindText returns window coordinates, Click uses them directly
+                clickTime := A_TickCount - detectionStartTime  ; Total time from detection to click
+                actualClickTime := A_TickCount - preClickTime  ; Just the click operation time
+                WriteLog("CLICK #" . studentDetectionCount . ": Clicked at " . X . "," . Y . " (total: " . clickTime . "ms, click: " . actualClickTime . "ms)")
                 
                 ; Wait for session to start loading, then maximize window
                 Sleep 1000  ; Wait 1 second for session to begin loading

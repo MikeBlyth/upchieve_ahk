@@ -191,7 +191,8 @@ LoadAlphabetCharacters() {
     FindText().PicLib(Text, 1)
 }
 
-; Extract text from a specified screen region with configurable parameters
+; Extract text from a specified window region with configurable parameters
+; Now uses window coordinates with bound window for improved reliability
 ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, proximityThreshold := 10) {
     ; Define character set for names
     nameChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"

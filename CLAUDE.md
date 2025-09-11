@@ -187,21 +187,28 @@ Upper-left x-coordinate: OutputVar.1.x - OutputVar.1.w / 2
 Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 ```
 
-### Header-Based Search Zones (Current System)
-The system now uses column headers to precisely locate search areas:
+### Current Window-Relative System
 
-- **Student Header** (`StudentHeaderTarget`): "Student" column header (71×25 pixels)
-- **Help Header** (`HelpHeaderTarget`): "Help Topic" column header (71×25 pixels)  
-- **Wait Time Header** (`WaitTimeHeaderTarget`): "Wait Time" column header (97×25 pixels)
+**PageTarget Detection**:
+- **Search Zone**: 850,300 to 1400,1100 (window coordinates)
+- **Verification**: Every 30 seconds with movement threshold >10 pixels
+- **Position Logging**: Comprehensive tracking of PageTarget location changes
 
-**Search Areas** (positioned below headers):
-- **Student Name Region**: StudentHeader position + 100px down ± 25px slack, 450×80 pixels
-- **Help Topic Region**: HelpHeader position + 100px down ± 25px slack, 450×80 pixels
-- **Wait Time Search**: WaitTimeHeader position + 100px down ± 25px slack, 384×235 pixels
+**Header Detection** (fluid container responsive):
+- **Search Zone**: 700-1600px width, PageTarget+175 to PageTarget+225px height
+- **Student Header** (`StudentHeaderTarget`): "Student" column header
+- **Help Header** (`HelpHeaderTarget`): "Help Topic" column header  
+- **Wait Time Header** (`WaitTimeHeaderTarget`): "Wait Time" column header
 
-**Fallback Zones** (when headers not found):
-- **WaitingTarget (< 1 minute)**: Offset (334, 309) from PageTarget4 upper-left, size 334×235
-- **UpgradeTarget (Update popup)**: Offset (654, 130) from PageTarget4 upper-left, size 325×300
+**OCR Zones** (positioned below headers when found):
+- **Student Name Region**: Header position + 96px down, 250×90 pixels
+- **Help Topic Region**: Header position + 96px down, 250×90 pixels
+- **Wait Time Search**: Header position + 96px down for WaitingTarget detection
+
+**Fallback OCR Zones** (when headers not found, PageTarget-relative):
+- **Student Names**: Left edge to 930px, PageTarget+300-400px down
+- **Subjects**: 940-1260px, PageTarget+300-400px down
+- **Wait Time**: Uses original WaitingTarget positioning fallback
 
 ### Original Absolute Coordinates (3200×2000 screen reference)
 - PageTarget: (891, 889) to (1446, 1149)
@@ -214,6 +221,11 @@ The system now uses column headers to precisely locate search areas:
 - alphabet.ahk (dual character arrays: `name_characters` + `number_characters`)
 
 ## Recent Improvements
+- **Window Coordinate System**: Implemented window-relative coordinates with BindWindow for position independence
+- **Expanded PageTarget Search**: Increased search zone to 850,300-1400,1100 for better window resize tolerance
+- **Fluid Container Support**: Headers searched across full 700-1600px width to handle responsive layout
+- **Fallback OCR Zones**: PageTarget-relative fallback zones when headers not found (names: left-930px, subjects: 940-1260px)
+- **Enhanced Position Logging**: Comprehensive PageTarget movement tracking and position change detection
 - **Dual Array System**: Separated character patterns into `name_characters` and `number_characters` for context-aware OCR
 - **Direct Subject Recognition**: Replaced OCR-based subject detection with instant pattern matching using `SubjectTargets`
 - **Context-Aware Character Filtering**: Student names exclude digits, subjects include grade-level numbers (6,7,8)  
@@ -245,6 +257,7 @@ The system now uses column headers to precisely locate search areas:
 - **Window scaling issues**: Ensure browser zoom is at 100% for optimal pattern matching
 
 ## Known Issues
+- **BindWindow coordinate system**: BindWindow mode 4 may not properly convert coordinates to window-relative (requires maximized window for reliability)
 - JoinText method requires further refinement for optimal results  
 - Some characters (especially 'y') require multiple patterns due to descender positioning
 - Window occlusion/shading significantly impacts FindText performance (3-5 seconds vs 170-200ms)
