@@ -866,11 +866,11 @@ StartDetector() {
         tooltipY := 225
         
         if (SessionState == WAITING_FOR_STUDENT) {
-            ToolTip stateText . "Scanning for upgrade popup and waiting students...", tooltipX, tooltipY, 2
+            ToolTip "State: Waiting for Student", tooltipX, tooltipY, 2
         } else if (SessionState == IN_SESSION) {
-            ToolTip stateText . "In session - monitoring for session end...", tooltipX, tooltipY, 2
+            ToolTip "State: In Session", tooltipX, tooltipY, 2
         } else {
-            ToolTip stateText . "Paused", tooltipX, tooltipY, 2
+            ToolTip "State: Paused", tooltipX, tooltipY, 2
         }
         
         ; Check for upgrade popup first (full screen search)
