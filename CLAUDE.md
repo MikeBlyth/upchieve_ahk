@@ -147,14 +147,16 @@ The script automatically logs comprehensive session data in CSV format to `upchi
 When a session ends (automatically detected or manually triggered with Ctrl+Shift+A), a comprehensive feedback dialog appears with:
 - **Pre-filled fields**: Student name (from OCR) and subject (from pattern matching or OCR)
 - **Session metrics**: Grade, topic, math subject indicator
+- **Auto-checked Math Subject**: Automatically checks if subject contains "math" or is "pre-algebra", "algebra", or "statistics"
 - **Behavioral checkboxes**: Initial response, serious question, left abruptly, stopped responding
 - **Progress rating**: Float value 0-1 (defaults to 1.0)
 - **Timing**: Last message time, auto-calculated duration
 - **Comments**: Free-text notes
-- **Actions**: Continue monitoring, exit, or pause
+- **Actions**: Continue monitoring, exit, pause, or **skip**
+- **Skip Button**: Saves name/subject corrections but does NOT log session to CSV
 - **Learning System**: Manual corrections to names/subjects are automatically saved to `student_corrections.txt`
 
-All data is automatically saved to CSV format with line-break protection for clean spreadsheet import.
+Session data is saved to CSV format (except when skipped) with line-break protection for clean spreadsheet import.
 
 ## Student Blocking System
 - **Block File**: `block_names.txt` (optional, created by user)
@@ -240,6 +242,10 @@ Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 - **OCR Testing Tool**: Built standalone application for rapid pattern development and parameter tuning
 - **Multiple Character Patterns**: Support for multiple patterns per character (especially 'y', 't', 'd')
 - **Dynamic Reloading**: Character patterns can be updated and reloaded without application restart
+- **Optimized Window Activation**: Window activation starts immediately after student detection, parallel with OCR processing for faster clicking (Not fully tested)
+- **Millisecond Timestamps**: Debug logs now include millisecond precision for better timing analysis (Not fully tested)
+- **Skip Session Feature**: End-session dialog includes Skip button to save corrections without CSV logging (Not fully tested)
+- **Auto-Math Detection**: Math subject checkbox automatically checked for math-related subjects (Not fully tested)
 
 ## Performance Considerations
 - **Initial PageTarget search**: 170-200ms (full screen)

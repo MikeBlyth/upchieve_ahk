@@ -86,7 +86,7 @@ SubjectTargets :=
 ; Debug log function
 WriteLog(message) {
     logFile := "debug_log.txt"
-    timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
+    timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss") . "." . Format("{:03d}", A_MSec)
     FileAppend timestamp . " - " . message . "`n", logFile
 }
 
@@ -490,8 +490,16 @@ ShowSessionFeedbackDialog() {
     feedbackGui.AddText("xm y+15", "Topic:")
     topicEdit := feedbackGui.AddEdit("xm y+5 w350")
     
-    ; Math checkbox
-    mathCheck := feedbackGui.AddCheckbox("xm y+15", "Math subject")
+    ; Math checkbox - auto-check if subject is math-related
+    isMathSubject := false
+    if (LastStudentTopic != "") {
+        subjectLower := StrLower(LastStudentTopic)
+        isMathSubject := (InStr(subjectLower, "math") > 0 || 
+                         subjectLower == "pre-algebra" || 
+                         subjectLower == "algebra" || 
+                         subjectLower == "statistics")
+    }
+    mathCheck := feedbackGui.AddCheckbox("xm y+15" . (isMathSubject ? " Checked" : ""), "Math subject")
     
     ; Session characteristic checkboxes
     feedbackGui.AddText("xm y+15", "Session characteristics:")
@@ -516,12 +524,38 @@ ShowSessionFeedbackDialog() {
     yesBtn := feedbackGui.AddButton("xm y+5 w80 h30", "Yes")
     noBtn := feedbackGui.AddButton("x+10 yp w80 h30", "No") 
     pauseBtn := feedbackGui.AddButton("x+10 yp w80 h30", "Pause")
+    skipBtn := feedbackGui.AddButton("x+10 yp w80 h30", "Skip")
     
     ; Button event handlers
     result := ""
     yesBtn.OnEvent("Click", (*) => (LogSessionFeedbackCSV(), result := "Yes", feedbackGui.Destroy()))
     noBtn.OnEvent("Click", (*) => (LogSessionFeedbackCSV(), result := "No", feedbackGui.Destroy()))
     pauseBtn.OnEvent("Click", (*) => (LogSessionFeedbackCSV(), result := "Cancel", feedbackGui.Destroy()))
+    skipBtn.OnEvent("Click", (*) => (SaveCorrectionsOnly(), result := "Skip", feedbackGui.Destroy()))
+    
+    ; Function to save corrections only (for Skip button)
+    SaveCorrectionsOnly() {
+        ; Save corrections if user modified the names/subjects
+        global LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic
+        
+        ; Check if student name was corrected
+        finalName := Trim(nameEdit.Text)
+        if (finalName != "" && LastRawStudentName != "" && finalName != LastStudentName) {
+            ; User corrected the student name - save correction mapping from raw OCR to final name
+            SaveCorrection(LastRawStudentName, finalName)
+            WriteLog("Saved name correction: '" . LastRawStudentName . "' -> '" . finalName . "'")
+        }
+        
+        ; Check if subject was corrected  
+        finalSubject := Trim(subjectEdit.Text)
+        if (finalSubject != "" && LastRawStudentTopic != "" && finalSubject != LastStudentTopic) {
+            ; User corrected the subject - save correction mapping from raw OCR to final subject
+            SaveCorrection(LastRawStudentTopic, finalSubject)
+            WriteLog("Saved subject correction: '" . LastRawStudentTopic . "' -> '" . finalSubject . "'")
+        }
+        
+        WriteLog("Session skipped - corrections saved but no CSV log entry created")
+    }
     
     ; Function to log session feedback in CSV format
     LogSessionFeedbackCSV() {
@@ -619,6 +653,9 @@ EndSession() {
             WriteLog("Manual session end - resumed looking for students")
         } else if (continueResult = "No") {
             CleanExit()
+        } else if (continueResult = "Skip") {
+            SessionState := WAITING_FOR_STUDENT
+            WriteLog("Manual session end - skipped logging, resumed looking for students")
         } else {  ; Cancel
             SessionState := PAUSED
             SuspendDetection()
@@ -940,6 +977,12 @@ StartDetector() {
                     FindHeaders()
                 } else if (continueResult = "No") {
                     CleanExit()
+                } else if (continueResult = "Skip") {
+                    global SessionState
+                    SessionState := WAITING_FOR_STUDENT
+                    WriteLog("DEBUG: Session skipped - returning to WAITING_FOR_STUDENT state")
+                    lastPageCheck := A_TickCount
+                    FindHeaders()
                 } else {  ; Cancel
                     global SessionState
                     SessionState := PAUSED
@@ -1042,7 +1085,10 @@ StartDetector() {
 ;            WriteLog("WaitingTarget found at (" . X . "," . Y . ") - CENTER coordinates in " . scanTime . "ms")
 ;            ToolTip "Found waiting student! Extracting name...", 10, 10
             
-            ; Step 1: Extract raw student name and topic FIRST (before clicking)
+            ; Step 1: Activate window immediately (parallel with extraction)
+            WinActivate("ahk_id " . targetWindowID)
+            
+            ; Step 2: Extract raw student name and topic (while window is activating)
             ; Also get the student name coordinates for clicking
             rawStudentName := ExtractStudentNameRaw(X, Y)
             rawTopic := ExtractTopicRaw(X, Y)
@@ -1088,12 +1134,15 @@ StartDetector() {
             
             ; Step 4: Click the student
             if (LiveMode) {
-                ; Click directly using window coordinates (no activation needed with binding)
+                ; Wait for window activation (started earlier)
+                WinWaitActive("ahk_id " . targetWindowID, , 2)  ; Wait up to 2 seconds for activation
+                
+                ; Click the waiting target (confirmed this works)
                 preClickTime := A_TickCount
-                Click X, Y  ; FindText returns window coordinates, Click uses them directly
+                Click X, Y  ; Click the waiting target coordinates
                 clickTime := A_TickCount - detectionStartTime  ; Total time from detection to click
                 actualClickTime := A_TickCount - preClickTime  ; Just the click operation time
-                WriteLog("CLICK #" . studentDetectionCount . ": Clicked at " . X . "," . Y . " (total: " . clickTime . "ms, click: " . actualClickTime . "ms)")
+                WriteLog("CLICK #" . studentDetectionCount . ": Clicked waiting target at " . X . "," . Y . " (total: " . clickTime . "ms, click: " . actualClickTime . "ms)")
                 
                 ; Wait for session to start loading, then maximize window
                 Sleep 1000  ; Wait 1 second for session to begin loading
