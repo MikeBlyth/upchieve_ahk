@@ -139,8 +139,8 @@ FindHeaders() {
     ; Headers are in fluid container spanning 700-1600px, positioned ~200px below PageTarget
     ; Search full width for all headers since they can move with window resizing
     
-    headerY1 := Max(0, pageTargetY + 175)  ; ~200px below PageTarget minus margin
-    headerY2 := Min(winHeight, pageTargetY + 225)  ; ~200px below PageTarget plus margin
+    headerY1 := Max(0, pageTargetY + 160)  ; ~160px below PageTarget 
+    headerY2 := Min(winHeight, pageTargetY + 270)  ; ~270px below PageTarget (110px search range)
     
     ; Search for Student Header across full container width
     X := ""
@@ -651,15 +651,18 @@ EndSession() {
         if (continueResult = "Yes") {
             SessionState := WAITING_FOR_STUDENT
             WriteLog("Manual session end - resumed looking for students")
+            BindWindowWithRetry(targetWindowID, 4)
         } else if (continueResult = "No") {
             CleanExit()
         } else if (continueResult = "Skip") {
             SessionState := WAITING_FOR_STUDENT
             WriteLog("Manual session end - skipped logging, resumed looking for students")
+            BindWindowWithRetry(targetWindowID, 4)
         } else {  ; Cancel
             SessionState := PAUSED
             SuspendDetection()
             SessionState := WAITING_FOR_STUDENT  ; Resume after pause dialog
+            BindWindowWithRetry(targetWindowID, 4)
         }
     } else {
         ; Not in session - start a manual session
@@ -810,6 +813,40 @@ CleanExit() {
     EndSession()
 }
 
+; BindWindow with retry logic and validation
+BindWindowWithRetry(windowID, mode, maxRetries := 3) {
+    Loop maxRetries {
+        ; First unbind any existing binding
+        FindText().BindWindow(0)
+        Sleep 100
+        
+        ; Attempt to bind
+        bindResult := FindText().BindWindow(windowID, mode)
+        WriteLog("DEBUG: BindWindow attempt " . A_Index . " for ID " . windowID . " with mode " . mode . ": " . (bindResult ? "Success" : "Failed"))
+        
+        if (bindResult) {
+            ; Verify binding worked by checking bound ID and mode
+            boundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
+            boundMode := FindText().BindWindow(0, 0, 0, 1)  ; get_mode = 1
+            
+            if (boundID == windowID && boundMode == mode) {
+                WriteLog("DEBUG: BindWindow verified - bound to ID " . boundID . " with mode " . boundMode)
+                return true
+            } else {
+                WriteLog("WARNING: BindWindow succeeded but verification failed - Expected ID:" . windowID . " Mode:" . mode . ", Got ID:" . boundID . " Mode:" . boundMode)
+            }
+        }
+        
+        if (A_Index < maxRetries) {
+            WriteLog("DEBUG: BindWindow retry " . A_Index . " failed, waiting 200ms before retry")
+            Sleep 200
+        }
+    }
+    
+    WriteLog("ERROR: BindWindow failed after " . maxRetries . " attempts")
+    return false
+}
+
 ; Auto-start detection on script launch
 StartDetector()
 
@@ -839,13 +876,10 @@ StartDetector() {
     
     ; Bind FindText to the selected window for improved performance and reliability
     ; Mode 4 is essential for proper window targeting
-    bindResult := FindText().BindWindow(targetWindowID, 4)
-    WriteLog("DEBUG: BindWindow result for ID " . targetWindowID . " with mode 4: " . (bindResult ? "Success" : "Failed"))
-    
-    ; Verify BindWindow is working by checking bound ID and mode
-    boundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
-    boundMode := FindText().BindWindow(0, 0, 0, 1)  ; get_mode = 1
-    WriteLog("DEBUG: Currently bound to ID " . boundID . " with mode " . boundMode)
+    bindResult := BindWindowWithRetry(targetWindowID, 4)
+    if (!bindResult) {
+        MsgBox("ERROR: Failed to bind to window after multiple attempts. The script may not work properly.", "BindWindow Error", "OK 4096")
+    }
     
     ; Confirm window selection
     MsgBox("Window selected! Starting " . modeText . " mode detector...", "Window Selected", "OK 4096")
@@ -971,8 +1005,9 @@ StartDetector() {
                 if (continueResult = "Yes") {
                     global SessionState
                     SessionState := WAITING_FOR_STUDENT
-                    ; Re-find headers since we're back on the waiting page
+                    ; Re-bind window and re-find headers since we're back on the waiting page
                     WriteLog("DEBUG: Returning to WAITING_FOR_STUDENT state - PageTarget position: (" . pageTargetX . "," . pageTargetY . ")")
+                    BindWindowWithRetry(targetWindowID, 4)
                     lastPageCheck := A_TickCount
                     FindHeaders()
                 } else if (continueResult = "No") {
@@ -981,6 +1016,7 @@ StartDetector() {
                     global SessionState
                     SessionState := WAITING_FOR_STUDENT
                     WriteLog("DEBUG: Session skipped - returning to WAITING_FOR_STUDENT state")
+                    BindWindowWithRetry(targetWindowID, 4)
                     lastPageCheck := A_TickCount
                     FindHeaders()
                 } else {  ; Cancel
