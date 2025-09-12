@@ -528,10 +528,10 @@ ShowSessionFeedbackDialog() {
     
     ; Button event handlers
     result := ""
-    yesBtn.OnEvent("Click", (*) => (LogSessionFeedbackCSV(), result := "Yes", feedbackGui.Destroy()))
+    yesBtn.OnEvent("Click", (*) => (LogSessionFeedbackCSV(), result := "Restart", feedbackGui.Destroy()))
     noBtn.OnEvent("Click", (*) => (LogSessionFeedbackCSV(), result := "No", feedbackGui.Destroy()))
     pauseBtn.OnEvent("Click", (*) => (LogSessionFeedbackCSV(), result := "Cancel", feedbackGui.Destroy()))
-    skipBtn.OnEvent("Click", (*) => (SaveCorrectionsOnly(), result := "Skip", feedbackGui.Destroy()))
+    skipBtn.OnEvent("Click", (*) => (SaveCorrectionsOnly(), result := "Restart", feedbackGui.Destroy()))
     
     ; Function to save corrections only (for Skip button)
     SaveCorrectionsOnly() {
@@ -648,21 +648,15 @@ EndSession() {
         ; Currently in session - end it with feedback dialog
         continueResult := ShowSessionFeedbackDialog()
         
-        if (continueResult = "Yes") {
-            SessionState := WAITING_FOR_STUDENT
-            WriteLog("Manual session end - resumed looking for students")
-            BindWindowWithRetry(targetWindowID, 4)
+        if (continueResult = "Restart") {
+            WriteLog("Manual session end - restarting script")
+            Reload
         } else if (continueResult = "No") {
             CleanExit()
-        } else if (continueResult = "Skip") {
-            SessionState := WAITING_FOR_STUDENT
-            WriteLog("Manual session end - skipped logging, resumed looking for students")
-            BindWindowWithRetry(targetWindowID, 4)
-        } else {  ; Cancel
+        } else {  ; Cancel (Pause)
             SessionState := PAUSED
             SuspendDetection()
             SessionState := WAITING_FOR_STUDENT  ; Resume after pause dialog
-            BindWindowWithRetry(targetWindowID, 4)
         }
     } else {
         ; Not in session - start a manual session
@@ -801,6 +795,7 @@ CompareDates(date1, date2) {
 ; Clean exit function to restore normal sleep behavior
 CleanExit() {
     ; Restore normal power management
+    WriteLog("DEBUG: Exiting`n")
     DllCall("kernel32.dll\SetThreadExecutionState", "UInt", 0x80000000)
     ExitApp
 }
@@ -813,39 +808,6 @@ CleanExit() {
     EndSession()
 }
 
-; BindWindow with retry logic and validation
-BindWindowWithRetry(windowID, mode, maxRetries := 3) {
-    Loop maxRetries {
-        ; First unbind any existing binding
-        FindText().BindWindow(0)
-        Sleep 100
-        
-        ; Attempt to bind
-        bindResult := FindText().BindWindow(windowID, mode)
-        WriteLog("DEBUG: BindWindow attempt " . A_Index . " for ID " . windowID . " with mode " . mode . ": " . (bindResult ? "Success" : "Failed"))
-        
-        if (bindResult) {
-            ; Verify binding worked by checking bound ID and mode
-            boundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
-            boundMode := FindText().BindWindow(0, 0, 0, 1)  ; get_mode = 1
-            
-            if (boundID == windowID && boundMode == mode) {
-                WriteLog("DEBUG: BindWindow verified - bound to ID " . boundID . " with mode " . boundMode)
-                return true
-            } else {
-                WriteLog("WARNING: BindWindow succeeded but verification failed - Expected ID:" . windowID . " Mode:" . mode . ", Got ID:" . boundID . " Mode:" . boundMode)
-            }
-        }
-        
-        if (A_Index < maxRetries) {
-            WriteLog("DEBUG: BindWindow retry " . A_Index . " failed, waiting 200ms before retry")
-            Sleep 200
-        }
-    }
-    
-    WriteLog("ERROR: BindWindow failed after " . maxRetries . " attempts")
-    return false
-}
 
 ; Auto-start detection on script launch
 StartDetector()
@@ -876,10 +838,13 @@ StartDetector() {
     
     ; Bind FindText to the selected window for improved performance and reliability
     ; Mode 4 is essential for proper window targeting
-    bindResult := BindWindowWithRetry(targetWindowID, 4)
-    if (!bindResult) {
-        MsgBox("ERROR: Failed to bind to window after multiple attempts. The script may not work properly.", "BindWindow Error", "OK 4096")
-    }
+    bindResult := FindText().BindWindow(targetWindowID, 4)
+    WriteLog("DEBUG: BindWindow result for ID " . targetWindowID . " with mode 4: " . (bindResult ? "Success" : "Failed"))
+    
+    ; Verify BindWindow is working by checking bound ID and mode
+    boundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
+    boundMode := FindText().BindWindow(0, 0, 0, 1)  ; get_mode = 1
+    WriteLog("DEBUG: Currently bound to ID " . boundID . " with mode " . boundMode)
     
     ; Confirm window selection
     MsgBox("Window selected! Starting " . modeText . " mode detector...", "Window Selected", "OK 4096")
@@ -953,7 +918,7 @@ StartDetector() {
         ; Periodic PageTarget verification (every 30 seconds) - only verify, don't re-detect unless necessary
         ; Only do this when WAITING_FOR_STUDENT, not during sessions
         if (SessionState == WAITING_FOR_STUDENT && A_TickCount - lastPageCheck > 30000) {
-            WriteLog("DEBUG: Starting PageTarget verification - Current position: (" . pageTargetX . "," . pageTargetY . ")")
+    ;        WriteLog("DEBUG: Starting PageTarget verification - Current position: (" . pageTargetX . "," . pageTargetY . ")")
             tempX := ""
             tempY := ""
             if (tempResult := FindText(&tempX, &tempY, 850, 300, 1400, 1100, 0, 0, PageTarget)) {
@@ -965,7 +930,7 @@ StartDetector() {
                     pageTargetY := tempY
                     FindHeaders()  ; Re-find headers with new PageTarget position
                 } else {
-                    WriteLog("DEBUG: PageTarget verified at " . tempX . "," . tempY . " (stable)")
+        ;            WriteLog("DEBUG: PageTarget verified at " . tempX . "," . tempY . " (stable)")
                 }
                 lastPageCheck := A_TickCount
             } else {
@@ -1002,24 +967,12 @@ StartDetector() {
                 ; Session ended - show session feedback dialog
                 continueResult := ShowSessionFeedbackDialog()
                 
-                if (continueResult = "Yes") {
-                    global SessionState
-                    SessionState := WAITING_FOR_STUDENT
-                    ; Re-bind window and re-find headers since we're back on the waiting page
-                    WriteLog("DEBUG: Returning to WAITING_FOR_STUDENT state - PageTarget position: (" . pageTargetX . "," . pageTargetY . ")")
-                    BindWindowWithRetry(targetWindowID, 4)
-                    lastPageCheck := A_TickCount
-                    FindHeaders()
+                if (continueResult = "Restart") {
+                    WriteLog("DEBUG: Session ended - restarting script")
+                    Reload
                 } else if (continueResult = "No") {
                     CleanExit()
-                } else if (continueResult = "Skip") {
-                    global SessionState
-                    SessionState := WAITING_FOR_STUDENT
-                    WriteLog("DEBUG: Session skipped - returning to WAITING_FOR_STUDENT state")
-                    BindWindowWithRetry(targetWindowID, 4)
-                    lastPageCheck := A_TickCount
-                    FindHeaders()
-                } else {  ; Cancel
+                } else {  ; Cancel (Pause)
                     global SessionState
                     SessionState := PAUSED
                     SuspendDetection()

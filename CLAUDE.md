@@ -152,8 +152,9 @@ When a session ends (automatically detected or manually triggered with Ctrl+Shif
 - **Progress rating**: Float value 0-1 (defaults to 1.0)
 - **Timing**: Last message time, auto-calculated duration
 - **Comments**: Free-text notes
-- **Actions**: Continue monitoring, exit, pause, or **skip**
+- **Actions**: Continue monitoring (restart script), exit, pause, or **skip** (restart script)
 - **Skip Button**: Saves name/subject corrections but does NOT log session to CSV
+- **Script Restart**: Yes and Skip buttons automatically restart the script for reliable detection
 - **Learning System**: Manual corrections to names/subjects are automatically saved to `student_corrections.txt`
 
 Session data is saved to CSV format (except when skipped) with line-break protection for clean spreadsheet import.
@@ -246,6 +247,7 @@ Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 - **Millisecond Timestamps**: Debug logs now include millisecond precision for better timing analysis (Not fully tested)
 - **Skip Session Feature**: End-session dialog includes Skip button to save corrections without CSV logging (Not fully tested)
 - **Auto-Math Detection**: Math subject checkbox automatically checked for math-related subjects (Not fully tested)
+- **Script Restart After Sessions**: Automatically restarts script after each completed session to prevent detection failures (Not fully tested)
 
 ## Performance Considerations
 - **Initial PageTarget search**: 170-200ms (full screen)
