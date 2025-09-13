@@ -139,13 +139,13 @@ FindHeaders() {
     ; Search for headers in expected zones across full window height
     ; Headers are typically in the upper portion of the window
     headerY1 := 200   ; Start searching from 200px down
-    headerY2 := Min(winHeight - 200, 1000)  ; Search up to 1000px or window height - 200px
+    headerY2 := Min(winHeight - 200, 1300)  ; Search up to 1300px or window height - 200px
     
     ; Search for Student Header across full container width
     X := ""
     Y := ""
-    WriteLog("DEBUG: Student header search zone: 700," . headerY1 . " to 1600," . headerY2)
-    if (result := FindText(&X, &Y, 700, headerY1, 1600, headerY2, 0.15, 0.10, StudentHeaderTarget)) {
+    WriteLog("DEBUG: Student header search zone: 600," . headerY1 . " to 1600," . headerY2)
+    if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, StudentHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, StudentHeaderTarget)
         studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
         WriteLog("DEBUG: Student header found at " . X . "," . Y . " (upper-left: " . upperLeft.x . "," . upperLeft.y . ")")
@@ -156,8 +156,8 @@ FindHeaders() {
     ; Search for Help Header across full container width
     X := ""
     Y := ""
-    WriteLog("DEBUG: Help header search zone: 700," . headerY1 . " to 1600," . headerY2)
-    if (result := FindText(&X, &Y, 700, headerY1, 1600, headerY2, 0.15, 0.10, HelpHeaderTarget)) {
+    WriteLog("DEBUG: Help header search zone: 600," . headerY1 . " to 1600," . headerY2)
+    if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, HelpHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, HelpHeaderTarget)
         helpHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
         WriteLog("DEBUG: Help header found at " . X . "," . Y . " (upper-left: " . upperLeft.x . "," . upperLeft.y . ")")
@@ -168,8 +168,8 @@ FindHeaders() {
     ; Search for Wait Time Header across full container width
     X := ""
     Y := ""
-    WriteLog("DEBUG: Wait Time header search zone: 700," . headerY1 . " to 1600," . headerY2)
-    if (result := FindText(&X, &Y, 700, headerY1, 1600, headerY2, 0.15, 0.10, WaitTimeHeaderTarget)) {
+    WriteLog("DEBUG: Wait Time header search zone: 600," . headerY1 . " to 1600," . headerY2)
+    if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, WaitTimeHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, WaitTimeHeaderTarget)
         waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
         WriteLog("DEBUG: Wait Time header found at " . X . "," . Y . " (upper-left: " . upperLeft.x . "," . upperLeft.y . ")")
@@ -853,21 +853,30 @@ CaptureNameRegion(searchX, searchY, searchWidth, searchHeight, rawOCRResult) {
     timestamp := FormatTime(A_Now, "yyyyMMdd_HHmmss")
     tempFilename := trainingFolder . "\temp_" . timestamp . "_" . Format("{:03d}", SessionCounter) . ".bmp"
     
-    ; Convert window coordinates to screen coordinates for screenshot
+    ; Convert window coordinates to screen coordinates and create wider capture area
     WinGetPos(&winX, &winY, , , targetWindowID)
-    screenX := winX + searchX
-    screenY := winY + searchY
+    baseScreenX := Floor(winX + searchX)
+    baseScreenY := Floor(winY + searchY)
+    baseScreenX := Floor(searchX)
+    baseScreenY := Floor(searchY)
+
+    ; Capture wider area for testing (500x300 instead of original size)
+    captureWidth := 500
+    captureHeight := 300
+    screenX := baseScreenX - 125  ; Center wider area around OCR zone
+    screenY := baseScreenY - 105
 
     ; Debug: Log screenshot coordinates
     WriteLog("DEBUG: Screenshot capture - Window pos: " . winX . "," . winY)
-    WriteLog("DEBUG: Screenshot capture - Input coords (window): X:" . searchX . " Y:" . searchY . " W:" . searchWidth . " H:" . searchHeight)
-    WriteLog("DEBUG: Screenshot capture - Screen coords: X:" . screenX . " Y:" . screenY . " W:" . searchWidth . " H:" . searchHeight)
+    WriteLog("DEBUG: Screenshot capture - OCR window coords: X:" . searchX . " Y:" . searchY . " W:" . searchWidth . " H:" . searchHeight)
+    WriteLog("DEBUG: Screenshot capture - OCR screen coords: X:" . baseScreenX . " Y:" . baseScreenY)
+    WriteLog("DEBUG: Screenshot capture - WIDE screen coords: X:" . screenX . " Y:" . screenY . " W:" . captureWidth . " H:" . captureHeight)
     
     ; Capture screenshot of the region
     try {
         ; Use AutoHotkey's ImageSearch function to capture region
         ; Alternative approach: Use GDI+ to capture the specific region
-        success := CaptureRegionToFile(screenX, screenY, searchWidth, searchHeight, tempFilename)
+        success := CaptureRegionToFile(screenX, screenY, captureWidth, captureHeight, tempFilename)
         
         if (success) {
             TempScreenshotPath := tempFilename  ; Store for later rename
@@ -1141,6 +1150,13 @@ StartDetector() {
                 waitingY2 := winHeight * 0.8  ; Most of window height
             }
             
+            ; Debug: Log WaitingTarget search zone (once per monitoring session)
+            static waitingZoneLogged := false
+            if (!waitingZoneLogged) {
+                WriteLog("DEBUG: WaitingTarget search zone: " . waitingX1 . "," . waitingY1 . " to " . waitingX2 . "," . waitingY2)
+                waitingZoneLogged := true
+            }
+
             X := ""
             Y := ""
             scanStart := A_TickCount
@@ -1171,6 +1187,7 @@ StartDetector() {
             }
             
             if (result) {
+            WriteLog("Line 1188 activating window")
             global LiveMode
             detectionStartTime := A_TickCount  ; Start timing from WaitingTarget detection
 ;            WriteLog("WaitingTarget found at (" . X . "," . Y . ") - CENTER coordinates in " . scanTime . "ms")
@@ -1183,14 +1200,14 @@ StartDetector() {
             ; Also get the student name coordinates for clicking
             rawStudentName := ExtractStudentNameRaw(X, Y)
             rawTopic := ExtractTopicRaw(X, Y)
-            
+            WriteLog("Extracted OCR - Name: '" . rawStudentName . "', Topic: '" . rawTopic . "'")
             ; Step 2.5: Capture OCR training screenshot using exact same coordinates as OCR search
             ; Use the stored coordinates from ExtractStudentNameRaw
             global lastOCRSearchX, lastOCRSearchY, lastOCRSearchWidth, lastOCRSearchHeight
 
             ; Capture the screenshot for OCR training using exact OCR coordinates
             CaptureNameRegion(lastOCRSearchX, lastOCRSearchY, lastOCRSearchWidth, lastOCRSearchHeight, rawStudentName)
-            
+            WriteLog("DEBUG: Captured OCR training screenshot for name: '" . rawStudentName . "'")
             ; Find clickable student name coordinates (window coordinates)
             global studentHeaderPos
             if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
@@ -1233,6 +1250,7 @@ StartDetector() {
             ; Step 4: Click the student
             if (LiveMode) {
                 ; Wait for window activation (started earlier)
+                WriteLog("Preparing to click")
                 WinWaitActive("ahk_id " . targetWindowID, , 2)  ; Wait up to 2 seconds for activation
                 
                 ; Click the waiting target (confirmed this works)
