@@ -124,23 +124,22 @@ GetUpperLeft(centerX, centerY, widthOrTarget, height := 25) {
 }
 
 ; Find all header targets and store their positions for search zone calculations
-; Uses PageTarget as anchor point with known relative offsets (window coordinates)
+; Search headers directly in known zones without PageTarget dependency
 FindHeaders() {
-    global StudentHeaderTarget, HelpHeaderTarget, WaitTimeHeaderTarget, pageTargetX, pageTargetY, targetWindowID
-    
+    global StudentHeaderTarget, HelpHeaderTarget, WaitTimeHeaderTarget, targetWindowID
+
     ; Initialize header positions (will be empty if not found)
     global studentHeaderPos := {x: 0, y: 0, found: false}
     global helpHeaderPos := {x: 0, y: 0, found: false}
     global waitTimeHeaderPos := {x: 0, y: 0, found: false}
-    
+
     ; Get window client area dimensions for boundary checking
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-    
-    ; Headers are in fluid container spanning 700-1600px, positioned ~200px below PageTarget
-    ; Search full width for all headers since they can move with window resizing
-    
-    headerY1 := Max(0, pageTargetY + 160)  ; ~160px below PageTarget 
-    headerY2 := Min(winHeight, pageTargetY + 270)  ; ~270px below PageTarget (110px search range)
+
+    ; Search for headers in expected zones across full window height
+    ; Headers are typically in the upper portion of the window
+    headerY1 := 200   ; Start searching from 200px down
+    headerY2 := Min(winHeight - 200, 1000)  ; Search up to 1000px or window height - 200px
     
     ; Search for Student Header across full container width
     X := ""
@@ -194,7 +193,7 @@ FindHeaders() {
         headerStatus .= "WaitTime(" . waitTimeHeaderPos.x . "," . waitTimeHeaderPos.y . ") "
     }
     
-    WriteLog("DEBUG: Found " . headersFound . "/3 headers from PageTarget(" . pageTargetX . "," . pageTargetY . "): " . headerStatus)
+    WriteLog("DEBUG: Found " . headersFound . "/3 headers: " . headerStatus)
     return headersFound
 }
 
@@ -269,7 +268,7 @@ ApplyKnownCorrections(ocrResult) {
 
 
 ; Extract student name using header-based positioning with fallback
-; Uses header positions (found relative to PageTarget) with known offsets
+; Uses header positions with standard row offsets
 ExtractStudentNameRaw(baseX, baseY) {
     global studentHeaderPos, targetWindowID
     
@@ -282,13 +281,12 @@ ExtractStudentNameRaw(baseX, baseY) {
         searchWidth := Min(250, winWidth - searchX)  ; Column width, bounded
         searchHeight := Min(90, winHeight - searchY)
     } else {
-        ; Fallback to PageTarget-based positioning: names are left edge to x=930, 300-400px below PageTarget
-        global pageTargetX, pageTargetY
-        searchX := 700  ; Left edge of container
-        searchY := Max(0, pageTargetY + 300)  ; 300px below PageTarget center
-        searchWidth := Min(230, 930 - searchX)  ; From left edge to x=930
-        searchHeight := 100  ; 300-400px range below PageTarget
-        
+        ; Fallback to assumed column positioning: names are in left column around x=700
+        searchX := 700  ; Left edge of student name column
+        searchY := Max(0, 500)  ; Start around 500px down (typical data row area)
+        searchWidth := Min(230, winWidth - searchX)  ; Standard column width
+        searchHeight := Min(100, winHeight - searchY)  ; Standard row height
+
         ; Ensure fallback coordinates stay within window bounds
         searchX := Max(0, searchX)
         searchY := Max(0, searchY)
@@ -303,6 +301,12 @@ ExtractStudentNameRaw(baseX, baseY) {
 
     ; Use shared OCR function for name extraction - RAW RESULT ONLY
     result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.08, 10)
+
+    ; Store search coordinates globally for screenshot capture
+    global lastOCRSearchX := searchX
+    global lastOCRSearchY := searchY
+    global lastOCRSearchWidth := searchWidth
+    global lastOCRSearchHeight := searchHeight
 
     return result.text  ; Return raw OCR result without validation
 }
@@ -326,7 +330,7 @@ ExtractStudentNameValidated(baseX, baseY) {
 }
 
 ; Extract topic using header-based positioning with fallback
-; Uses header positions (found relative to PageTarget) with known offsets
+; Uses header positions with standard row offsets
 ExtractTopicRaw(baseX, baseY) {
     global helpHeaderPos, SubjectTargets, targetWindowID
     
@@ -339,13 +343,12 @@ ExtractTopicRaw(baseX, baseY) {
         searchWidth := Min(250, winWidth - searchX)   ; Column width, bounded
         searchHeight := Min(90, winHeight - searchY)
     } else {
-        ; Fallback to PageTarget-based positioning: subjects are x=940 to x=1260, 300-400px below PageTarget
-        global pageTargetX, pageTargetY
+        ; Fallback to assumed column positioning: subjects are in middle column around x=940-1260
         searchX := 940  ; Subject column start
-        searchY := Max(0, pageTargetY + 300)  ; 300px below PageTarget center
-        searchWidth := 320  ; From x=940 to x=1260
-        searchHeight := 100  ; 300-400px range below PageTarget
-        
+        searchY := Max(0, 500)  ; Start around 500px down (typical data row area)
+        searchWidth := Min(320, winWidth - searchX)  ; Standard column width (940 to 1260)
+        searchHeight := Min(100, winHeight - searchY)  ; Standard row height
+
         ; Ensure fallback coordinates stay within window bounds
         searchX := Max(0, searchX)
         searchY := Max(0, searchY)
@@ -1002,60 +1005,24 @@ StartDetector() {
     ; Confirm window selection
     MsgBox("Window selected! Starting " . modeText . " mode detector...", "Window Selected", "OK 4096")
     
-    ; Wait for PageTarget to appear with debug info
-    ; Uses proven coordinates for reliable PageTarget detection
-    pageCheckCount := 0
-    X := ""
-    Y := ""
+    ; Skip PageTarget detection - we already have the right window
+    ; Go directly to header detection in known zones
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)  ; Get window dimensions
-    WriteLog("DEBUG: Initial PageTarget search - Window: " . winWidth . "x" . winHeight . ", Bound to ID: " . targetWindowID)
-    while (!(result := FindText(&X, &Y, 850, 300, 1400, 1100, 0.15, 0.1, PageTarget))) {
-        ; Break out of PageTarget search if session was manually started
-        if (SessionState == IN_SESSION) {
-            WriteLog("DEBUG: Breaking PageTarget search - session manually started")
-            break
-        }
-        
-        pageCheckCount++
-        ToolTip "Looking for 'Waiting Students' page... Check #" pageCheckCount, 10, 50
-        if (pageCheckCount == 1) {
-            WriteLog("DEBUG: PageTarget not found on first attempt. Search zone: 850,300 to 1400,1100")
-        }
-        
-        ; Check for upgrade popup that might be blocking the page
-        upgradeX := ""
-        upgradeY := ""
-        if (UpgradeTarget != "" && (upgradeResult := FindText(&upgradeX, &upgradeY, 0, 0, winWidth, winHeight, 0.15, 0.05, UpgradeTarget))) {
-            ToolTip "Found upgrade popup blocking page! Clicking to dismiss...", 10, 50
-            WriteLog("DEBUG: Found upgrade popup at " . upgradeX . "," . upgradeY)
-            Click upgradeX, upgradeY  ; Window coordinates work directly
-            Sleep 1000  ; Wait for popup to dismiss
-        }
-        
-        Sleep 100
+    WriteLog("DEBUG: Skipping PageTarget, searching directly for headers - Window: " . winWidth . "x" . winHeight . ", Bound to ID: " . targetWindowID)
+
+    ; Check for upgrade popup that might be blocking the page
+    upgradeX := ""
+    upgradeY := ""
+    if (UpgradeTarget != "" && (upgradeResult := FindText(&upgradeX, &upgradeY, 0, 0, winWidth, winHeight, 0.15, 0.05, UpgradeTarget))) {
+        ToolTip "Found upgrade popup blocking page! Clicking to dismiss...", 10, 50
+        WriteLog("DEBUG: Found upgrade popup at " . upgradeX . "," . upgradeY)
+        Click upgradeX, upgradeY  ; Window coordinates work directly
+        Sleep 1000  ; Wait for popup to dismiss
     }
-    ; Handle PageTarget setup (skip if session was manually started)
-    if (SessionState != IN_SESSION) {
-        WriteLog("DEBUG: PageTarget found at " . X . "," . Y . " after " . pageCheckCount . " attempts")
-        WriteLog("DEBUG: PageTarget initial position: (" . X . "," . Y . ") in window coordinates")
-        
-        ; PageTarget found - store its position as anchor point for header positioning
-        pageTargetX := X  ; Center X coordinate in window coordinates
-        pageTargetY := Y  ; Center Y coordinate in window coordinates
-        lastPageCheck := A_TickCount  ; Track when we last found PageTarget
-        lastTooltipShow := A_TickCount  ; Track tooltip display timing
-        
-        ; Find all header targets using PageTarget as anchor
-        headersFound := FindHeaders()
-    } else {
-        WriteLog("DEBUG: Skipping PageTarget setup - in manual session")
-        ; Initialize basic values for manual session
-        pageTargetX := 1300  ; Approximate center of search zone
-        pageTargetY := 1050
-        WriteLog("DEBUG: PageTarget set to approximate position for manual session: (" . pageTargetX . "," . pageTargetY . ")")
-        lastPageCheck := A_TickCount
-        headersFound := 0
-    }
+
+    ; Find header targets directly in expected zones (no PageTarget dependency)
+    headersFound := FindHeaders()
+    lastPageCheck := A_TickCount
     
     ToolTip "Found 'Waiting Students' page! Found " . headersFound . "/3 headers. Starting " . modeText . " mode detector...", 10, 50
     Sleep 1000
@@ -1068,29 +1035,12 @@ StartDetector() {
     
     ; Main detection loop
     while (IsActive) {
-        ; Periodic PageTarget verification (every 30 seconds) - only verify, don't re-detect unless necessary
+        ; Periodic header re-detection (every 30 seconds) to handle layout changes
         ; Only do this when WAITING_FOR_STUDENT, not during sessions
         if (SessionState == WAITING_FOR_STUDENT && A_TickCount - lastPageCheck > 30000) {
-    ;        WriteLog("DEBUG: Starting PageTarget verification - Current position: (" . pageTargetX . "," . pageTargetY . ")")
-            tempX := ""
-            tempY := ""
-            if (tempResult := FindText(&tempX, &tempY, 850, 300, 1400, 1100, 0, 0, PageTarget)) {
-                ; PageTarget found - only update if it moved significantly (>10 pixels)
-                moveDistance := Sqrt((tempX - pageTargetX)**2 + (tempY - pageTargetY)**2)
-                if (moveDistance > 10) {
-                    WriteLog("WARNING: PageTarget moved " . Round(moveDistance) . " pixels from " . pageTargetX . "," . pageTargetY . " to " . tempX . "," . tempY . " - updating headers")
-                    pageTargetX := tempX
-                    pageTargetY := tempY
-                    FindHeaders()  ; Re-find headers with new PageTarget position
-                } else {
-        ;            WriteLog("DEBUG: PageTarget verified at " . tempX . "," . tempY . " (stable)")
-                }
-                lastPageCheck := A_TickCount
-            } else {
-                ; PageTarget not found - this shouldn't happen with window binding
-                WriteLog("WARNING: PageTarget verification failed - page may have changed")
-                lastPageCheck := A_TickCount
-            }
+            WriteLog("DEBUG: Periodic header re-detection check")
+            FindHeaders()  ; Re-find headers in case layout shifted
+            lastPageCheck := A_TickCount
         }
         
         ; Check for session end: SessionEndedTarget appears while we're IN_SESSION (every 2 seconds)
@@ -1234,34 +1184,12 @@ StartDetector() {
             rawStudentName := ExtractStudentNameRaw(X, Y)
             rawTopic := ExtractTopicRaw(X, Y)
             
-            ; Step 2.5: Capture OCR training screenshot of student name region
-            ; Use the same coordinates as ExtractStudentNameRaw for consistency
-            global studentHeaderPos, targetWindowID
-            WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-            
-            if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
-                ; Use precise header-based positioning (same as ExtractStudentNameRaw)
-                screenshotX := Max(0, studentHeaderPos.x)
-                screenshotY := Max(0, studentHeaderPos.y + 96 - 25)  ; Header + row offset - margin
-                screenshotWidth := Min(250, winWidth - screenshotX)  ; Column width, bounded
-                screenshotHeight := Min(90, winHeight - screenshotY)
-            } else {
-                ; Fallback positioning (same as ExtractStudentNameRaw)
-                global pageTargetX, pageTargetY
-                screenshotX := 700  ; Left edge of container
-                screenshotY := Max(0, pageTargetY + 300)  ; 300px below PageTarget center
-                screenshotWidth := Min(230, 930 - screenshotX)  ; From left edge to x=930
-                screenshotHeight := 100  ; 300-400px range below PageTarget
-                
-                ; Ensure fallback coordinates stay within window bounds
-                screenshotX := Max(0, screenshotX)
-                screenshotY := Max(0, screenshotY)
-                screenshotWidth := Min(screenshotWidth, winWidth - screenshotX)
-                screenshotHeight := Min(screenshotHeight, winHeight - screenshotY)
-            }
-            
-            ; Capture the screenshot for OCR training
-            CaptureNameRegion(screenshotX, screenshotY, screenshotWidth, screenshotHeight, rawStudentName)
+            ; Step 2.5: Capture OCR training screenshot using exact same coordinates as OCR search
+            ; Use the stored coordinates from ExtractStudentNameRaw
+            global lastOCRSearchX, lastOCRSearchY, lastOCRSearchWidth, lastOCRSearchHeight
+
+            ; Capture the screenshot for OCR training using exact OCR coordinates
+            CaptureNameRegion(lastOCRSearchX, lastOCRSearchY, lastOCRSearchWidth, lastOCRSearchHeight, rawStudentName)
             
             ; Find clickable student name coordinates (window coordinates)
             global studentHeaderPos
