@@ -22,3 +22,10 @@ CarIa -> Camila
 kIthlvn -> Kaitlyn
 ItIci -> Patricia
 kroIIra -> Karolina
+Aaro -> Aaron
+ChukwudiAI -> Chukwudi
+AbdeInaleI -> Abdelmalek
+
+Zahra -> Zahria
+Mossa -> Moussa
+th -> test

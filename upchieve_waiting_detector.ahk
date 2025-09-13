@@ -297,9 +297,13 @@ ExtractStudentNameRaw(baseX, baseY) {
         WriteLog("DEBUG: Using fallback student name zone: " . searchX . "," . searchY . " to " . (searchX + searchWidth) . "," . (searchY + searchHeight))
     }
     
+    ; Debug: Log OCR search coordinates
+    WriteLog("DEBUG: OCR search zone - X:" . searchX . " Y:" . searchY . " W:" . searchWidth . " H:" . searchHeight . " (window coords)")
+    WriteLog("DEBUG: OCR search zone - X1:" . searchX . " Y1:" . searchY . " X2:" . (searchX + searchWidth) . " Y2:" . (searchY + searchHeight))
+
     ; Use shared OCR function for name extraction - RAW RESULT ONLY
     result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.08, 10)
-    
+
     return result.text  ; Return raw OCR result without validation
 }
 
@@ -554,6 +558,12 @@ ShowSessionFeedbackDialog() {
             WriteLog("Saved subject correction: '" . LastRawStudentTopic . "' -> '" . finalSubject . "'")
         }
         
+        ; Rename OCR training screenshot with corrected student name
+        finalName := Trim(nameEdit.Text)
+        if (finalName != "") {
+            RenameScreenshotWithCorrectedName(finalName)
+        }
+        
         WriteLog("Session skipped - corrections saved but no CSV log entry created")
     }
     
@@ -614,6 +624,12 @@ ShowSessionFeedbackDialog() {
         csvRow .= progressEdit.Text . "," ; Column 19: Good progress (float 0-1)
         csvRow .= lastMsgEdit.Text . "," ; Column 20: last response
         csvRow .= StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "") ; Column 21: comments (no trailing comma)
+        
+        ; Rename OCR training screenshot with corrected student name
+        finalName := Trim(nameEdit.Text)
+        if (finalName != "") {
+            RenameScreenshotWithCorrectedName(finalName)
+        }
         
         WriteAppLog(csvRow)
     }
@@ -809,6 +825,143 @@ CleanExit() {
 }
 
 
+; Global variables for OCR training screenshots
+TempScreenshotPath := ""
+SessionCounter := 0
+
+; Capture screenshot of student name region for OCR training
+CaptureNameRegion(searchX, searchY, searchWidth, searchHeight, rawOCRResult) {
+    global TempScreenshotPath, SessionCounter, targetWindowID
+    
+    ; Create ocr_training folder if it doesn't exist
+    trainingFolder := "ocr_training"
+    if (!DirExist(trainingFolder)) {
+        try {
+            DirCreate(trainingFolder)
+            WriteLog("Created OCR training folder: " . trainingFolder)
+        } catch Error as e {
+            WriteLog("ERROR: Failed to create OCR training folder - " . e.message)
+            return ""
+        }
+    }
+    
+    ; Generate temp filename with timestamp and session counter
+    SessionCounter++
+    timestamp := FormatTime(A_Now, "yyyyMMdd_HHmmss")
+    tempFilename := trainingFolder . "\temp_" . timestamp . "_" . Format("{:03d}", SessionCounter) . ".bmp"
+    
+    ; Convert window coordinates to screen coordinates for screenshot
+    WinGetPos(&winX, &winY, , , targetWindowID)
+    screenX := winX + searchX
+    screenY := winY + searchY
+
+    ; Debug: Log screenshot coordinates
+    WriteLog("DEBUG: Screenshot capture - Window pos: " . winX . "," . winY)
+    WriteLog("DEBUG: Screenshot capture - Input coords (window): X:" . searchX . " Y:" . searchY . " W:" . searchWidth . " H:" . searchHeight)
+    WriteLog("DEBUG: Screenshot capture - Screen coords: X:" . screenX . " Y:" . screenY . " W:" . searchWidth . " H:" . searchHeight)
+    
+    ; Capture screenshot of the region
+    try {
+        ; Use AutoHotkey's ImageSearch function to capture region
+        ; Alternative approach: Use GDI+ to capture the specific region
+        success := CaptureRegionToFile(screenX, screenY, searchWidth, searchHeight, tempFilename)
+        
+        if (success) {
+            TempScreenshotPath := tempFilename  ; Store for later rename
+            WriteLog("OCR training screenshot captured: " . tempFilename . " (OCR: '" . rawOCRResult . "')")
+            return tempFilename
+        } else {
+            WriteLog("ERROR: Failed to capture OCR training screenshot")
+            return ""
+        }
+    } catch Error as e {
+        WriteLog("ERROR: Screenshot capture failed - " . e.message)
+        return ""
+    }
+}
+
+; Helper function to capture screen region to PNG file
+CaptureRegionToFile(screenX, screenY, width, height, filename) {
+    global targetWindowID
+    try {
+        ; Convert (x, y, width, height) to (x1, y1, x2, y2) format for SavePic
+        x1 := screenX
+        y1 := screenY
+        x2 := screenX + width - 1
+        y2 := screenY + height - 1
+
+        ; Debug: Log final coordinates passed to FindText().SavePic()
+        WriteLog("DEBUG: SavePic coordinates - X1:" . x1 . " Y1:" . y1 . " X2:" . x2 . " Y2:" . y2 . " (screen coords)")
+        WriteLog("DEBUG: SavePic region size - W:" . width . " H:" . height)
+
+        ; Temporarily unbind from window for screenshot to use pure screen coordinates
+        ; Store current bind settings
+        currentBoundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
+        currentBoundMode := FindText().BindWindow(0, 0, 0, 1)  ; get_mode = 1
+
+        ; Unbind from window
+        FindText().BindWindow(0, 0)
+
+        ; Take screenshot with screen coordinates
+        FindText().SavePic(filename, x1, y1, x2, y2, 1)
+
+        ; Restore previous bind settings
+        if (currentBoundID > 0) {
+            FindText().BindWindow(currentBoundID, currentBoundMode)
+        }
+
+        ; Verify file was created
+        if (FileExist(filename)) {
+            return true
+        } else {
+            WriteLog("ERROR: Screenshot file was not created: " . filename)
+            return false
+        }
+    } catch Error as e {
+        WriteLog("ERROR: Screenshot capture failed - " . e.message)
+        return false
+    }
+}
+
+; Rename temp screenshot file to use corrected student name
+RenameScreenshotWithCorrectedName(correctedName) {
+    global TempScreenshotPath
+    
+    if (TempScreenshotPath == "" || !FileExist(TempScreenshotPath)) {
+        return false
+    }
+    
+    ; Clean the corrected name for filename use
+    cleanName := RegExReplace(correctedName, '[<>:"/\\|?*]', "_")  ; Replace invalid chars
+    cleanName := Trim(cleanName)
+    if (cleanName == "") {
+        cleanName := "Unknown"
+    }
+    
+    ; Generate new filename with corrected name
+    timestamp := FormatTime(A_Now, "yyyyMMdd_HHmmss")
+    trainingFolder := "ocr_training"
+    newFilename := trainingFolder . "\" . cleanName . "_" . timestamp . ".bmp"
+    
+    ; Handle filename collisions
+    counter := 1
+    while (FileExist(newFilename)) {
+        counter++
+        newFilename := trainingFolder . "\" . cleanName . "_" . timestamp . "_" . counter . ".bmp"
+    }
+    
+    ; Rename the file
+    try {
+        FileMove(TempScreenshotPath, newFilename)
+        WriteLog("OCR training screenshot renamed: " . TempScreenshotPath . " -> " . newFilename)
+        TempScreenshotPath := ""  ; Clear temp path
+        return true
+    } catch Error as e {
+        WriteLog("ERROR: Failed to rename OCR training screenshot - " . e.message)
+        return false
+    }
+}
+
 ; Auto-start detection on script launch
 StartDetector()
 
@@ -1001,8 +1154,7 @@ StartDetector() {
         if (SessionState == WAITING_FOR_STUDENT) {
             ToolTip "State: Waiting for Student", tooltipX, tooltipY, 2
         } else if (SessionState == IN_SESSION) {
-            timeSinceLastCheck := A_TickCount - lastSessionEndCheck
-            ToolTip "State: In Session (SessionEnd check in " . (2000 - timeSinceLastCheck) . "ms)", tooltipX, tooltipY, 2
+            ToolTip "State: In Session", tooltipX, tooltipY, 2
         } else {
             ToolTip "State: Paused", tooltipX, tooltipY, 2
         }
@@ -1081,6 +1233,35 @@ StartDetector() {
             ; Also get the student name coordinates for clicking
             rawStudentName := ExtractStudentNameRaw(X, Y)
             rawTopic := ExtractTopicRaw(X, Y)
+            
+            ; Step 2.5: Capture OCR training screenshot of student name region
+            ; Use the same coordinates as ExtractStudentNameRaw for consistency
+            global studentHeaderPos, targetWindowID
+            WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
+            
+            if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
+                ; Use precise header-based positioning (same as ExtractStudentNameRaw)
+                screenshotX := Max(0, studentHeaderPos.x)
+                screenshotY := Max(0, studentHeaderPos.y + 96 - 25)  ; Header + row offset - margin
+                screenshotWidth := Min(250, winWidth - screenshotX)  ; Column width, bounded
+                screenshotHeight := Min(90, winHeight - screenshotY)
+            } else {
+                ; Fallback positioning (same as ExtractStudentNameRaw)
+                global pageTargetX, pageTargetY
+                screenshotX := 700  ; Left edge of container
+                screenshotY := Max(0, pageTargetY + 300)  ; 300px below PageTarget center
+                screenshotWidth := Min(230, 930 - screenshotX)  ; From left edge to x=930
+                screenshotHeight := 100  ; 300-400px range below PageTarget
+                
+                ; Ensure fallback coordinates stay within window bounds
+                screenshotX := Max(0, screenshotX)
+                screenshotY := Max(0, screenshotY)
+                screenshotWidth := Min(screenshotWidth, winWidth - screenshotX)
+                screenshotHeight := Min(screenshotHeight, winHeight - screenshotY)
+            }
+            
+            ; Capture the screenshot for OCR training
+            CaptureNameRegion(screenshotX, screenshotY, screenshotWidth, screenshotHeight, rawStudentName)
             
             ; Find clickable student name coordinates (window coordinates)
             global studentHeaderPos
