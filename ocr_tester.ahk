@@ -61,6 +61,8 @@ MainGui.AddText("Section xm y+20", "3. Testing:")
 AutoReloadCheckbox := MainGui.AddCheckbox("Checked", "Auto-reload alphabet on each test")
 TestBtn := MainGui.AddButton("xm w100 h30", "Test OCR")
 TestBtn.OnEvent("Click", (*) => RunOCRTest())
+RestartBtn := MainGui.AddButton("x+10 w100 h30", "Restart Script")
+RestartBtn.OnEvent("Click", (*) => RestartScript())
 
 ; Results Section
 MainGui.AddText("Section xm y+10", "4. Results:")
@@ -72,6 +74,9 @@ CharDetailsText := MainGui.AddEdit("w400 h100 ReadOnly", "Individual character i
 
 ; Show GUI
 MainGui.Show()
+
+; Try to restore previous region from temp file (after GUI is created)
+LoadSavedRegion()
 
 ; Function to start region selection
 StartRegionSelection() {
@@ -143,7 +148,10 @@ CompleteRegionSelection() {
     width := x2 - x1
     height := y2 - y1
     CurrentRegionText.Value := "Region: (" . x1 . "," . y1 . ") to (" . x2 . "," . y2 . ") [" . width . "x" . height . "]"
-    
+
+    ; Save the region for restart functionality
+    SaveCurrentRegion()
+
     MainGui.Show()
 }
 
@@ -171,16 +179,23 @@ RunOCRTest() {
     
     ; Check if we should reload alphabet
     if (AutoReloadCheckbox.Value) {
-        ResultText.Value := "Reloading alphabet characters and testing..."
+        ResultText.Value := "Reloading alphabet characters..."
         ; Reload alphabet characters to pick up any changes
         LoadAlphabetCharacters()
+
+        ; Show reload confirmation with pattern count
+        global name_characters
+        patternCount := name_characters ? name_characters.Length : 0
+        ResultText.Value := "Reloaded " . patternCount . " patterns from alphabet.ahk. Testing..."
+        Sleep(500)  ; Brief pause to show reload message
     } else {
         ResultText.Value := "Testing with current alphabet..."
     }
     
+
     ; Get current parameter values
     tolerance1 := Float(Tolerance1Edit.Value)
-    tolerance2 := Float(Tolerance2Edit.Value)  
+    tolerance2 := Float(Tolerance2Edit.Value)
     proximityThreshold := Integer(ProximityEdit.Value)
     
     ; Run OCR with current parameters
@@ -239,4 +254,65 @@ RunOCRTest() {
     }
     
     CharDetailsText.Value := charDetails
+}
+
+; Save current region to temp file
+SaveCurrentRegion() {
+    global SelectionStartX, SelectionStartY, SelectionEndX, SelectionEndY, HasSelection
+
+    if (!HasSelection) {
+        return
+    }
+
+    tempFile := A_Temp . "\ocr_tester_region.txt"
+    try {
+        FileDelete(tempFile)
+    } catch {
+        ; File may not exist, ignore error
+    }
+
+    regionData := SelectionStartX . "," . SelectionStartY . "," . SelectionEndX . "," . SelectionEndY
+    FileAppend(regionData, tempFile)
+}
+
+; Load saved region from temp file
+LoadSavedRegion() {
+    global SelectionStartX, SelectionStartY, SelectionEndX, SelectionEndY, HasSelection, CurrentRegionText
+
+    tempFile := A_Temp . "\ocr_tester_region.txt"
+
+    if (!FileExist(tempFile)) {
+        return
+    }
+
+    try {
+        regionData := FileRead(tempFile)
+        coords := StrSplit(regionData, ",")
+
+        if (coords.Length >= 4) {
+            SelectionStartX := Integer(coords[1])
+            SelectionStartY := Integer(coords[2])
+            SelectionEndX := Integer(coords[3])
+            SelectionEndY := Integer(coords[4])
+            HasSelection := true
+
+            ; Update display
+            width := SelectionEndX - SelectionStartX
+            height := SelectionEndY - SelectionStartY
+            CurrentRegionText.Value := "Region: (" . SelectionStartX . "," . SelectionStartY . ") to (" . SelectionEndX . "," . SelectionEndY . ") [" . width . "x" . height . "] (restored)"
+        }
+    } catch {
+        ; Error reading file, ignore
+    }
+}
+
+; Restart the script with preserved region
+RestartScript() {
+    global
+
+    ; Save current region if one exists
+    SaveCurrentRegion()
+
+    ; Restart the script
+    Reload()
 }

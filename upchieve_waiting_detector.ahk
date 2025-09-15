@@ -224,8 +224,13 @@ LoadBlockedNames() {
 
 ; Check if student name is in blocked list
 IsNameBlocked(studentName, blockedNames) {
+    ; Normalize student name: lowercase, remove punctuation and extra spaces
+    normalizedStudentName := StrReplace(StrReplace(StrReplace(StrLower(Trim(studentName)), "-", ""), "'", ""), " ", "")
+
     for index, blockedName in blockedNames {
-        if (StrLower(Trim(studentName)) == StrLower(Trim(blockedName))) {
+        ; Normalize blocked name: lowercase, remove punctuation and extra spaces
+        normalizedBlockedName := StrReplace(StrReplace(StrReplace(StrLower(Trim(blockedName)), "-", ""), "'", ""), " ", "")
+        if (normalizedStudentName == normalizedBlockedName) {
             return true
         }
     }

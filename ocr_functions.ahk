@@ -17,6 +17,7 @@ GetPriorityCharacter(char1, char2) {
         "r,p", "p",  ; p over r
         "n,h", "h",  ; h over n
         "l,h", "h",  ; h over l
+        "I,i", "i",  ; i over I
         "i,j", "j",  ; j over i
         "l,j", "j",  ; j over l
         "I,j", "j",  ; j over I
@@ -108,11 +109,12 @@ GetPriorityCharacter(char1, char2) {
 ; Replace letter combinations that are misdetections of single wide characters
 ReplaceLetterCombinations(text) {
     ; Handle wide M character that gets detected as MI or Ml
-    text := StrReplace(text, "MI", "M")
-    text := StrReplace(text, "Ml", "M")
-    text := StrReplace(text, "NI", "N")
-    text := StrReplace(text, "UI", "U")
-    
+    ; Use case-sensitive replacements to avoid matching parts of actual names
+    text := StrReplace(text, "MI", "M", 1)  ; 1 = case-sensitive
+    text := StrReplace(text, "Ml", "M", 1)  ; 1 = case-sensitive
+    text := StrReplace(text, "NI", "N", 1)  ; 1 = case-sensitive
+    text := StrReplace(text, "UI", "U", 1)  ; 1 = case-sensitive
+
     return text
 }
 
@@ -187,8 +189,13 @@ LoadAlphabetCharacters() {
         }
     }
     
-    ; Register with FindText library
-    FindText().PicLib(Text, 1)
+    ; Clear existing patterns and register new ones with FindText library
+    ; Mode 1 = register patterns, but we need to clear first for proper reloading
+    FindText().PicLib("", 0)  ; Clear existing patterns
+    FindText().PicLib(Text, 1)  ; Register new patterns
+
+    ; Pattern reload completed - logging handled by calling script if needed
+    ; patternCount := name_characters ? name_characters.Length : 0
 }
 
 ; Extract text from a specified window region with configurable parameters
@@ -255,14 +262,14 @@ ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, pr
             for i, char in cleanChars {
                 extractedText .= char.id
             }
-            
+
             ; Clean up any remaining artifacts
             extractedText := RegExReplace(extractedText, "[^a-zA-Z' -]", "")
             finalText := Trim(extractedText)
-            
+
             ; Apply letter combination replacements
             finalText := ReplaceLetterCombinations(finalText)
-            
+
             ; Return both the final text and the raw character array for analysis
             return {text: finalText, chars: cleanChars, rawChars: ok, method: "Individual"}
         }
