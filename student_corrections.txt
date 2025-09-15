@@ -25,7 +25,10 @@ kroIIra -> Karolina
 Aaro -> Aaron
 ChukwudiAI -> Chukwudi
 AbdeInaleI -> Abdelmalek
-
 Zahra -> Zahria
 Mossa -> Moussa
-th -> test
+
+IovarI -> Jovani
+Iared -> Jared
+Chrystin -> Chrystina
+ChudI -> Chukwudi

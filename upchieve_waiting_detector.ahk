@@ -144,11 +144,9 @@ FindHeaders() {
     ; Search for Student Header across full container width
     X := ""
     Y := ""
-    WriteLog("DEBUG: Student header search zone: 600," . headerY1 . " to 1600," . headerY2)
     if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, StudentHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, StudentHeaderTarget)
         studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-        WriteLog("DEBUG: Student header found at " . X . "," . Y . " (upper-left: " . upperLeft.x . "," . upperLeft.y . ")")
     } else {
         WriteLog("DEBUG: Student header NOT found in search zone")
     }
@@ -156,11 +154,9 @@ FindHeaders() {
     ; Search for Help Header across full container width
     X := ""
     Y := ""
-    WriteLog("DEBUG: Help header search zone: 600," . headerY1 . " to 1600," . headerY2)
     if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, HelpHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, HelpHeaderTarget)
         helpHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-        WriteLog("DEBUG: Help header found at " . X . "," . Y . " (upper-left: " . upperLeft.x . "," . upperLeft.y . ")")
     } else {
         WriteLog("DEBUG: Help header NOT found in search zone")
     }
@@ -168,11 +164,9 @@ FindHeaders() {
     ; Search for Wait Time Header across full container width
     X := ""
     Y := ""
-    WriteLog("DEBUG: Wait Time header search zone: 600," . headerY1 . " to 1600," . headerY2)
     if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, WaitTimeHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, WaitTimeHeaderTarget)
         waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-        WriteLog("DEBUG: Wait Time header found at " . X . "," . Y . " (upper-left: " . upperLeft.x . "," . upperLeft.y . ")")
     } else {
         WriteLog("DEBUG: Wait Time header NOT found in search zone")
     }
@@ -297,7 +291,6 @@ ExtractStudentNameRaw(baseX, baseY) {
     
     ; Debug: Log OCR search coordinates
     WriteLog("DEBUG: OCR search zone - X:" . searchX . " Y:" . searchY . " W:" . searchWidth . " H:" . searchHeight . " (window coords)")
-    WriteLog("DEBUG: OCR search zone - X1:" . searchX . " Y1:" . searchY . " X2:" . (searchX + searchWidth) . " Y2:" . (searchY + searchHeight))
 
     ; Use shared OCR function for name extraction - RAW RESULT ONLY
     result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.08, 10)
@@ -853,12 +846,12 @@ CaptureNameRegion(searchX, searchY, searchWidth, searchHeight, rawOCRResult) {
     timestamp := FormatTime(A_Now, "yyyyMMdd_HHmmss")
     tempFilename := trainingFolder . "\temp_" . timestamp . "_" . Format("{:03d}", SessionCounter) . ".bmp"
     
-    ; Convert window coordinates to screen coordinates and create wider capture area
-    WinGetPos(&winX, &winY, , , targetWindowID)
-    baseScreenX := Floor(winX + searchX)
-    baseScreenY := Floor(winY + searchY)
-    baseScreenX := Floor(searchX)
-    baseScreenY := Floor(searchY)
+    ;; Convert window coordinates to screen coordinates and create wider capture area
+    ; WinGetPos(&winX, &winY, , , targetWindowID)
+    ; baseScreenX := Floor(winX + searchX)
+    ; baseScreenY := Floor(winY + searchY)
+    baseScreenX := searchX
+    baseScreenY := searchY
 
     ; Capture wider area for testing (500x300 instead of original size)
     captureWidth := 500
@@ -866,12 +859,6 @@ CaptureNameRegion(searchX, searchY, searchWidth, searchHeight, rawOCRResult) {
     screenX := baseScreenX - 125  ; Center wider area around OCR zone
     screenY := baseScreenY - 105
 
-    ; Debug: Log screenshot coordinates
-    WriteLog("DEBUG: Screenshot capture - Window pos: " . winX . "," . winY)
-    WriteLog("DEBUG: Screenshot capture - OCR window coords: X:" . searchX . " Y:" . searchY . " W:" . searchWidth . " H:" . searchHeight)
-    WriteLog("DEBUG: Screenshot capture - OCR screen coords: X:" . baseScreenX . " Y:" . baseScreenY)
-    WriteLog("DEBUG: Screenshot capture - WIDE screen coords: X:" . screenX . " Y:" . screenY . " W:" . captureWidth . " H:" . captureHeight)
-    
     ; Capture screenshot of the region
     try {
         ; Use AutoHotkey's ImageSearch function to capture region
@@ -880,7 +867,7 @@ CaptureNameRegion(searchX, searchY, searchWidth, searchHeight, rawOCRResult) {
         
         if (success) {
             TempScreenshotPath := tempFilename  ; Store for later rename
-            WriteLog("OCR training screenshot captured: " . tempFilename . " (OCR: '" . rawOCRResult . "')")
+            WriteLog("DEBUG: OCR training screenshot captured: " . tempFilename . " (OCR: '" . rawOCRResult . "')")
             return tempFilename
         } else {
             WriteLog("ERROR: Failed to capture OCR training screenshot")
@@ -901,7 +888,7 @@ CaptureRegionToFile(screenX, screenY, width, height, filename) {
         y1 := screenY
         x2 := screenX + width - 1
         y2 := screenY + height - 1
-
+/* 
         ; Debug: Log final coordinates passed to FindText().SavePic()
         WriteLog("DEBUG: SavePic coordinates - X1:" . x1 . " Y1:" . y1 . " X2:" . x2 . " Y2:" . y2 . " (screen coords)")
         WriteLog("DEBUG: SavePic region size - W:" . width . " H:" . height)
@@ -914,13 +901,14 @@ CaptureRegionToFile(screenX, screenY, width, height, filename) {
         ; Unbind from window
         FindText().BindWindow(0, 0)
 
+ */
         ; Take screenshot with screen coordinates
         FindText().SavePic(filename, x1, y1, x2, y2, 1)
 
-        ; Restore previous bind settings
-        if (currentBoundID > 0) {
-            FindText().BindWindow(currentBoundID, currentBoundMode)
-        }
+        ; ; Restore previous bind settings
+        ; if (currentBoundID > 0) {
+        ;     FindText().BindWindow(currentBoundID, currentBoundMode)
+        ; }
 
         ; Verify file was created
         if (FileExist(filename)) {
@@ -979,7 +967,7 @@ StartDetector()
 
 StartDetector() {
     global
-    
+    WriteLog("Upchieve Detector starting up")
     ; Combined startup dialog with mode selection
     modeResult := MsgBox("Upchieve detector will search for 'Waiting Students' page and start monitoring automatically.`n`nSelect mode, then click OK and immediately click in the UPchieve browser window to identify it.`n`nYes = LIVE mode (clicks students)`nNo = TESTING mode (no clicking)`nCancel = Exit", "Upchieve Detector - Select Mode & Click Window", "YNC Default2 4096")
     if (modeResult = "Cancel") {
@@ -1004,7 +992,7 @@ StartDetector() {
     ; Bind FindText to the selected window for improved performance and reliability
     ; Mode 4 is essential for proper window targeting
     bindResult := FindText().BindWindow(targetWindowID, 4)
-    WriteLog("DEBUG: BindWindow result for ID " . targetWindowID . " with mode 4: " . (bindResult ? "Success" : "Failed"))
+;    WriteLog("DEBUG: BindWindow result for ID " . targetWindowID . " with mode 4: " . (bindResult ? "Success" : "Failed"))
     
     ; Verify BindWindow is working by checking bound ID and mode
     boundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
@@ -1012,12 +1000,11 @@ StartDetector() {
     WriteLog("DEBUG: Currently bound to ID " . boundID . " with mode " . boundMode)
     
     ; Confirm window selection
-    MsgBox("Window selected! Starting " . modeText . " mode detector...", "Window Selected", "OK 4096")
+;    MsgBox("Window selected! Starting " . modeText . " mode detector...", "Window Selected", "OK 4096")
     
     ; Skip PageTarget detection - we already have the right window
     ; Go directly to header detection in known zones
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)  ; Get window dimensions
-    WriteLog("DEBUG: Skipping PageTarget, searching directly for headers - Window: " . winWidth . "x" . winHeight . ", Bound to ID: " . targetWindowID)
 
     ; Check for upgrade popup that might be blocking the page
     upgradeX := ""
@@ -1036,9 +1023,6 @@ StartDetector() {
     ToolTip "Found 'Waiting Students' page! Found " . headersFound . "/3 headers. Starting " . modeText . " mode detector...", 10, 50
     Sleep 1000
     ToolTip ""
-    
-    ; Log application start to debug log only
-    WriteLog("Upchieve Detector started in " . modeText . " mode")
     
     IsActive := true
     
@@ -1070,10 +1054,6 @@ StartDetector() {
             ; Debug: Log session end search attempts (every 10th check to avoid spam)
             static sessionEndCheckCount := 0
             sessionEndCheckCount++
-            if (Mod(sessionEndCheckCount, 10) == 1) {
-                WriteLog("DEBUG: SessionEnd search #" . sessionEndCheckCount . " - Zone: " . sessionEndX1 . "," . sessionEndY1 . " to " . sessionEndX2 . "," . sessionEndY2 . " (Window: " . winWidth . "x" . winHeight . ")")
-            }
-            
             if (tempResult := FindText(&tempX, &tempY, sessionEndX1, sessionEndY1, sessionEndX2, sessionEndY2, 0.0, 0.03, SessionEndedTarget)) {
                 WriteLog("DEBUG: SessionEndedTarget found at " . tempX . "," . tempY)
                 ; Session ended - show session feedback dialog
@@ -1207,7 +1187,6 @@ StartDetector() {
 
             ; Capture the screenshot for OCR training using exact OCR coordinates
             CaptureNameRegion(lastOCRSearchX, lastOCRSearchY, lastOCRSearchWidth, lastOCRSearchHeight, rawStudentName)
-            WriteLog("DEBUG: Captured OCR training screenshot for name: '" . rawStudentName . "'")
             ; Find clickable student name coordinates (window coordinates)
             global studentHeaderPos
             if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
