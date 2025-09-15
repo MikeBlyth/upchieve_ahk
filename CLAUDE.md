@@ -266,10 +266,46 @@ Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 
 ## Known Issues
 - **BindWindow coordinate system**: BindWindow mode 4 may not properly convert coordinates to window-relative (requires maximized window for reliability)
-- JoinText method requires further refinement for optimal results  
+- **FindText OCR accuracy**: Character-by-character pattern matching struggles with antialiasing, font variations, and complex text rendering
+- **Speed vs accuracy tradeoff**: Better OCR solutions (Tesseract, Windows OCR) are too slow for competitive student claiming (200-400ms delay)
+- JoinText method requires further refinement for optimal results
 - Some characters (especially 'y') require multiple patterns due to descender positioning
 - Window occlusion/shading significantly impacts FindText performance (3-5 seconds vs 170-200ms)
 - Character prioritization may need adjustment for specific font variations or new text rendering
+
+## OCR Investigation and Alternatives
+
+### Windows OCR API Investigation (2024)
+An attempt was made to integrate Windows 10/11 built-in OCR API to improve student name extraction accuracy beyond FindText's character-by-character pattern matching.
+
+**Investigation Results:**
+- **Windows OCR not available**: Testing revealed that Windows OCR API is not available on the target system
+- **PowerShell integration challenges**: Multiple approaches tried (multi-line strings, COM objects, file-based) all failed due to missing Windows Runtime components
+- **Speed requirements**: Even if available, Windows OCR (100-300ms) and Tesseract OCR (200-400ms) are too slow for competitive student claiming
+
+**Critical Timing Constraints:**
+- **Competitive environment**: Multiple tutors race to claim students when "< 1 minute" appears
+- **Blocking requirement**: Must extract student name BEFORE clicking to check against `block_names.txt`
+- **No parallel processing**: Cannot click first and extract name later due to blocking checks
+- **FindText speed**: ~25-50ms for name extraction (acceptable for competitive clicking)
+
+**Alternative Solutions Evaluated:**
+1. **Tesseract OCR**: High accuracy but 200-400ms too slow for competitive claiming
+2. **Online OCR APIs**: Excellent accuracy but network latency unacceptable
+3. **COM-based Windows OCR**: Not available on target system
+4. **PowerShell Windows OCR**: Runtime components missing
+
+**Current Approach:**
+Continue with FindText character-by-character pattern matching despite accuracy limitations, focusing on:
+- **Pattern optimization**: Expanding `alphabet.ahk` character patterns for better recognition
+- **Tolerance tuning**: Using `ocr_tester.ahk` to optimize detection parameters
+- **Prioritization rules**: Improving character conflict resolution in `ocr_functions.ahk`
+- **Multiple pattern support**: Adding font variations for problematic characters
+
+**Future Considerations:**
+- **System upgrade**: If Windows OCR becomes available, could implement hybrid approach (fast detection + accurate fallback)
+- **Preprocessing**: Could add image enhancement (contrast, sharpening) to improve FindText accuracy
+- **ML training**: Could train custom character recognition models optimized for Upchieve's specific fonts
 
 ## FindText Library Usage Patterns
 
