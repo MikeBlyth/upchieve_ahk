@@ -443,3 +443,9 @@ FindText().PicN(characterPatterns*)  // ERROR: Too many parameters
 - **Subject Detection**: Uses new object syntax with direct pattern concatenation
 - **Name OCR**: Uses PicN with simple character strings, registered via PicLib
 - **Pattern Registration**: PicLib(patterns, 1) for registration, PicLib("name1|name2") for retrieval
+- FindText saves its editor content between sessions in:
+
+  A_Temp "\~scr2.tmp"
+
+  This is typically located at:
+  C:\Users\[Username]\AppData\Local\Temp\~scr2.tmp

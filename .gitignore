@@ -1,5 +1,6 @@
 get_price_function.ahk
 temp*
+*.tmp
 priority_test* 
 debug*
 ahk_bug_report.md

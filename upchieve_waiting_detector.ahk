@@ -1,7 +1,6 @@
 #Requires AutoHotkey v2.0
 #Include FindTextv2.ahk
 #Include alphabet.ahk
-#Include ocr_functions.ahk
 #Include student_database.ahk
 
 ; Set coordinate mode to window coordinates for unified coordinate system
@@ -82,6 +81,9 @@ SubjectTargets :=
     "|<CSA>*129$84.000000000000Q0000000000000y0000000000000y0000000000000q0000000000001r0My00z00z0001b0PzU3zk3zk003XUT3k7Vs7Vs003XUS1kD0s70s0031UQ0kC0MC0Q0071kM0sA00A0Q0071kM0sQ00A0A00C0kM0sQ00Dzw00C0sM0sQ00Dzw00DzsM0sQ00A0000TzwM0sA00A0000Q0QM0sC0QC0000s0AM0sD0M70Q00s0CM0s7Vs7Us00k0CM0s3zk3zk01k07M0s0z00zU01k07U" .
     "|<CSP>*137$35.00000Dzw000Tzw000z0w000C0Q000Q0s000s0sMwDk1krsTU3Vw0z0C3k1y0Q703w3kC07zz0Q0Dzw0s0TU01k0z003U1y00703w00C07s00Q0Dk00s0TU01k0z003U1k00000E"
 
+BlockedTargets :=
+    "|<Chukwudi>*130$161.07w0A000001k0A0000000001Uw00zy0M000003U0M00000000030k03sT0k00000700k0000000006000D0C1U00000C01U000000000A000w0C3000000Q030000000000M001k0E6DU3U30s1rk3U730707skA03000Bzk7061k7DUD0Q60C0TtUM0C000TXkC0A3UQP0S0sA0Q1sz0k0Q000w3UQ0M71kr0y1kM0s70S1U0s001k3Us0kC71i3g30k1kQ0Q301k003U71k1UQQ3A6MC1U3Us0s603U0070C3U30tk6QAsQ3071k1kA07000A0Q7061rkAsskk60C3U1UM0C000M0sC0A3zkMlVXUA0Q7030k0A000k1kQ0M7nUln3a0M0sC0C1U0Q071U3Us0kD3VXi3A0k1kQ0Q300w0C3071k3UQ3X3M6s1k3Us0s600w0s60C1kD0s767kDU3UD0s3kA00y7UA0Q3ky1k7ADUD03Vy0wTUM00zy0M0s3zg3U7MC0S07zg0zv0k00Tk0k1k1wM70CkQ0s03wM0z61U00000000000001U0000000000000000000000000300000000000000000000000000600000000000000000000000000A0000000000001" .
+    "|<Camila>*130$106.000000000000000000000000000000s60000000000000003kM00003w000000000D1U0000zw000000000s60000DVw0000000000M0001s1k0000000001U000703U00000000060000s000TU37kDU3UM0TU3U007z0BznzU61U3zUQ000wC0y7yD0M60QD1k0070Q3kDUQ3UM3UA700081kC0Q0s61U40sQ000070s1k3UM6003Vk0000Q3U70C1UM00S70001zkA0Q0s61U0zsQ000Tz0k1k3UM60DzUk003kQ3070C1UM1sC3U0MQ1kC0Q0s61UC0s703VU70k1k3UM60k3US0Q70w3070C1UM30S0y7kQ7kA0Q0s61kC3s0zw0zvks1k3UM7sTxk0z00y73070C1U7Uz70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002"
 
 ; Debug log function
 WriteLog(message) {
@@ -237,6 +239,52 @@ IsNameBlocked(studentName, blockedNames) {
     return false
 }
 
+; Check for blocked name patterns using exact OCR search zone
+CheckBlockedNamePatterns(baseX, baseY) {
+    global studentHeaderPos, targetWindowID, BlockedTargets
+
+    ; Calculate search zone using same positioning as student name area
+    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
+
+    if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
+        ; Use precise header-based positioning relative to StudentHeader middle coordinates
+        searchX := Max(0, studentHeaderPos.x - 20)  ; Header left edge - 20px margin
+        searchY := Max(0, studentHeaderPos.y + 72)  ; Middle + 72px down
+        searchWidth := Min(200, winWidth - searchX)  ; 200px width
+        searchHeight := Min(65, winHeight - searchY)  ; 65px height
+    } else {
+        ; Fallback to assumed column positioning: names are in left column around x=700
+        searchX := 700  ; Left edge of student name column
+        searchY := Max(0, 500)  ; Start around 500px down (typical data row area)
+        searchWidth := Min(230, winWidth - searchX)  ; Standard column width
+        searchHeight := Min(100, winHeight - searchY)  ; Standard row height
+
+        ; Ensure fallback coordinates stay within window bounds
+        searchX := Max(0, searchX)
+        searchY := Max(0, searchY)
+        searchWidth := Min(searchWidth, winWidth - searchX)
+        searchHeight := Min(searchHeight, winHeight - searchY)
+        WriteLog("DEBUG: Using fallback blocking zone: " . searchX . "," . searchY . " to " . (searchX + searchWidth) . "," . (searchY + searchHeight))
+    }
+
+    ; Search for blocked patterns in calculated zone
+    X := ""
+    Y := ""
+    if (result := FindText(&X, &Y, searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0, 0, BlockedTargets)) {
+        ; Found a blocked name pattern
+        blockedName := result[1].id  ; Get the pattern name (e.g. "Chukwudi", "Camila")
+        WriteLog("BLOCKED: Visual pattern detected - " . blockedName)
+
+        ; Show message box notification
+        MsgBox("Blocked student detected: " . blockedName, "Student Blocked", "OK Iconi 4096")
+
+        return {blocked: true, name: blockedName}
+    }
+
+    ; No blocked patterns found
+    return {blocked: false, name: ""}
+}
+
 ; Apply only known corrections from database without user prompts
 ApplyKnownCorrections(ocrResult) {
     global correctionDatabase, knownStudents
@@ -266,66 +314,6 @@ ApplyKnownCorrections(ocrResult) {
 }
 
 
-; Extract student name using header-based positioning with fallback
-; Uses header positions with standard row offsets
-ExtractStudentNameRaw(baseX, baseY) {
-    global studentHeaderPos, targetWindowID
-    
-    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-    
-    if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
-        ; Use precise header-based positioning: header position + 96px down for data rows
-        searchX := Max(0, studentHeaderPos.x)
-        searchY := Max(0, studentHeaderPos.y + 96 - 25)  ; Header + row offset - margin
-        searchWidth := Min(250, winWidth - searchX)  ; Column width, bounded
-        searchHeight := Min(90, winHeight - searchY)
-    } else {
-        ; Fallback to assumed column positioning: names are in left column around x=700
-        searchX := 700  ; Left edge of student name column
-        searchY := Max(0, 500)  ; Start around 500px down (typical data row area)
-        searchWidth := Min(230, winWidth - searchX)  ; Standard column width
-        searchHeight := Min(100, winHeight - searchY)  ; Standard row height
-
-        ; Ensure fallback coordinates stay within window bounds
-        searchX := Max(0, searchX)
-        searchY := Max(0, searchY)
-        searchWidth := Min(searchWidth, winWidth - searchX)
-        searchHeight := Min(searchHeight, winHeight - searchY)
-        WriteLog("DEBUG: Using fallback student name zone: " . searchX . "," . searchY . " to " . (searchX + searchWidth) . "," . (searchY + searchHeight))
-    }
-    
-    ; Debug: Log OCR search coordinates
-    WriteLog("DEBUG: OCR search zone - X:" . searchX . " Y:" . searchY . " W:" . searchWidth . " H:" . searchHeight . " (window coords)")
-
-    ; Use shared OCR function for name extraction - RAW RESULT ONLY
-    result := ExtractTextFromRegion(searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.08, 10)
-
-    ; Store search coordinates globally for screenshot capture
-    global lastOCRSearchX := searchX
-    global lastOCRSearchY := searchY
-    global lastOCRSearchWidth := searchWidth
-    global lastOCRSearchHeight := searchHeight
-
-    return result.text  ; Return raw OCR result without validation
-}
-
-; Extract and validate student name (for post-click processing)
-ExtractStudentNameValidated(baseX, baseY) {
-    ; Get raw OCR result
-    rawName := ExtractStudentNameRaw(baseX, baseY)
-    
-    ; Validate and correct the student name using the database
-    if (rawName != "") {
-        validatedName := ValidateStudentName(rawName)
-        ; Log both raw OCR and final validated result
-        if (rawName != validatedName) {
-            WriteLog("OCR: '" . rawName . "' -> Validated: '" . validatedName . "'")
-        }
-        return validatedName
-    }
-    
-    return ""  ; Return empty string if no text detected
-}
 
 ; Extract topic using header-based positioning with fallback
 ; Uses header positions with standard row offsets
@@ -479,10 +467,12 @@ ShowSessionFeedbackDialog() {
     ; Create session feedback GUI
     feedbackGui := Gui("+AlwaysOnTop", "Session Complete - Feedback")
     
-    ; Student name (editable, pre-filled)
-    feedbackGui.AddText("xm y+10", "Student name:")
+    ; Student name (manual entry required)
+    feedbackGui.AddText("xm y+10", "Student name (enter manually):")
     nameEdit := feedbackGui.AddEdit("xm y+5 w200")
     nameEdit.Text := (LastStudentName ? LastStudentName : "")
+    ; Set focus to name field for immediate typing
+    nameEdit.Focus()
     
     ; Additional fields
     feedbackGui.AddText("xm y+15", "Grade:")
@@ -650,8 +640,6 @@ ShowSessionFeedbackDialog() {
 ; 0x80000003 = ES_SYSTEM_REQUIRED | ES_CONTINUOUS (keeps system awake)
 DllCall("kernel32.dll\SetThreadExecutionState", "UInt", 0x80000003)
 
-; Initialize alphabet characters for name extraction at startup
-LoadAlphabetCharacters()
 
 ; Load blocked names list
 BlockedNames := LoadBlockedNames()
@@ -880,6 +868,54 @@ CaptureNameRegion(searchX, searchY, searchWidth, searchHeight, rawOCRResult) {
         }
     } catch Error as e {
         WriteLog("ERROR: Screenshot capture failed - " . e.message)
+        return ""
+    }
+}
+
+; Capture screenshot of blocking pattern search region for debugging
+CaptureBlockingRegion(searchX, searchY, searchWidth, searchHeight, debugLabel) {
+    global SessionCounter, targetWindowID
+
+    ; Create ocr_training folder if it doesn't exist
+    trainingFolder := "ocr_training"
+    if (!DirExist(trainingFolder)) {
+        try {
+            DirCreate(trainingFolder)
+            WriteLog("Created OCR training folder: " . trainingFolder)
+        } catch Error as e {
+            WriteLog("ERROR: Failed to create OCR training folder - " . e.message)
+            return ""
+        }
+    }
+
+    ; Generate debug filename with timestamp and counter
+    SessionCounter++
+    timestamp := FormatTime(A_Now, "yyyyMMdd_HHmmss")
+    tempFilename := trainingFolder . "\blocking_" . timestamp . "_" . Format("{:03d}", SessionCounter) . "_" . debugLabel . ".bmp"
+
+    ; Convert window coordinates and create wider capture area
+    baseScreenX := searchX
+    baseScreenY := searchY
+
+    ; Capture wider area for testing (500x300 instead of original size)
+    captureWidth := 500
+    captureHeight := 300
+    screenX := baseScreenX - 125  ; Center wider area around blocking zone
+    screenY := baseScreenY - 105
+
+    ; Capture screenshot of the region
+    try {
+        success := CaptureRegionToFile(screenX, screenY, captureWidth, captureHeight, tempFilename)
+
+        if (success) {
+            WriteLog("DEBUG: Blocking region screenshot captured: " . tempFilename . " (Label: '" . debugLabel . "')")
+            return tempFilename
+        } else {
+            WriteLog("ERROR: Failed to capture blocking region screenshot")
+            return ""
+        }
+    } catch Error as e {
+        WriteLog("ERROR: Blocking screenshot capture failed - " . e.message)
         return ""
     }
 }
@@ -1181,21 +1217,21 @@ StartDetector() {
             ; Step 1: Activate window immediately (parallel with extraction)
             WinActivate("ahk_id " . targetWindowID)
             
-            ; Step 2: Extract raw student name and topic (while window is activating)
-            ; Also get the student name coordinates for clicking
-            rawStudentName := ExtractStudentNameRaw(X, Y)
-            rawTopic := ExtractTopicRaw(X, Y)
-            WriteLog("Extracted OCR - Name: '" . rawStudentName . "', Topic: '" . rawTopic . "'")
-            ; Step 2.5: Capture OCR training screenshot using exact same coordinates as OCR search
-            ; Use the stored coordinates from ExtractStudentNameRaw
-            global lastOCRSearchX, lastOCRSearchY, lastOCRSearchWidth, lastOCRSearchHeight
+            ; Step 2: Check for blocked name patterns FIRST (fast visual detection)
+            blockResult := CheckBlockedNamePatterns(X, Y)
+            if (blockResult.blocked) {
+                WriteLog("BLOCKED: Pattern detected - " . blockResult.name . " - skipping student")
+                continue  ; Skip this student entirely
+            }
 
-            ; Capture the screenshot for OCR training using exact OCR coordinates
-            CaptureNameRegion(lastOCRSearchX, lastOCRSearchY, lastOCRSearchWidth, lastOCRSearchHeight, rawStudentName)
+            ; Step 3: Extract topic using fast pattern detection (no OCR)
+            rawTopic := ExtractTopicRaw(X, Y)
+            WriteLog("Subject detected: '" . rawTopic . "'")
+
             ; Find clickable student name coordinates (window coordinates)
             global studentHeaderPos
             if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
-                ; Click on student name area (same region where we extracted the name)
+                ; Click on student name area (same region where we would extract the name)
                 clickX := studentHeaderPos.x + 100  ; Center of student name region
                 clickY := studentHeaderPos.y + 96   ; Row position (same as name extraction)
             } else {
@@ -1204,33 +1240,10 @@ StartDetector() {
                 clickY := Y        ; Same row as waiting target
             }
             
-            ; Step 2: Apply automatic corrections (no prompts)
-            correctedName := ApplyKnownCorrections(rawStudentName)
-            
-            ; Calculate extraction time (detection through name/subject extraction completion)
-            extractionTime := A_TickCount - detectionStartTime
-            
-            ; Step 3: Check blocking scenarios
-            global BlockedNames
-            rawBlocked := (rawStudentName != "" && IsNameBlocked(rawStudentName, BlockedNames))
-            correctedBlocked := (correctedName != "" && IsNameBlocked(correctedName, BlockedNames))
-            
-            ; Handle blocking scenarios
-            if (rawBlocked && !correctedBlocked) {
-                ; OCR result was blocked but correction is not - ask user
-                response := MsgBox("OCR detected: '" . rawStudentName . "' (BLOCKED)`nAuto-correction suggests: '" . correctedName . "'`n`nAccept correction and proceed to session?", "Blocked Name Correction", "YesNo 4096")
-                if (response == "No") {
-                    WriteAppLog("BLOCKED: " . rawStudentName . " -> " . correctedName . " (user declined correction)")
-                    continue  ; Skip this student
-                }
-                ; User accepted, proceed with corrected name
-            } else if (correctedBlocked) {
-                ; Either raw or corrected (or both) is blocked
-                WriteAppLog("BLOCKED: " . (rawBlocked ? rawStudentName : "'" . rawStudentName . "' -> '" . correctedName . "'"))
-                continue  ; Skip this student
-            }
-            ; If neither raw nor corrected is blocked, proceed to click
-            
+            ; Calculate detection time (blocking check + subject detection)
+            detectionTime := A_TickCount - detectionStartTime
+            WriteLog("Blocking check + subject detection finished (" . detectionTime . "ms)")
+
             ; Step 4: Click the student
             if (LiveMode) {
                 ; Wait for window activation (started earlier)
@@ -1252,48 +1265,48 @@ StartDetector() {
                 global SessionState
                 SessionState := IN_SESSION
                 
-                ; Update session tracking variables
+                ; Update session tracking variables (no name, subject only)
                 global LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic, SessionStartTime
-                LastRawStudentName := rawStudentName  ; Store original OCR result
-                LastRawStudentTopic := rawTopic       ; Store original OCR result
-                LastStudentName := correctedName
+                LastRawStudentName := ""  ; No OCR extraction
+                LastRawStudentTopic := rawTopic  ; Store original subject result
+                LastStudentName := ""  ; Manual entry required
                 LastStudentTopic := ValidateTopicName(rawTopic)  ; Apply topic auto-correction
                 SessionStartTime := A_Now
-                
+
                 ; Log session start
-                logMessage := "Session started with " . correctedName
-                toolTipMessage := "Session with " . correctedName
+                logMessage := "Session started"
+                toolTipMessage := "Session"
                 if (LastStudentTopic != "") {
-                    logMessage .= ", " . LastStudentTopic
+                    logMessage .= " with " . LastStudentTopic
                     toolTipMessage .= " (" . LastStudentTopic . ")"
                 }
-                logMessage .= " (extraction: " . extractionTime . "ms, total: " . clickTime . "ms)"
+                logMessage .= " (detection: " . detectionTime . "ms, total: " . clickTime . "ms)"
                 WriteLog(logMessage)
                 ; Session details will be logged via end-session CSV dialog
                 ToolTip(toolTipMessage . " has opened", 10, 50)
                 SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
             } else {
-                ; TESTING mode - use same corrected data
+                ; TESTING mode - no name extraction
                 global LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic, SessionStartTime
-                LastRawStudentName := rawStudentName  ; Store original OCR result
-                LastRawStudentTopic := rawTopic       ; Store original OCR result
-                LastStudentName := correctedName
+                LastRawStudentName := ""  ; No OCR extraction
+                LastRawStudentTopic := rawTopic  ; Store original subject result
+                LastStudentName := ""  ; Manual entry required
                 LastStudentTopic := ValidateTopicName(rawTopic)  ; Apply topic auto-correction
                 SessionStartTime := A_Now
-                
+
                 ; Log session start in testing mode
-                logMessage := "TESTING: Found student " . correctedName
-                toolTipMessage := "Found student " . correctedName
+                logMessage := "TESTING: Found student"
+                toolTipMessage := "Found student"
                 if (LastStudentTopic != "") {
-                    logMessage .= ", " . LastStudentTopic
+                    logMessage .= " with " . LastStudentTopic
                     toolTipMessage .= " (" . LastStudentTopic . ")"
                 }
-                logMessage .= " (extraction: " . extractionTime . "ms)"
+                logMessage .= " (detection: " . detectionTime . "ms)"
                 WriteLog(logMessage)
                 ; Session details will be logged via end-session CSV dialog
                 ToolTip(toolTipMessage . " waiting", 10, 50)
                 SetTimer(() => ToolTip(), -3000)
-                
+
                 ; In testing mode, also simulate being in session for state testing
                 global SessionState
                 SessionState := IN_SESSION
@@ -1307,14 +1320,13 @@ StartDetector() {
             
             ToolTip ""  ; Clear tooltip
             
-            ; Step 5: Show message box with session message and student summary
-            modePrefix := LiveMode ? "Session with " : "Found student "
+            ; Step 5: Show message box with session message
+            modePrefix := LiveMode ? "Session" : "Found student"
             subjectSuffix := (LastStudentTopic != "") ? " (" . LastStudentTopic . ")" : ""
-            
-            ; Get student summary and add to message
-            studentSummary := SummarizeStudent(correctedName)
-            fullMessage := modePrefix . correctedName . subjectSuffix . (LiveMode ? " has opened" : " waiting") . "`n`n" . studentSummary
-            
+
+            ; Simple message without student name (manual entry required)
+            fullMessage := modePrefix . subjectSuffix . (LiveMode ? " has opened" : " waiting") . "`n`nStudent name will be entered manually at session end."
+
             MsgBox(fullMessage, LiveMode ? "Session Started" : "Student Detected", "OK 4096")
             
             ; Step 6: When OK is clicked, stop the sound and continue monitoring
