@@ -277,7 +277,7 @@ IsNameBlocked(studentName, blockedNames) {
 */
 
 ; Check for blocked name patterns using exact OCR search zone
-CheckBlockedNamePatterns(baseX, baseY) {
+CheckBlockedNamePatterns() {
     global studentHeaderPos, targetWindowID, BlockedTargets
 
     ; Calculate search zone using same positioning as student name area
@@ -340,7 +340,7 @@ ApplyKnownCorrections(ocrResult) {
 
 ; Extract topic using header-based positioning with fallback
 ; Uses header positions with standard row offsets
-ExtractTopicRaw(baseX, baseY) {
+ExtractTopicRaw() {
     global subjectHeaderPos, SubjectTargets, SubjectTargets_2, targetWindowID
 
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
@@ -512,7 +512,7 @@ ValidateTopicName(ocrResult) {
 ; Extract and validate topic (for post-click processing)
 ExtractTopicValidated(baseX, baseY) {
     ; Get raw OCR result
-    rawTopic := ExtractTopicRaw(baseX, baseY)
+    rawTopic := ExtractTopicRaw()
     
     ; Validate against known topics
     if (rawTopic != "") {
@@ -1382,34 +1382,24 @@ StartDetector() {
             if (result) {
             global LiveMode
             detectionStartTime := A_TickCount  ; Start timing from WaitingTarget detection
-;            WriteLog("WaitingTarget found at (" . X . "," . Y . ") - CENTER coordinates in " . scanTime . "ms")
-;            ToolTip "Found waiting student! Extracting name...", 10, 10
-            
+
+            ; Save WaitingTarget coordinates for clicking
+            waitingX := result[1].x
+            waitingY := result[1].y
+
             ; Step 1: Activate window immediately (parallel with extraction)
             WinActivate("ahk_id " . targetWindowID)
-            
+
             ; Step 2: Check for blocked name patterns FIRST (fast visual detection)
-            blockResult := CheckBlockedNamePatterns(X, Y)
+            blockResult := CheckBlockedNamePatterns()
             if (blockResult.blocked) {
                 WriteLog("BLOCKED: Pattern detected - " . blockResult.name . " - skipping student")
                 continue  ; Skip this student entirely
             }
 
             ; Step 3: Extract topic using fast pattern detection (no OCR)
-            rawTopic := ExtractTopicRaw(X, Y)
+            rawTopic := ExtractTopicRaw()
             WriteLog("Subject detected: '" . rawTopic . "'")
-
-            ; Find clickable student name coordinates (window coordinates)
-            global studentHeaderPos
-            if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
-                ; Click on student name area (same region where we would extract the name)
-                clickX := studentHeaderPos.x + 100  ; Center of student name region
-                clickY := studentHeaderPos.y + 96   ; Row position (same as name extraction)
-            } else {
-                ; Fallback: click in left portion of window on same row as waiting target
-                clickX := winWidth * 0.2  ; Left area of window
-                clickY := Y        ; Same row as waiting target
-            }
             
             ; Calculate detection time (blocking check + subject detection)
             detectionTime := A_TickCount - detectionStartTime
@@ -1423,10 +1413,10 @@ StartDetector() {
                 
                 ; Click the waiting target (confirmed this works)
                 preClickTime := A_TickCount
-                Click X, Y  ; Click the waiting target coordinates
+                Click waitingX, waitingY  ; Click the waiting target coordinates
                 clickTime := A_TickCount - detectionStartTime  ; Total time from detection to click
                 actualClickTime := A_TickCount - preClickTime  ; Just the click operation time
-                WriteLog("CLICK #" . studentDetectionCount . ": Clicked waiting target at " . X . "," . Y . " (total: " . clickTime . "ms, click: " . actualClickTime . "ms)")
+                WriteLog("CLICK #" . studentDetectionCount . ": Clicked waiting target at " . waitingX . "," . waitingY . " (total: " . clickTime . "ms, click: " . actualClickTime . "ms)")
 
                 ; Wait for session to start loading, then maximize window
                 Sleep 2000  ; Wait 2 seconds for session to begin loading
