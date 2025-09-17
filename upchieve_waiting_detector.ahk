@@ -56,7 +56,7 @@ SessionState := WAITING_FOR_STUDENT
 LastStudentName := ""
 LastStudentTopic := ""
 LastRawStudentName := ""  ; Original OCR result for student name
-LastRawStudentTopic := ""  ; Original OCR result for subject
+LastStudentTopic := ""  ; Subject from pattern matching
 SessionStartTime := ""
 SessionEndTime := ""
 
@@ -340,7 +340,7 @@ ApplyKnownCorrections(ocrResult) {
 
 ; Extract topic using header-based positioning with fallback
 ; Uses header positions with standard row offsets
-ExtractTopicRaw() {
+ExtractTopic() {
     global subjectHeaderPos, SubjectTargets, SubjectTargets_2, targetWindowID
 
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
@@ -446,89 +446,7 @@ ExtractTopicRaw() {
     return ""
 }
 
-; Validate topic against known Upchieve subjects with fuzzy matching and corrections database
-ValidateTopicName(ocrResult) {
-    global correctionDatabase
-    
-    ; Define known Upchieve subjects
-    knownTopics := [
-        "6th Grade Math",
-        "7th Grade Math", 
-        "8th Grade Math",
-        "Pre-algebra",
-        "Algebra",
-        "Integrated Math",
-        "Statistics",
-        "Middle School Science",
-        "Computer Science A",
-        "Computer Science Principles"
-    ]
-    
-    cleanOCR := Trim(ocrResult)
-    if (cleanOCR == "") {
-        return ""
-    }
-    
-    ; Check if we have a known correction for this exact OCR result
-    if (correctionDatabase.Has(cleanOCR)) {
-        return correctionDatabase[cleanOCR]
-    }
-    if (correctionDatabase.Has(ocrResult)) {
-        return correctionDatabase[ocrResult]
-    }
-    
-    ; First try exact matches (case insensitive)
-    for topic in knownTopics {
-        if (StrLower(cleanOCR) == StrLower(topic)) {
-            return topic
-        }
-    }
-    
-    ; Then try fuzzy matching with edit distance
-    bestMatch := ""
-    bestDistance := 999
-    
-    for topic in knownTopics {
-        distance := EditDistance(StrLower(cleanOCR), StrLower(topic))
-        ; Allow more tolerance for longer topic names
-        threshold := (StrLen(topic) > 15) ? 4 : 3
-        
-        if (distance <= threshold && distance < bestDistance) {
-            bestDistance := distance
-            bestMatch := topic
-        }
-    }
-    
-    ; If we found a close match, return it
-    if (bestMatch != "") {
-        return bestMatch
-    }
-    
-    ; No close match found - return cleaned OCR result
-    cleanTopic := RegExReplace(cleanOCR, "[^\w\s\-'/]", "")
-    return cleanTopic
-}
-
-; Extract and validate topic (for post-click processing)
-ExtractTopicValidated(baseX, baseY) {
-    ; Get raw OCR result
-    rawTopic := ExtractTopicRaw()
-    
-    ; Validate against known topics
-    if (rawTopic != "") {
-        validatedTopic := ValidateTopicName(rawTopic)
-        ; Log if correction was made
-        if (rawTopic != validatedTopic && validatedTopic != "") {
-            WriteLog("Topic OCR: '" . rawTopic . "' -> Validated: '" . validatedTopic . "'")
-        }
-        return validatedTopic
-    } else {
-        WriteLog("Topic OCR: No text detected")
-    }
-    
-    return ""  ; Return empty string if no text detected
-}
-
+;
 ; Suspend detection with resume option
 SuspendDetection() {
     global SessionState
@@ -686,7 +604,7 @@ ShowSessionFeedbackDialog() {
     ; Function to save corrections only (for Skip button)
     SaveCorrectionsOnly() {
         ; Save corrections if user modified the names/subjects
-        global LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic
+        global LastStudentName, LastStudentTopic, LastRawStudentName
         
         ; Check if student name was corrected
         finalName := Trim(nameEdit.Text)
@@ -698,10 +616,10 @@ ShowSessionFeedbackDialog() {
         
         ; Check if subject was corrected  
         finalSubject := Trim(subjectEdit.Text)
-        if (finalSubject != "" && LastRawStudentTopic != "" && finalSubject != LastStudentTopic) {
-            ; User corrected the subject - save correction mapping from raw OCR to final subject
-            SaveCorrection(LastRawStudentTopic, finalSubject)
-            WriteLog("Saved subject correction: '" . LastRawStudentTopic . "' -> '" . finalSubject . "'")
+        if (finalSubject != "" && finalSubject != LastStudentTopic) {
+            ; User corrected the subject - save correction mapping
+            SaveCorrection(LastStudentTopic, finalSubject)
+            WriteLog("Saved subject correction: '" . LastStudentTopic . "' -> '" . finalSubject . "'")
         }
         
         ; Rename OCR training screenshot with corrected student name
@@ -716,7 +634,7 @@ ShowSessionFeedbackDialog() {
     ; Function to log session feedback in CSV format
     LogSessionFeedbackCSV() {
         ; Save corrections if user modified the names/subjects
-        global LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic
+        global LastStudentName, LastStudentTopic, LastRawStudentName
         
         ; Check if student name was corrected
         finalName := Trim(nameEdit.Text)
@@ -728,10 +646,10 @@ ShowSessionFeedbackDialog() {
         
         ; Check if subject was corrected  
         finalSubject := Trim(subjectEdit.Text)
-        if (finalSubject != "" && LastRawStudentTopic != "" && finalSubject != LastStudentTopic) {
-            ; User corrected the subject - save correction mapping from raw OCR to final subject
-            SaveCorrection(LastRawStudentTopic, finalSubject)
-            WriteLog("Saved subject correction: '" . LastRawStudentTopic . "' -> '" . finalSubject . "'")
+        if (finalSubject != "" && finalSubject != LastStudentTopic) {
+            ; User corrected the subject - save correction mapping
+            SaveCorrection(LastStudentTopic, finalSubject)
+            WriteLog("Saved subject correction: '" . LastStudentTopic . "' -> '" . finalSubject . "'")
         }
         
         ; Calculate session duration in minutes
@@ -824,7 +742,7 @@ EndSession() {
         LastStudentName := ""
         LastStudentTopic := ""
         LastRawStudentName := ""
-        LastRawStudentTopic := ""
+        ; LastRawStudentTopic removed - no longer needed
         SessionStartTime := A_Now
 
         ; Show session start dialog for manual session
@@ -1398,8 +1316,8 @@ StartDetector() {
             }
 
             ; Step 3: Extract topic using fast pattern detection (no OCR)
-            rawTopic := ExtractTopicRaw()
-            WriteLog("Subject detected: '" . rawTopic . "'")
+            topic := ExtractTopic()
+            WriteLog("Subject detected: '" . topic . "'")
             
             ; Calculate detection time (blocking check + subject detection)
             detectionTime := A_TickCount - detectionStartTime
@@ -1430,7 +1348,7 @@ StartDetector() {
 headerCheckResult := false  ; TEMP OVERRIDE TO SKIP CHECKING FOR TESTING
                 if (headerCheckResult) {
                     ; Click failed - student header still present, session didn't open
-                    WriteLog("MISSED: ? - " . ValidateTopicName(rawTopic) )
+                    WriteLog("MISSED: ? - " . topic )
                     continue  ; Continue waiting for students, don't change to IN_SESSION
                 }
 
@@ -1439,11 +1357,10 @@ headerCheckResult := false  ; TEMP OVERRIDE TO SKIP CHECKING FOR TESTING
                 SessionState := IN_SESSION
                 
                 ; Update session tracking variables (no name, subject only)
-                global LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic, SessionStartTime
+                global LastStudentName, LastStudentTopic, LastRawStudentName, SessionStartTime
                 LastRawStudentName := ""  ; No OCR extraction
-                LastRawStudentTopic := rawTopic  ; Store original subject result
                 LastStudentName := ""  ; Manual entry required
-                LastStudentTopic := ValidateTopicName(rawTopic)  ; Apply topic auto-correction
+                LastStudentTopic := topic  ; Direct use of pattern-matched subject
                 SessionStartTime := A_Now
 
                 ; Log session start
@@ -1460,11 +1377,10 @@ headerCheckResult := false  ; TEMP OVERRIDE TO SKIP CHECKING FOR TESTING
                 SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
             } else {
                 ; TESTING mode - no name extraction
-                global LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic, SessionStartTime
+                global LastStudentName, LastStudentTopic, LastRawStudentName, SessionStartTime
                 LastRawStudentName := ""  ; No OCR extraction
-                LastRawStudentTopic := rawTopic  ; Store original subject result
                 LastStudentName := ""  ; Manual entry required
-                LastStudentTopic := ValidateTopicName(rawTopic)  ; Apply topic auto-correction
+                LastStudentTopic := topic  ; Direct use of pattern-matched subject
                 SessionStartTime := A_Now
 
                 ; Log session start in testing mode
