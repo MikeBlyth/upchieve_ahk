@@ -248,11 +248,33 @@ Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 - **Skip Session Feature**: End-session dialog includes Skip button to save corrections without CSV logging (Not fully tested)
 - **Auto-Math Detection**: Math subject checkbox automatically checked for math-related subjects (Not fully tested)
 - **Script Restart After Sessions**: Automatically restarts script after each completed session to prevent detection failures (Not fully tested)
+- **SearchZone Architecture**: Implemented SearchZone class and FindTextInZones wrapper for cleaner, more maintainable search operations
+- **Multi-Zone Fallback System**: All header detection now uses primary + secondary search zones for improved reliability
+- **Blocking Performance Fix**: Added fallback zones for StudentHeaderTarget to prevent expensive fallback blocking checks (119ms -> ~25ms)
+
+## SearchZone Architecture
+
+### Core Components
+- **SearchZone Class**: Simple object with x1, y1, x2, y2 properties and ToString() method for debugging
+- **FindTextInZones Wrapper**: Unified function for searching with primary + optional secondary zones
+- **Standardized Tolerances**: Default 0.15, 0.10 tolerance values across all search operations
+
+### Multi-Zone Fallback System
+- **Header Detection**: All headers (Student, Subject, WaitTime) use primary (600-1600px) + secondary (500-1700px) search zones
+- **WaitingTarget**: Header-based precise zone + wider fallback zone for different UI layouts
+- **Subject Detection**: Primary zone (x-5, y+95, 150×30) + secondary zone (x+65, y+95, 35×30) from SubjectHeader
+- **Blocking Check**: Precise header-based zone (200×65px) + fallback zone (230×100px) when headers not found
+
+### Performance Impact
+- **StudentHeaderTarget Fallback**: Fixed missing fallback zones that caused expensive blocking checks (119ms -> ~25ms)
+- **Consistent Search Logic**: All FindText operations now use unified wrapper with fallback capability
+- **Reduced Code Duplication**: SearchZone objects eliminate coordinate calculation redundancy
 
 ## Performance Considerations
 - **Initial PageTarget search**: 170-200ms (full screen)
 - **WaitingTarget detection**: ~25ms average (measured over 20 scans, localized search area)
 - **Subject detection**: ~25ms (direct pattern matching vs ~100ms+ OCR)
+- **Blocking check**: ~25ms with header positioning, 119ms with fallback zone (now resolved with header fallbacks)
 - **Student name OCR**: Context-aware character filtering (excludes digits 6,7,8)
 - **Session end detection**: Every 2 seconds during IN_SESSION state (0.15, 0.10 tolerances)
 - **Click response**: 200ms window activation + immediate click

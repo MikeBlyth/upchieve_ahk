@@ -3,6 +3,37 @@
 #Include alphabet.ahk
 #Include student_database.ahk
 
+; SearchZone class for defining search areas
+class SearchZone {
+    __New(x1, y1, x2, y2) {
+        this.x1 := x1
+        this.y1 := y1
+        this.x2 := x2
+        this.y2 := y2
+    }
+
+    ToString() {
+        return "SearchZone(" . this.x1 . "," . this.y1 . " to " . this.x2 . "," . this.y2 . ")"
+    }
+}
+
+; FindText wrapper for multiple search zones
+FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10) {
+    ; Try first zone
+    if (result := FindText(, , zone1.x1, zone1.y1, zone1.x2, zone1.y2, err1, err2, target)) {
+        return result
+    }
+
+    ; Try second zone if provided
+    if (zone2 != "" && IsObject(zone2)) {
+        if (result := FindText(, , zone2.x1, zone2.y1, zone2.x2, zone2.y2, err1, err2, target)) {
+            return result
+        }
+    }
+
+    return 0
+}
+
 ; Set coordinate mode to window coordinates for unified coordinate system
 CoordMode("Mouse", "Window")
 CoordMode("Pixel", "Window")
@@ -127,33 +158,44 @@ FindHeaders(quiet := false) {
     ; Get window client area dimensions for boundary checking
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
-    ; Search for headers in expected zones across full window height
-    ; Headers are typically in the upper portion of the window
+    ; Define search zones for headers
     headerY1 := 200   ; Start searching from 200px down
     headerY2 := Min(winHeight - 200, 1300)  ; Search up to 1300px or window height - 200px
 
-    ; Search for Student Header across full container width
-    if (result := FindText(, , 600, headerY1, 1600, headerY2, 0.15, 0.10, StudentHeaderTarget)) {
+    ; Define search zones for Student Header with fallback
+    studentZone1 := SearchZone(600, headerY1, 1600, headerY2)
+    studentZone2 := SearchZone(500, headerY1 - 50, 1700, headerY2 + 50)  ; Wider fallback zone
+
+    ; Search for Student Header with fallback zones
+    if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2)) {
         upperLeft := GetUpperLeft(result)
         studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     } else if (!quiet) {
-        WriteLog("DEBUG: Student header NOT found in search zone")
+        WriteLog("DEBUG: Student header NOT found in any search zone")
     }
 
-    ; Search for Subject Header (was Help Header) across full container width
-    if (result := FindText(, , 600, headerY1, 1600, headerY2, 0.15, 0.10, HelpHeaderTarget)) {
+    ; Define search zones for Subject Header
+    subjectZone1 := SearchZone(600, headerY1, 1600, headerY2)
+    subjectZone2 := SearchZone(500, headerY1 - 50, 1700, headerY2 + 50)  ; Wider fallback zone
+
+    ; Search for Subject Header (was Help Header) with fallback zones
+    if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2)) {
         upperLeft := GetUpperLeft(result)
         subjectHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     } else if (!quiet) {
-        WriteLog("DEBUG: Subject header NOT found in search zone")
+        WriteLog("DEBUG: Subject header NOT found in any search zone")
     }
 
-    ; Search for Wait Time Header across full container width
-    if (result := FindText(, , 600, headerY1, 1600, headerY2, 0.15, 0.10, WaitTimeHeaderTarget)) {
+    ; Define search zones for Wait Time Header
+    waitTimeZone1 := SearchZone(600, headerY1, 1600, headerY2)
+    waitTimeZone2 := SearchZone(500, headerY1 - 50, 1700, headerY2 + 50)  ; Wider fallback zone
+
+    ; Search for Wait Time Header with fallback zones
+    if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2)) {
         upperLeft := GetUpperLeft(result)
         waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     } else if (!quiet) {
-        WriteLog("DEBUG: Wait Time header NOT found in search zone")
+        WriteLog("DEBUG: Wait Time header NOT found in any search zone")
     }
 
     ; Log header detection results (skip if quiet)
@@ -243,29 +285,15 @@ CheckBlockedNamePatterns(baseX, baseY) {
 
     if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
         ; Use precise header-based positioning relative to StudentHeader middle coordinates
-        searchX := Max(0, studentHeaderPos.x - 20)  ; Header left edge - 20px margin
-        searchY := Max(0, studentHeaderPos.y + 72)  ; Middle + 72px down
-        searchWidth := Min(200, winWidth - searchX)  ; 200px width
-        searchHeight := Min(65, winHeight - searchY)  ; 65px height
+        blockingZone := SearchZone(Max(0, studentHeaderPos.x - 20), Max(0, studentHeaderPos.y + 72), Min(winWidth, studentHeaderPos.x + 180), Min(winHeight, studentHeaderPos.y + 137))
     } else {
         ; Fallback to assumed column positioning: names are in left column around x=700
-        searchX := 700  ; Left edge of student name column
-        searchY := Max(0, 500)  ; Start around 500px down (typical data row area)
-        searchWidth := Min(230, winWidth - searchX)  ; Standard column width
-        searchHeight := Min(100, winHeight - searchY)  ; Standard row height
-
-        ; Ensure fallback coordinates stay within window bounds
-        searchX := Max(0, searchX)
-        searchY := Max(0, searchY)
-        searchWidth := Min(searchWidth, winWidth - searchX)
-        searchHeight := Min(searchHeight, winHeight - searchY)
-        WriteLog("DEBUG: Using fallback blocking zone: " . searchX . "," . searchY . " to " . (searchX + searchWidth) . "," . (searchY + searchHeight))
+        blockingZone := SearchZone(700, Max(0, 500), Min(winWidth, 930), Min(winHeight, 600))
+        WriteLog("DEBUG: Using fallback blocking zone: " . blockingZone.ToString())
     }
 
     ; Search for blocked patterns in calculated zone
-    X := ""
-    Y := ""
-    if (result := FindText(&X, &Y, searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0, 0, BlockedTargets)) {
+    if (result := FindTextInZones(BlockedTargets, blockingZone)) {
         ; Found a blocked name pattern
         blockedName := result[1].id  ; Get the pattern name (e.g. "Chukwudi", "Camila")
         WriteLog("BLOCKED: Visual pattern detected - " . blockedName)
@@ -318,22 +346,18 @@ ExtractTopicRaw(baseX, baseY) {
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
     if (subjectHeaderPos.found && subjectHeaderPos.x > 0 && subjectHeaderPos.y > 0) {
-        ; Primary zone: x-5, y+95, 150x30 from SubjectHeader upper-left
-        primaryX := Max(0, subjectHeaderPos.x - 5)
-        primaryY := Max(0, subjectHeaderPos.y + 95)
-        primaryWidth := Min(150, winWidth - primaryX)
-        primaryHeight := Min(30, winHeight - primaryY)
+        ; Define primary zone: x-5, y+95, 150x30 from SubjectHeader upper-left
+        primaryZone := SearchZone(Max(0, subjectHeaderPos.x - 5), Max(0, subjectHeaderPos.y + 95), Min(winWidth, subjectHeaderPos.x + 145), Min(winHeight, subjectHeaderPos.y + 125))
 
         ; Try primary zone with SubjectTargets
         ; Pre-FindText detailed logging for primary zone
         preCallTime := A_TickCount
-        primaryArea := primaryWidth * primaryHeight
-        WriteLog("DEBUG: Primary Subject Zone - Pre-FindText: zone=" . primaryWidth . "x" . primaryHeight . " pixels, area=" . primaryArea)
-        WriteLog("DEBUG: Primary params: x1=" . primaryX . " y1=" . primaryY . " x2=" . (primaryX + primaryWidth) . " y2=" . (primaryY + primaryHeight) . " tol1=0.15 tol2=0.10")
+        primaryArea := (primaryZone.x2 - primaryZone.x1) * (primaryZone.y2 - primaryZone.y1)
+        WriteLog("DEBUG: Primary Subject Zone - Pre-FindText: " . primaryZone.ToString() . " area=" . primaryArea)
         WriteLog("DEBUG: Primary pattern: SubjectTargets length=" . StrLen(SubjectTargets) . " first50chars=" . SubStr(SubjectTargets, 1, 50))
 
         scanStart := A_TickCount
-        if (result := FindText(, , primaryX, primaryY, primaryX + primaryWidth, primaryY + primaryHeight, 0.15, 0.10, SubjectTargets)) {
+        if (result := FindTextInZones(SubjectTargets, primaryZone)) {
             postCallTime := A_TickCount
             scanTime := postCallTime - scanStart
             WriteLog("DEBUG: Primary Subject Zone - SUCCESS: found=" . result[1].id . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
@@ -344,22 +368,18 @@ ExtractTopicRaw(baseX, baseY) {
             WriteLog("DEBUG: Primary Subject Zone - MISS: scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
         }
 
-        ; Secondary zone: x+65, y+95, 35x30 from SubjectHeader upper-left
-        secondaryX := Max(0, subjectHeaderPos.x + 65)
-        secondaryY := Max(0, subjectHeaderPos.y + 95)
-        secondaryWidth := Min(35, winWidth - secondaryX)
-        secondaryHeight := Min(30, winHeight - secondaryY)
+        ; Define secondary zone: x+65, y+95, 35x30 from SubjectHeader upper-left
+        secondaryZone := SearchZone(Max(0, subjectHeaderPos.x + 65), Max(0, subjectHeaderPos.y + 95), Min(winWidth, subjectHeaderPos.x + 100), Min(winHeight, subjectHeaderPos.y + 125))
 
         ; Try secondary zone with SubjectTargets_2
         ; Pre-FindText detailed logging for secondary zone
         preCallTime := A_TickCount
-        secondaryArea := secondaryWidth * secondaryHeight
-        WriteLog("DEBUG: Secondary Subject Zone - Pre-FindText: zone=" . secondaryWidth . "x" . secondaryHeight . " pixels, area=" . secondaryArea)
-        WriteLog("DEBUG: Secondary params: x1=" . secondaryX . " y1=" . secondaryY . " x2=" . (secondaryX + secondaryWidth) . " y2=" . (secondaryY + secondaryHeight) . " tol1=0.15 tol2=0.10")
+        secondaryArea := (secondaryZone.x2 - secondaryZone.x1) * (secondaryZone.y2 - secondaryZone.y1)
+        WriteLog("DEBUG: Secondary Subject Zone - Pre-FindText: " . secondaryZone.ToString() . " area=" . secondaryArea)
         WriteLog("DEBUG: Secondary pattern: SubjectTargets_2 length=" . StrLen(SubjectTargets_2) . " first50chars=" . SubStr(SubjectTargets_2, 1, 50))
 
         scanStart := A_TickCount
-        if (result := FindText(, , secondaryX, secondaryY, secondaryX + secondaryWidth, secondaryY + secondaryHeight, 0.15, 0.10, SubjectTargets_2)) {
+        if (result := FindTextInZones(SubjectTargets_2, secondaryZone)) {
             postCallTime := A_TickCount
             scanTime := postCallTime - scanStart
             WriteLog("DEBUG: Secondary Subject Zone - SUCCESS: found=" . result[1].id . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
@@ -1190,13 +1210,14 @@ StartDetector() {
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)  ; Get window dimensions
 
     ; Check for upgrade popup that might be blocking the page
-    upgradeX := ""
-    upgradeY := ""
-    if (UpgradeTarget != "" && (upgradeResult := FindText(&upgradeX, &upgradeY, 0, 0, winWidth, winHeight, 0.15, 0.05, UpgradeTarget))) {
-        ToolTip "Found upgrade popup blocking page! Clicking to dismiss...", 10, 50
-        WriteLog("DEBUG: Found upgrade popup at " . upgradeX . "," . upgradeY)
-        Click upgradeX, upgradeY  ; Window coordinates work directly
-        Sleep 1000  ; Wait for popup to dismiss
+    if (UpgradeTarget != "") {
+        upgradeZone := SearchZone(0, 0, winWidth, winHeight)
+        if (upgradeResult := FindTextInZones(UpgradeTarget, upgradeZone)) {
+            ToolTip "Found upgrade popup blocking page! Clicking to dismiss...", 10, 50
+            WriteLog("DEBUG: Found upgrade popup at " . upgradeResult[1].x . "," . upgradeResult[1].y)
+            Click upgradeResult[1].x, upgradeResult[1].y  ; Window coordinates work directly
+            Sleep 1000  ; Wait for popup to dismiss
+        }
     }
 
     ; Find header targets directly in expected zones (no PageTarget dependency)
@@ -1222,22 +1243,14 @@ StartDetector() {
         ; SessionEndedTarget is located in upper-right area: width-600,0 to width,350
         if (SessionState == IN_SESSION) {
             if (A_TickCount - lastSessionEndCheck > 2000) {
-            tempX := ""
-            tempY := ""
             WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-            sessionEndX1 := Max(0, winWidth - 600)  ; Right side of window minus 600px
-            sessionEndY1 := 0                       ; Top of window
-            sessionEndX2 := winWidth                ; Right edge of window
-            sessionEndY2 := Min(winHeight, 350)     ; Upper 350px of window
-            
-            sessionEndX1 := 0
-            sessionEndY1 := 0
-            sessionEndY2 := winHeight
+            sessionEndZone := SearchZone(0, 0, winWidth, winHeight)
+
             ; Debug: Log session end search attempts (every 10th check to avoid spam)
             static sessionEndCheckCount := 0
             sessionEndCheckCount++
-            if (tempResult := FindText(&tempX, &tempY, sessionEndX1, sessionEndY1, sessionEndX2, sessionEndY2, 0.0, 0.03, SessionEndedTarget)) {
-                WriteLog("DEBUG: SessionEndedTarget found at " . tempX . "," . tempY)
+            if (tempResult := FindTextInZones(SessionEndedTarget, sessionEndZone, "", 0.0, 0.03)) {
+                WriteLog("DEBUG: SessionEndedTarget found at " . tempResult[1].x . "," . tempResult[1].y)
                 ; Session ended - show session feedback dialog
                 continueResult := ShowSessionFeedbackDialog()
                 
@@ -1283,13 +1296,14 @@ StartDetector() {
         
         ; Check for upgrade popup first (window search) - only when waiting for students
         if (SessionState == WAITING_FOR_STUDENT) {
-            X := ""
-            Y := ""
             WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-            if (UpgradeTarget != "" && (result := FindText(&X, &Y, 0, 0, winWidth, winHeight, 0.15, 0.05, UpgradeTarget))) {
-                ToolTip "Found upgrade popup! Clicking...", 10, 10
-                Click X, Y  ; Window coordinates work directly
-                continue  ; Skip to next iteration after handling upgrade
+            if (UpgradeTarget != "") {
+                upgradeZone := SearchZone(0, 0, winWidth, winHeight)
+                if (result := FindTextInZones(UpgradeTarget, upgradeZone)) {
+                    ToolTip "Found upgrade popup! Clicking...", 10, 10
+                    Click result[1].x, result[1].y  ; Window coordinates work directly
+                    continue  ; Skip to next iteration after handling upgrade
+                }
             }
         }
         
@@ -1301,44 +1315,38 @@ StartDetector() {
             
             if (waitTimeHeaderPos.found && waitTimeHeaderPos.x > 0 && waitTimeHeaderPos.y > 0) {
                 ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
-                waitingX1 := Max(0, waitTimeHeaderPos.x - 5)
-                waitingY1 := Max(0, waitTimeHeaderPos.y + 95)
-                waitingX2 := Min(winWidth, waitingX1 + 175)  ; 175px width
-                waitingY2 := Min(winHeight, waitingY1 + 30)  ; 30px height
+                waitingZone1 := SearchZone(Max(0, waitTimeHeaderPos.x - 5), Max(0, waitTimeHeaderPos.y + 95), Min(winWidth, waitTimeHeaderPos.x + 170), Min(winHeight, waitTimeHeaderPos.y + 125))
+                waitingZone2 := SearchZone(Max(0, waitTimeHeaderPos.x - 15), Max(0, waitTimeHeaderPos.y + 85), Min(winWidth, waitTimeHeaderPos.x + 190), Min(winHeight, waitTimeHeaderPos.y + 135))  ; Slightly larger fallback
             } else {
                 ; Fallback to right portion of window for WaitingTarget
-                waitingX1 := Max(0, winWidth * 0.6)  ; Right 40% of window
-                waitingY1 := winHeight * 0.3  ; Below header area
-                waitingX2 := winWidth
-                waitingY2 := winHeight * 0.8  ; Most of window height
+                waitingZone1 := SearchZone(Max(0, winWidth * 0.6), winHeight * 0.3, winWidth, winHeight * 0.8)
+                waitingZone2 := SearchZone(Max(0, winWidth * 0.5), winHeight * 0.2, winWidth, winHeight * 0.9)  ; Wider fallback
             }
             
             ; Debug: Log WaitingTarget search zone (once per monitoring session)
             static waitingZoneLogged := false
             if (!waitingZoneLogged) {
-                WriteLog("DEBUG: WaitingTarget search zone: " . waitingX1 . "," . waitingY1 . " to " . waitingX2 . "," . waitingY2)
+                WriteLog("DEBUG: WaitingTarget search zone: " . waitingZone1.ToString())
                 waitingZoneLogged := true
             }
 
             ; Pre-FindText detailed logging
             preCallTime := A_TickCount
-            zoneWidth := waitingX2 - waitingX1
-            zoneHeight := waitingY2 - waitingY1
+            zoneWidth := waitingZone1.x2 - waitingZone1.x1
+            zoneHeight := waitingZone1.y2 - waitingZone1.y1
             WriteLog("DEBUG: Pre-FindText: zone=" . zoneWidth . "x" . zoneHeight . " pixels, window=" . winWidth . "x" . winHeight . ", time=" . preCallTime)
 
             ; Window state logging
             WinGetPos(&winX, &winY, &winW, &winH, targetWindowID)
             WriteLog("DEBUG: Window state: pos=" . winX . "," . winY . " size=" . winW . "x" . winH . " active=" . WinActive(targetWindowID))
 
-            X := ""
-            Y := ""
             scanStart := A_TickCount
-            result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0.15, 0.1, WaitingTarget)
+            result := FindTextInZones(WaitingTarget, waitingZone1, waitingZone2)
             postCallTime := A_TickCount
             scanTime := postCallTime - scanStart
 
             ; Search zone validation and parameter logging
-            WriteLog("DEBUG: FindText params: x1=" . waitingX1 . " y1=" . waitingY1 . " x2=" . waitingX2 . " y2=" . waitingY2 . " tol1=0.15 tol2=0.1")
+            WriteLog("DEBUG: FindText params: " . waitingZone1.ToString() . " tol1=0.15 tol2=0.1")
             WriteLog("DEBUG: Calculated zone: width=" . zoneWidth . " height=" . zoneHeight . " area=" . (zoneWidth * zoneHeight) . " pixels")
 
             ; Context comparison logging
@@ -1352,7 +1360,7 @@ StartDetector() {
             if (result) {
                 static studentDetectionCount := 0
                 studentDetectionCount++
-                WriteLog("DETECTION #" . studentDetectionCount . ": WaitingTarget found at " . X . "," . Y . " (scan time: " . scanTime . "ms)")
+                WriteLog("DETECTION #" . studentDetectionCount . ": WaitingTarget found at " . result[1].x . "," . result[1].y . " (scan time: " . scanTime . "ms)")
             }
             
             ; Track scan timing for first 20 scans
@@ -1426,10 +1434,9 @@ StartDetector() {
 
                 ; Check if click succeeded by verifying if student header is still present
                 ; If header still visible, the click was too slow and someone else claimed the student
-                tempX := ""
-                tempY := ""
                 WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-                headerCheckResult := FindText(&tempX, &tempY, 600, 200, 1600, Min(winHeight - 200, 1300), 0.15, 0.10, StudentHeaderTarget)
+                headerCheckZone := SearchZone(600, 200, 1600, Min(winHeight - 200, 1300))
+                headerCheckResult := FindTextInZones(StudentHeaderTarget, headerCheckZone)
 headerCheckResult := false  ; TEMP OVERRIDE TO SKIP CHECKING FOR TESTING
                 if (headerCheckResult) {
                     ; Click failed - student header still present, session didn't open
