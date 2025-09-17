@@ -204,7 +204,7 @@ FindHeaders(quiet := false) {
     return headersFound
 }
 
-; Load blocked names from block_names.txt
+/* ; Load blocked names from block_names.txt
 LoadBlockedNames() {
     blockedNames := []
     blockFile := "block_names.txt"
@@ -249,6 +249,7 @@ IsNameBlocked(studentName, blockedNames) {
     }
     return false
 }
+*/
 
 ; Check for blocked name patterns using exact OCR search zone
 CheckBlockedNamePatterns(baseX, baseY) {
@@ -468,6 +469,70 @@ SuspendDetection() {
     }
 }
 
+; Session start dialog for name and subject entry
+ShowSessionStartDialog() {
+    global LastStudentName, LastStudentTopic, SessionStartTime
+
+    ; Create session start GUI
+    startGui := Gui("+AlwaysOnTop", "Session Started - Enter Information")
+
+    ; Pre-fill start time
+    startTimeFormatted := FormatTime(SessionStartTime, "h:mm tt")
+
+    ; Student name (manual entry)
+    startGui.AddText("xm y+10", "Student name:")
+    nameEdit := startGui.AddEdit("xm y+5 w200")
+    nameEdit.Text := (LastStudentName ? LastStudentName : "")
+    ; Set focus to name field for immediate typing
+    nameEdit.Focus()
+
+    ; Subject field (pre-filled from OCR if available)
+    startGui.AddText("xm y+15", "Subject:")
+    subjectEdit := startGui.AddEdit("xm y+5 w200")
+    subjectEdit.Text := (LastStudentTopic ? LastStudentTopic : "")
+
+    ; Start time (read-only, pre-filled)
+    startGui.AddText("xm y+15", "Start time:")
+    startTimeEdit := startGui.AddEdit("xm y+5 w200 ReadOnly")
+    startTimeEdit.Text := startTimeFormatted
+
+    ; Previous session info section (if available from last session feedback)
+    static lastSessionInfo := ""
+    if (lastSessionInfo != "") {
+        startGui.AddText("xm y+20", "Previous session info:")
+        startGui.AddText("xm y+5 w350", lastSessionInfo)
+    }
+
+    ; Buttons
+    continueBtn := startGui.AddButton("xm y+20 w100 h30", "Continue")
+    pauseBtn := startGui.AddButton("x+10 yp w100 h30", "Pause")
+
+    ; Button event handlers
+    result := ""
+    continueBtn.OnEvent("Click", (*) => (result := "Continue", startGui.Destroy()))
+    pauseBtn.OnEvent("Click", (*) => (result := "Pause", startGui.Destroy()))
+
+    ; Update global variables from user input
+    UpdateSessionInfo() {
+        global LastStudentName, LastStudentTopic
+        LastStudentName := Trim(nameEdit.Text)
+        LastStudentTopic := Trim(subjectEdit.Text)
+    }
+
+    ; Show dialog and wait for user input
+    startGui.Show()
+
+    ; Wait for user to close dialog
+    while (!result) {
+        Sleep 100
+    }
+
+    ; Update session variables with user input
+    UpdateSessionInfo()
+
+    return result
+}
+
 ; Show session feedback dialog and return continue choice
 ShowSessionFeedbackDialog() {
     global LastStudentName, LastStudentTopic, SessionStartTime, SessionEndTime
@@ -653,7 +718,7 @@ DllCall("kernel32.dll\SetThreadExecutionState", "UInt", 0x80000003)
 
 
 ; Load blocked names list
-BlockedNames := LoadBlockedNames()
+; BlockedNames := LoadBlockedNames()
 
 ; Manual session start/end function
 EndSession() {
@@ -676,15 +741,22 @@ EndSession() {
         }
     } else {
         ; Not in session - start a manual session
-        MsgBox("Starting session", "Manual Session Start", "OK 4096")
-        
         ; Clear previous session data since we don't have OCR info
         LastStudentName := ""
         LastStudentTopic := ""
         LastRawStudentName := ""
         LastRawStudentTopic := ""
         SessionStartTime := A_Now
-        
+
+        ; Show session start dialog for manual session
+        dialogResult := ShowSessionStartDialog()
+
+        if (dialogResult == "Pause") {
+            SessionState := PAUSED
+            WriteLog("Manual session start paused via dialog")
+            return
+        }
+
         ; Change to IN_SESSION state
         SessionState := IN_SESSION
         global lastSessionEndCheck := A_TickCount  ; Initialize session end check timer
@@ -1219,7 +1291,6 @@ StartDetector() {
             }
             
             if (result) {
-            WriteLog("Line 1188 activating window")
             global LiveMode
             detectionStartTime := A_TickCount  ; Start timing from WaitingTarget detection
 ;            WriteLog("WaitingTarget found at (" . X . "," . Y . ") - CENTER coordinates in " . scanTime . "ms")
@@ -1267,12 +1338,25 @@ StartDetector() {
                 clickTime := A_TickCount - detectionStartTime  ; Total time from detection to click
                 actualClickTime := A_TickCount - preClickTime  ; Just the click operation time
                 WriteLog("CLICK #" . studentDetectionCount . ": Clicked waiting target at " . X . "," . Y . " (total: " . clickTime . "ms, click: " . actualClickTime . "ms)")
-                
+
                 ; Wait for session to start loading, then maximize window
-                Sleep 1000  ; Wait 1 second for session to begin loading
+                Sleep 2000  ; Wait 2 seconds for session to begin loading
                 WinMaximize("ahk_id " . targetWindowID)
-                
-                ; IMMEDIATELY change state to IN_SESSION after clicking
+
+                ; Check if click succeeded by verifying if student header is still present
+                ; If header still visible, the click was too slow and someone else claimed the student
+                tempX := ""
+                tempY := ""
+                WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
+                headerCheckResult := FindText(&tempX, &tempY, 600, 200, 1600, Min(winHeight - 200, 1300), 0.15, 0.10, StudentHeaderTarget)
+headerCheckResult := false  ; TEMP OVERRIDE TO SKIP CHECKING FOR TESTING
+                if (headerCheckResult) {
+                    ; Click failed - student header still present, session didn't open
+                    WriteLog("MISSED: ? - " . ValidateTopicName(rawTopic) )
+                    continue  ; Continue waiting for students, don't change to IN_SESSION
+                }
+
+                ; IMMEDIATELY change state to IN_SESSION after clicking (only if successful)
                 global SessionState
                 SessionState := IN_SESSION
                 
@@ -1331,19 +1415,20 @@ StartDetector() {
             
             ToolTip ""  ; Clear tooltip
             
-            ; Step 5: Show message box with session message
-            modePrefix := LiveMode ? "Session" : "Found student"
-            subjectSuffix := (LastStudentTopic != "") ? " (" . LastStudentTopic . ")" : ""
+            ; Step 5: Show session start dialog for name and subject entry
+            dialogResult := ShowSessionStartDialog()
 
-            ; Simple message without student name (manual entry required)
-            fullMessage := modePrefix . subjectSuffix . (LiveMode ? " has opened" : " waiting") . "`n`nStudent name will be entered manually at session end."
-
-            MsgBox(fullMessage, LiveMode ? "Session Started" : "Student Detected", "OK 4096")
-            
-            ; Step 6: When OK is clicked, stop the sound and continue monitoring
+            ; Step 6: Stop the sound and handle dialog result
             if (SoundTimerFunc != "") {
                 SetTimer SoundTimerFunc, 0  ; Stop the timer
                 SoundTimerFunc := ""
+            }
+
+            ; Handle dialog result
+            if (dialogResult == "Pause") {
+                SessionState := PAUSED
+                WriteLog("Session paused via start dialog")
+                continue  ; Skip to next loop iteration
             }
             
             ; Continue monitoring for more students (removed break statement)
