@@ -325,8 +325,23 @@ ExtractTopicRaw(baseX, baseY) {
         primaryHeight := Min(30, winHeight - primaryY)
 
         ; Try primary zone with SubjectTargets
+        ; Pre-FindText detailed logging for primary zone
+        preCallTime := A_TickCount
+        primaryArea := primaryWidth * primaryHeight
+        WriteLog("DEBUG: Primary Subject Zone - Pre-FindText: zone=" . primaryWidth . "x" . primaryHeight . " pixels, area=" . primaryArea)
+        WriteLog("DEBUG: Primary params: x1=" . primaryX . " y1=" . primaryY . " x2=" . (primaryX + primaryWidth) . " y2=" . (primaryY + primaryHeight) . " tol1=0.15 tol2=0.10")
+        WriteLog("DEBUG: Primary pattern: SubjectTargets length=" . StrLen(SubjectTargets) . " first50chars=" . SubStr(SubjectTargets, 1, 50))
+
+        scanStart := A_TickCount
         if (result := FindText(, , primaryX, primaryY, primaryX + primaryWidth, primaryY + primaryHeight, 0.15, 0.10, SubjectTargets)) {
+            postCallTime := A_TickCount
+            scanTime := postCallTime - scanStart
+            WriteLog("DEBUG: Primary Subject Zone - SUCCESS: found=" . result[1].id . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
             return result[1].id
+        } else {
+            postCallTime := A_TickCount
+            scanTime := postCallTime - scanStart
+            WriteLog("DEBUG: Primary Subject Zone - MISS: scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
         }
 
         ; Secondary zone: x+65, y+95, 35x30 from SubjectHeader upper-left
@@ -336,8 +351,23 @@ ExtractTopicRaw(baseX, baseY) {
         secondaryHeight := Min(30, winHeight - secondaryY)
 
         ; Try secondary zone with SubjectTargets_2
+        ; Pre-FindText detailed logging for secondary zone
+        preCallTime := A_TickCount
+        secondaryArea := secondaryWidth * secondaryHeight
+        WriteLog("DEBUG: Secondary Subject Zone - Pre-FindText: zone=" . secondaryWidth . "x" . secondaryHeight . " pixels, area=" . secondaryArea)
+        WriteLog("DEBUG: Secondary params: x1=" . secondaryX . " y1=" . secondaryY . " x2=" . (secondaryX + secondaryWidth) . " y2=" . (secondaryY + secondaryHeight) . " tol1=0.15 tol2=0.10")
+        WriteLog("DEBUG: Secondary pattern: SubjectTargets_2 length=" . StrLen(SubjectTargets_2) . " first50chars=" . SubStr(SubjectTargets_2, 1, 50))
+
+        scanStart := A_TickCount
         if (result := FindText(, , secondaryX, secondaryY, secondaryX + secondaryWidth, secondaryY + secondaryHeight, 0.15, 0.10, SubjectTargets_2)) {
+            postCallTime := A_TickCount
+            scanTime := postCallTime - scanStart
+            WriteLog("DEBUG: Secondary Subject Zone - SUCCESS: found=" . result[1].id . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
             return result[1].id
+        } else {
+            postCallTime := A_TickCount
+            scanTime := postCallTime - scanStart
+            WriteLog("DEBUG: Secondary Subject Zone - MISS: scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
         }
     } else {
         ; Fallback to assumed column positioning: subjects are in middle column around x=940-1260
@@ -354,11 +384,41 @@ ExtractTopicRaw(baseX, baseY) {
         WriteLog("DEBUG: Using fallback subject zone: " . searchX . "," . searchY . " to " . (searchX + searchWidth) . "," . (searchY + searchHeight))
 
         ; Try fallback zone with both pattern sets
+        ; Pre-FindText detailed logging for fallback zone - SubjectTargets
+        preCallTime := A_TickCount
+        fallbackArea := searchWidth * searchHeight
+        WriteLog("DEBUG: Fallback Subject Zone 1 - Pre-FindText: zone=" . searchWidth . "x" . searchHeight . " pixels, area=" . fallbackArea)
+        WriteLog("DEBUG: Fallback 1 params: x1=" . searchX . " y1=" . searchY . " x2=" . (searchX + searchWidth) . " y2=" . (searchY + searchHeight) . " tol1=0.15 tol2=0.10")
+        WriteLog("DEBUG: Fallback 1 pattern: SubjectTargets length=" . StrLen(SubjectTargets) . " first50chars=" . SubStr(SubjectTargets, 1, 50))
+
+        scanStart := A_TickCount
         if (result := FindText(, , searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, SubjectTargets)) {
+            postCallTime := A_TickCount
+            scanTime := postCallTime - scanStart
+            WriteLog("DEBUG: Fallback Subject Zone 1 - SUCCESS: found=" . result[1].id . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
             return result[1].id
+        } else {
+            postCallTime := A_TickCount
+            scanTime := postCallTime - scanStart
+            WriteLog("DEBUG: Fallback Subject Zone 1 - MISS: scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
         }
+
+        ; Pre-FindText detailed logging for fallback zone - SubjectTargets_2
+        preCallTime := A_TickCount
+        WriteLog("DEBUG: Fallback Subject Zone 2 - Pre-FindText: zone=" . searchWidth . "x" . searchHeight . " pixels, area=" . fallbackArea)
+        WriteLog("DEBUG: Fallback 2 params: x1=" . searchX . " y1=" . searchY . " x2=" . (searchX + searchWidth) . " y2=" . (searchY + searchHeight) . " tol1=0.15 tol2=0.10")
+        WriteLog("DEBUG: Fallback 2 pattern: SubjectTargets_2 length=" . StrLen(SubjectTargets_2) . " first50chars=" . SubStr(SubjectTargets_2, 1, 50))
+
+        scanStart := A_TickCount
         if (result := FindText(, , searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, SubjectTargets_2)) {
+            postCallTime := A_TickCount
+            scanTime := postCallTime - scanStart
+            WriteLog("DEBUG: Fallback Subject Zone 2 - SUCCESS: found=" . result[1].id . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
             return result[1].id
+        } else {
+            postCallTime := A_TickCount
+            scanTime := postCallTime - scanStart
+            WriteLog("DEBUG: Fallback Subject Zone 2 - MISS: scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
         }
     }
 
@@ -1260,11 +1320,33 @@ StartDetector() {
                 waitingZoneLogged := true
             }
 
+            ; Pre-FindText detailed logging
+            preCallTime := A_TickCount
+            zoneWidth := waitingX2 - waitingX1
+            zoneHeight := waitingY2 - waitingY1
+            WriteLog("DEBUG: Pre-FindText: zone=" . zoneWidth . "x" . zoneHeight . " pixels, window=" . winWidth . "x" . winHeight . ", time=" . preCallTime)
+
+            ; Window state logging
+            WinGetPos(&winX, &winY, &winW, &winH, targetWindowID)
+            WriteLog("DEBUG: Window state: pos=" . winX . "," . winY . " size=" . winW . "x" . winH . " active=" . WinActive(targetWindowID))
+
             X := ""
             Y := ""
             scanStart := A_TickCount
             result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0.15, 0.1, WaitingTarget)
-            scanTime := A_TickCount - scanStart
+            postCallTime := A_TickCount
+            scanTime := postCallTime - scanStart
+
+            ; Search zone validation and parameter logging
+            WriteLog("DEBUG: FindText params: x1=" . waitingX1 . " y1=" . waitingY1 . " x2=" . waitingX2 . " y2=" . waitingY2 . " tol1=0.15 tol2=0.1")
+            WriteLog("DEBUG: Calculated zone: width=" . zoneWidth . " height=" . zoneHeight . " area=" . (zoneWidth * zoneHeight) . " pixels")
+
+            ; Context comparison logging
+            WriteLog("DEBUG: Pattern info: WaitingTarget length=" . StrLen(WaitingTarget) . " first50chars=" . SubStr(WaitingTarget, 1, 50))
+            WriteLog("DEBUG: Process info: ProcessGetName=" . ProcessGetName(ProcessExist()) . " PID=" . ProcessExist())
+
+            ; Post-FindText detailed logging
+            WriteLog("DEBUG: Post-FindText: result=" . (result ? "found" : "none") . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
             
             ; Debug: Only log when student is found (first detection)
             if (result) {
