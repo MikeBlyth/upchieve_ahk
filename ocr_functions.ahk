@@ -2,11 +2,47 @@
 #Include FindTextv2.ahk
 #Include alphabet.ahk
 
+; Default OCR parameters - easy to find and modify
+global DEFAULT_TOLERANCE1 := 0.14
+global DEFAULT_TOLERANCE2 := 0.08
+global DEFAULT_PADDING_FACTOR := -2
+global DEFAULT_WIDTH_SIMILARITY_THRESHOLD := 1.5
+
 ; Shared OCR functions for both main detector and testing app
 
 ; Character prioritization for ambiguous matches
 ; Returns the higher priority character when two characters occupy the same position
-GetPriorityCharacter(char1, char2) {
+GetPriorityCharacter(char1, char2, widthSimilarityThreshold := DEFAULT_WIDTH_SIMILARITY_THRESHOLD) {
+    global characterWidths
+
+    ; Debug: Log priority decision process
+    debugPriorityLog := []
+    debugPriorityLog.Push("=== PRIORITY DECISION: '" . char1.id . "' vs '" . char2.id . "' ===")
+
+    ; First check width-based priority
+    char1Width := characterWidths.Get(char1.id, 10)
+    char2Width := characterWidths.Get(char2.id, 10)
+
+    debugPriorityLog.Push("Widths: " . char1.id . "=" . char1Width . ", " . char2.id . "=" . char2Width)
+
+    ; Calculate width similarity ratio
+    maxWidth := Max(char1Width, char2Width)
+    minWidth := Min(char1Width, char2Width)
+    widthRatio := maxWidth / minWidth
+
+    debugPriorityLog.Push("Width ratio: " . maxWidth . "/" . minWidth . " = " . widthRatio)
+    debugPriorityLog.Push("Threshold: " . widthSimilarityThreshold)
+
+    ; If widths are significantly different, prefer wider character
+    if (widthRatio > widthSimilarityThreshold) {
+        winner := (char1Width > char2Width) ? char1 : char2
+        debugPriorityLog.Push("WIDTH-BASED DECISION: '" . winner.id . "' wins (ratio " . widthRatio . " > " . widthSimilarityThreshold . ")")
+        ; Store debug log in global for retrieval
+        global lastPriorityDebug := debugPriorityLog
+        return winner
+    }
+
+    ; Widths are similar - use pair-based priority rules for visual conflicts
     ; Define character pair priorities (base pairs only - inverse pairs auto-generated)
     ; Format: "char1,char2" -> preferred character
     pairPriorities := Map(
@@ -17,7 +53,6 @@ GetPriorityCharacter(char1, char2) {
         "r,p", "p",  ; p over r
         "n,h", "h",  ; h over n
         "l,h", "h",  ; h over l
-        "I,i", "i",  ; i over I
         "i,j", "j",  ; j over i
         "l,j", "j",  ; j over l
         "I,j", "j",  ; j over I
@@ -80,42 +115,169 @@ GetPriorityCharacter(char1, char2) {
         pairPriorities[pairKey] := winner
     }
     
+    debugPriorityLog.Push("WIDTHS SIMILAR - checking pair-based rules")
+
     ; Early hyphen check - hyphen loses to any other character
-    if (char1.id == "-" && char2.id != "-")
+    if (char1.id == "-" && char2.id != "-") {
+        debugPriorityLog.Push("HYPHEN RULE: '" . char2.id . "' beats '-'")
+        global lastPriorityDebug := debugPriorityLog
         return char2
-    if (char2.id == "-" && char1.id != "-")
+    }
+    if (char2.id == "-" && char1.id != "-") {
+        debugPriorityLog.Push("HYPHEN RULE: '" . char1.id . "' beats '-'")
+        global lastPriorityDebug := debugPriorityLog
         return char1
-    
+    }
+
     ; Check for specific pair priority
     pairKey := char1.id . "," . char2.id
+    debugPriorityLog.Push("Checking pair key: '" . pairKey . "'")
+
     if (pairPriorities.Has(pairKey)) {
         preferred := pairPriorities[pairKey]
-        return (preferred == char1.id) ? char1 : char2
+        winner := (preferred == char1.id) ? char1 : char2
+        debugPriorityLog.Push("PAIR RULE: '" . preferred . "' preferred -> '" . winner.id . "' wins")
+        global lastPriorityDebug := debugPriorityLog
+        return winner
+    } else {
+        debugPriorityLog.Push("No pair rule found for '" . pairKey . "'")
     }
-    
+
     ; If no specific pair rule, prefer character with longer match string
     ; Longer strings generally indicate more specific/detailed character patterns
     len1 := StrLen(char1.id)
     len2 := StrLen(char2.id)
-    
+
+    debugPriorityLog.Push("String lengths: " . char1.id . "=" . len1 . ", " . char2.id . "=" . len2)
+
     if (len1 != len2) {
-        return (len1 > len2) ? char1 : char2
+        winner := (len1 > len2) ? char1 : char2
+        debugPriorityLog.Push("LENGTH RULE: '" . winner.id . "' wins (longer)")
+        global lastPriorityDebug := debugPriorityLog
+        return winner
     }
-    
+
     ; If both length are equal, return the first one (arbitrary but consistent)
+    debugPriorityLog.Push("DEFAULT RULE: '" . char1.id . "' wins (first)")
+    global lastPriorityDebug := debugPriorityLog
     return char1
 }
 
 ; Replace letter combinations that are misdetections of single wide characters
 ReplaceLetterCombinations(text) {
     ; Handle wide M character that gets detected as MI or Ml
-    ; Use case-sensitive replacements to avoid matching parts of actual names
-    text := StrReplace(text, "MI", "M", 1)  ; 1 = case-sensitive
-    text := StrReplace(text, "Ml", "M", 1)  ; 1 = case-sensitive
-    text := StrReplace(text, "NI", "N", 1)  ; 1 = case-sensitive
-    text := StrReplace(text, "UI", "U", 1)  ; 1 = case-sensitive
-
+    text := StrReplace(text, "MI", "M",1)
+    text := StrReplace(text, "Ml", "M",1)
+    text := StrReplace(text, "NI", "N",1)
+    text := StrReplace(text, "UI", "U",1)
+    
     return text
+}
+
+; Global character width table built from alphabet patterns
+global characterWidths := Map()
+
+; Extract true visual width from a FindText pattern by analyzing ink pixels
+GetInkWidthFromPattern(pattern) {
+    ; Parse pattern format: "|<char>*threshold$width.hexdata"
+    ; Extract the width and bitmap data portion
+    if (!RegExMatch(pattern, "\|<(.+?)>\*.*?\$(\d+)\.(.+)", &match)) {
+        return -1  ; Invalid pattern format
+    }
+
+    char := match[1]
+    patternWidth := Integer(match[2])
+    hexData := match[3]
+
+    try {
+        ; Use FindText's base64tobit function to decode bitmap data
+        bitmapData := FindText().base64tobit(hexData)
+        dataLength := StrLen(bitmapData)
+
+        ; Calculate height from data length and width
+        height := dataLength // patternWidth
+
+        ; Validate dimensions
+        if (patternWidth < 1 || height < 1 || dataLength != patternWidth * height) {
+            return -1  ; Invalid bitmap dimensions
+        }
+
+        ; Scan bitmap to find ink boundaries
+        leftmostInk := patternWidth  ; Start with max possible
+        rightmostInk := 0            ; Start with min possible
+
+        ; Scan each column (x position)
+        Loop patternWidth {
+            col := A_Index - 1  ; 0-based column index
+            hasInk := false
+
+            ; Scan this column for any ink pixels
+            Loop height {
+                row := A_Index - 1  ; 0-based row index
+                pixelIndex := row * patternWidth + col + 1  ; 1-based for AutoHotkey
+
+                if (pixelIndex <= dataLength) {
+                    pixel := SubStr(bitmapData, pixelIndex, 1)
+                    ; Check if pixel represents ink (non-zero/non-space)
+                    if (pixel != "0" && pixel != " ") {
+                        hasInk := true
+                        break
+                    }
+                }
+            }
+
+            ; Update boundaries if this column has ink
+            if (hasInk) {
+                leftmostInk := Min(leftmostInk, col)
+                rightmostInk := Max(rightmostInk, col)
+            }
+        }
+
+        ; Calculate ink width
+        if (leftmostInk <= rightmostInk) {
+            inkWidth := rightmostInk - leftmostInk + 1
+            return inkWidth
+        } else {
+            ; No ink found - return pattern width as fallback
+            return patternWidth
+        }
+    } catch {
+        ; If decoding fails, return pattern width as fallback
+        return patternWidth
+    }
+}
+
+; Build character width lookup table from alphabet patterns
+BuildCharacterWidthTable() {
+    global name_characters, characterWidths
+
+    characterWidths := Map()
+
+    if (!IsObject(name_characters)) {
+        return characterWidths
+    }
+
+    ; Parse each pattern to extract character and calculate ink width
+    for pattern in name_characters {
+        ; Match pattern like "|<i>*100$3.hex..." to extract character
+        if (RegExMatch(pattern, "\|<(.+?)>\*\d+\$(\d+)\.", &match)) {
+            char := match[1]
+            patternWidth := Integer(match[2])
+
+            ; Try to get true ink width from bitmap analysis
+            inkWidth := GetInkWidthFromPattern(pattern)
+
+            ; Use ink width if successful, otherwise fall back to pattern width
+            width := (inkWidth > 0) ? inkWidth : patternWidth
+
+            ; Keep minimum width if multiple patterns exist for same character (tightest ink bounds)
+            if (!characterWidths.Has(char) || width < characterWidths[char]) {
+                characterWidths[char] := width
+            }
+        }
+    }
+
+    return characterWidths
 }
 
 ; Load alphabet characters for name extraction
@@ -189,56 +351,102 @@ LoadAlphabetCharacters() {
         }
     }
     
-    ; Clear existing patterns and register new ones with FindText library
-    ; Mode 1 = register patterns, but we need to clear first for proper reloading
-    FindText().PicLib("", 0)  ; Clear existing patterns
-    FindText().PicLib(Text, 1)  ; Register new patterns
+    ; Register with FindText library
+    FindText().PicLib(Text, 1)
 
-    ; Pattern reload completed - logging handled by calling script if needed
-    ; patternCount := name_characters ? name_characters.Length : 0
+    ; Build character width table from loaded patterns
+    BuildCharacterWidthTable()
 }
 
-; Extract text from a specified window region with configurable parameters
-; Now uses window coordinates with bound window for improved reliability
-ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, proximityThreshold := 10) {
+; Extract text from a specified screen region with configurable parameters
+ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := DEFAULT_TOLERANCE1, tolerance2 := DEFAULT_TOLERANCE2, proximityThreshold := 10, paddingFactor := DEFAULT_PADDING_FACTOR, widthSimilarityThreshold := DEFAULT_WIDTH_SIMILARITY_THRESHOLD) {
     ; Define character set for names
     nameChars := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ'-"
     X := ""
     Y := ""
-    
+
+    ; Initialize debug tracking
+    debugLog := []
+    conflictLog := []
+
     ; Use individual character matching
     if (ok := FindText(&X, &Y, x1, y1, x2, y2, tolerance1, tolerance2, FindText().PicN(nameChars))) {
-        ; Filter and manually assemble characters
-        cleanChars := Array()
-        for i, char in ok {
-            ; Skip apostrophes and noise characters if requested
-            if (char.id == "'") {
-                continue
-            }
-            
-            ; Check proximity to existing characters and handle prioritization
-            conflictIndex := -1
-            for j, existingChar in cleanChars {
-                if (Abs(char.x - existingChar.x) < proximityThreshold) {
-                    conflictIndex := j
-                    break
+        ; Sort raw characters by X coordinate BEFORE conflict detection
+        ; This ensures left-to-right processing order for proper overlap detection
+        Loop ok.Length - 1 {
+            i := A_Index
+            Loop ok.Length - i {
+                j := A_Index
+                if (ok[j].x > ok[j+1].x) {
+                    temp := ok[j]
+                    ok[j] := ok[j+1]
+                    ok[j+1] := temp
                 }
             }
-            
+        }
+
+        ; Filter and manually assemble characters
+        cleanChars := Array()
+
+        debugLog.Push("=== PROCESSING " . ok.Length . " RAW CHARACTERS (sorted by X position) ===")
+
+        for i, char in ok {
+            debugLog.Push("Processing char " . i . ": '" . char.id . "' at (" . char.x . "," . char.y . ")")
+
+            ; Skip apostrophes and noise characters if requested
+            if (char.id == "'") {
+                debugLog.Push("  -> SKIPPED (apostrophe)")
+                continue
+            }
+
+            ; Check for bounding box overlap and handle prioritization
+            conflictIndex := -1
+            debugLog.Push("  -> Checking conflicts against " . cleanChars.Length . " existing chars")
+
+            for j, existingChar in cleanChars {
+                ; True bounding box overlap detection using character width lookup table: (x2-x1) < (w1+w2)/2 + padding
+                charWidth := characterWidths.Get(char.id, 10)
+                existingWidth := characterWidths.Get(existingChar.id, 10)
+                overlapThreshold := (charWidth + existingWidth) / 2 + paddingFactor
+
+                distance := Abs(char.x - existingChar.x)
+
+                debugLog.Push("    vs existing[" . j . "] '" . existingChar.id . "' at (" . existingChar.x . "," . existingChar.y . ")")
+                debugLog.Push("      widths: " . char.id . "=" . charWidth . ", " . existingChar.id . "=" . existingWidth)
+                debugLog.Push("      threshold: (" . charWidth . "+" . existingWidth . ")/2 + " . paddingFactor . " = " . overlapThreshold)
+                debugLog.Push("      distance: |" . char.x . "-" . existingChar.x . "| = " . distance)
+                debugLog.Push("      overlap? " . distance . " < " . overlapThreshold . " = " . (distance < overlapThreshold ? "YES" : "NO"))
+
+                if (distance < overlapThreshold) {
+                    conflictIndex := j
+                    debugLog.Push("      -> CONFLICT DETECTED at index " . j)
+                    break
+                } else {
+                    debugLog.Push("      -> No overlap")
+                }
+            }
+
             if (conflictIndex == -1) {
                 ; No conflict, add character
                 cleanChars.Push(char)
+                debugLog.Push("  -> ADDED to cleanChars[" . cleanChars.Length . "]")
             } else {
                 ; Handle character priority conflict
                 existingChar := cleanChars[conflictIndex]
-                priorityChar := GetPriorityCharacter(char, existingChar)
+                debugLog.Push("  -> RESOLVING CONFLICT: '" . char.id . "' vs '" . existingChar.id . "'")
+
+                priorityChar := GetPriorityCharacter(char, existingChar, widthSimilarityThreshold)
+
+                conflictLog.Push("CONFLICT: '" . char.id . "' vs '" . existingChar.id . "' -> '" . priorityChar.id . "' chosen")
+
                 ; Debug: Track priority decisions
                 if (priorityChar != existingChar) {
                     ; Replace existing character with higher priority one
+                    debugLog.Push("    -> REPLACING existing[" . conflictIndex . "] '" . existingChar.id . "' with '" . priorityChar.id . "'")
                     cleanChars[conflictIndex] := priorityChar
+                } else {
+                    debugLog.Push("    -> KEEPING existing[" . conflictIndex . "] '" . existingChar.id . "', rejecting '" . char.id . "'")
                 }
-                ; Always log the conflict for debugging
-                ; (This will be visible in the results if we add it to return data)
             }
         }
         
@@ -262,18 +470,30 @@ ExtractTextFromRegion(x1, y1, x2, y2, tolerance1 := 0.15, tolerance2 := 0.10, pr
             for i, char in cleanChars {
                 extractedText .= char.id
             }
-
+            
             ; Clean up any remaining artifacts
             extractedText := RegExReplace(extractedText, "[^a-zA-Z' -]", "")
             finalText := Trim(extractedText)
-
+            
             ; Apply letter combination replacements
             finalText := ReplaceLetterCombinations(finalText)
 
-            ; Return both the final text and the raw character array for analysis
-            return {text: finalText, chars: cleanChars, rawChars: ok, method: "Individual"}
+            debugLog.Push("=== FINAL RESULT ===")
+            debugLog.Push("Clean chars count: " . cleanChars.Length)
+            debugLog.Push("Final text: '" . finalText . "'")
+
+            ; Return comprehensive debug information
+            return {
+                text: finalText,
+                chars: cleanChars,
+                rawChars: ok,
+                method: "Individual",
+                debugLog: debugLog,
+                conflictLog: conflictLog,
+                priorityDebug: (IsSet(lastPriorityDebug) ? lastPriorityDebug : [])
+            }
         }
     }
-    
-    return {text: "", chars: [], rawChars: []}  ; Return empty if extraction failed
+
+    return {text: "", chars: [], rawChars: [], debugLog: ["No characters found"], conflictLog: [], priorityDebug: []}  ; Return empty if extraction failed
 }

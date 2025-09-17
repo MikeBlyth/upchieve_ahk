@@ -18,6 +18,9 @@ ChuIwudiAPC -> Chukwudi
 HaIey -> Hailey
 JInMd -> Jin
 JneIIe -> Janelle
+<<<<<<< Updated upstream
+ZyIee -> Zykee
+=======
 CarIa -> Camila
 kIthlvn -> Kaitlyn
 ItIci -> Patricia
@@ -32,3 +35,5 @@ IovarI -> Jovani
 Iared -> Jared
 Chrystin -> Chrystina
 ChudI -> Chukwudi
+Araya -> Araya (Laray)
+>>>>>>> Stashed changes
