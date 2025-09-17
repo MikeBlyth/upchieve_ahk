@@ -127,7 +127,7 @@ GetUpperLeft(centerX, centerY, widthOrTarget, height := 25) {
 
 ; Find all header targets and store their positions for search zone calculations
 ; Search headers directly in known zones without PageTarget dependency
-FindHeaders() {
+FindHeaders(quiet := false) {
     global StudentHeaderTarget, HelpHeaderTarget, WaitTimeHeaderTarget, targetWindowID
 
     ; Initialize header positions (will be empty if not found)
@@ -142,54 +142,65 @@ FindHeaders() {
     ; Headers are typically in the upper portion of the window
     headerY1 := 200   ; Start searching from 200px down
     headerY2 := Min(winHeight - 200, 1300)  ; Search up to 1300px or window height - 200px
-    
+
     ; Search for Student Header across full container width
     X := ""
     Y := ""
     if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, StudentHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, StudentHeaderTarget)
         studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-    } else {
+    } else if (!quiet) {
         WriteLog("DEBUG: Student header NOT found in search zone")
     }
-    
+
     ; Search for Help Header across full container width
     X := ""
     Y := ""
     if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, HelpHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, HelpHeaderTarget)
         helpHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-    } else {
+    } else if (!quiet) {
         WriteLog("DEBUG: Help header NOT found in search zone")
     }
-    
+
     ; Search for Wait Time Header across full container width
     X := ""
     Y := ""
     if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, WaitTimeHeaderTarget)) {
         upperLeft := GetUpperLeft(X, Y, WaitTimeHeaderTarget)
         waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-    } else {
+    } else if (!quiet) {
         WriteLog("DEBUG: Wait Time header NOT found in search zone")
     }
-    
-    ; Log header detection results
+
+    ; Log header detection results (skip if quiet)
     headersFound := 0
-    headerStatus := ""
-    if (studentHeaderPos.found) {
-        headersFound++
-        headerStatus .= "Student(" . studentHeaderPos.x . "," . studentHeaderPos.y . ") "
+    if (!quiet) {
+        headerStatus := ""
+        if (studentHeaderPos.found) {
+            headersFound++
+            headerStatus .= "Student(" . studentHeaderPos.x . "," . studentHeaderPos.y . ") "
+        }
+        if (helpHeaderPos.found) {
+            headersFound++
+            headerStatus .= "Help(" . helpHeaderPos.x . "," . helpHeaderPos.y . ") "
+        }
+        if (waitTimeHeaderPos.found) {
+            headersFound++
+            headerStatus .= "WaitTime(" . waitTimeHeaderPos.x . "," . waitTimeHeaderPos.y . ") "
+        }
+
+        WriteLog("DEBUG: Found " . headersFound . "/3 headers: " . headerStatus)
+    } else {
+        ; Still need to count headers even if quiet
+        if (studentHeaderPos.found)
+            headersFound++
+        if (helpHeaderPos.found)
+            headersFound++
+        if (waitTimeHeaderPos.found)
+            headersFound++
     }
-    if (helpHeaderPos.found) {
-        headersFound++
-        headerStatus .= "Help(" . helpHeaderPos.x . "," . helpHeaderPos.y . ") "
-    }
-    if (waitTimeHeaderPos.found) {
-        headersFound++
-        headerStatus .= "WaitTime(" . waitTimeHeaderPos.x . "," . waitTimeHeaderPos.y . ") "
-    }
-    
-    WriteLog("DEBUG: Found " . headersFound . "/3 headers: " . headerStatus)
+
     return headersFound
 }
 
@@ -1072,8 +1083,7 @@ StartDetector() {
         ; Periodic header re-detection (every 30 seconds) to handle layout changes
         ; Only do this when WAITING_FOR_STUDENT, not during sessions
         if (SessionState == WAITING_FOR_STUDENT && A_TickCount - lastPageCheck > 30000) {
-            WriteLog("DEBUG: Periodic header re-detection check")
-            FindHeaders()  ; Re-find headers in case layout shifted
+            FindHeaders(true)  ; Re-find headers quietly (skip logging)
             lastPageCheck := A_TickCount
         }
         
@@ -1124,19 +1134,20 @@ StartDetector() {
         tooltipX := 600
         tooltipY := 225
         
-        ; Debug: Log state changes and check session end timing
+        ; Debug: Log state changes and show tooltip only when state changes
         static lastLoggedState := ""
         if (SessionState != lastLoggedState) {
             WriteLog("DEBUG: State changed from '" . lastLoggedState . "' to '" . SessionState . "'")
             lastLoggedState := SessionState
-        }
-        
-        if (SessionState == WAITING_FOR_STUDENT) {
-            ToolTip "State: Waiting for Student", tooltipX, tooltipY, 2
-        } else if (SessionState == IN_SESSION) {
-            ToolTip "State: In Session", tooltipX, tooltipY, 2
-        } else {
-            ToolTip "State: Paused", tooltipX, tooltipY, 2
+
+            ; Show tooltip only when state changes
+            if (SessionState == WAITING_FOR_STUDENT) {
+                ToolTip "State: Waiting for Student", tooltipX, tooltipY, 2
+            } else if (SessionState == IN_SESSION) {
+                ToolTip "State: In Session", tooltipX, tooltipY, 2
+            } else {
+                ToolTip "State: Paused", tooltipX, tooltipY, 2
+            }
         }
         
         ; Check for upgrade popup first (window search) - only when waiting for students
