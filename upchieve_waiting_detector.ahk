@@ -51,8 +51,9 @@ PageTarget := PageTarget4
 
 WaitingTarget1 := "|<Waiting>*150$65.00000000000000000s0000000003k000000000DU000000E01z0000003U0Di000000T00QQ006C07s000s00Bw0z0001k00TU7s0003U00w0y00007001k3k0000C003U600000Q0070D00000s00A0DU0001k00M07k0003U00k03s0007001U01y000C003000z000Q006000S000s00A000A001k00M0000003U00k00000000000E"
 WaitingTarget2 := "|<Waiting>*151$86.00000000000000000000600000000000003U0000000000003s0000000000U03y0000000000s01tU000000000y00QM00CTUz000z0006003jwTs00y0001U00z7i700y0000M00DUT0s1y00006003k7UC0y00001U00s1k1UC00000M00C0Q0M3k00006003U7060T00001U00s1k1U1y0000M00C0Q0M07s0006003U70600TU001U00s1k1U00y000M00C0Q0M003U006003U7060008001U00s1k1U000000M00C0Q0M00000000000000000000000000000U"
+WaitingTarget3 := "|<Waiting>*152$38.000001k00000w00000T00400Tk0700TQ07k0770Dk001kDk000QDk0007DU0001rU0000RU00007S00001ns0000QDU00070y0001k3w000Q0Dk00700w001k03000Q0000070000008"
 
-WaitingTarget := WaitingTarget1
+WaitingTarget := WaitingTarget3
 
 UpgradeTarget :="|<Upgrade>*197$75.zzzzzzzzzzzzzzzzzzzzzzzzzszss07zU7w07z7z700Ds0TU0DszssT1y31wD0z7z73y7Vy7Vy7szssTssTswDsz7z73z33z3Vz3szssTsMzzwDsT7z73z77zzVz7szssTkszzwDkz7z73w77zzVw7szss01sy0Q01z7z700z7k3U0zszssTzszsQD7z7z73zz7z3VsTsTssTzsTsQDXz3y73zzXz3VwDwDksTzwDsQDkzUsD3zzkQ3Vy6y03sTzz01wDsLw1z3zzy0TVzUzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw"
 
@@ -77,9 +78,10 @@ SubjectTargets :=
     "|<Algebra>*130$47.0D01k0000S03U0001w0700003w0C001k6M0Q007UQs0s0Tw0tk1k3zk1VU3U73k73U70Q3UA70C0k3Us70Q1U71kC0s30C30A1k70sDzw3UD3kTzs70Dz1k0sC0Ts3U1kQ1U0601Us300Q03Us700s071yDznU071wDzk00000k1k0000301U000060300000C0D" .
     "|<Statistics>*129$40.1z00000Tz07003kT0Q00C0Q1k01k0s7007003zw3Q00Dzkxk00707Xk00Q0QDy01k0UDz070007z0Q0001w1k0401s701k03UQ0S8061k1nU0s70C703UQ0sDUw0sVkTzU3z7kTs07k7U" .
     "|<Integrated math>*131$39.s000007000060s0000k7000060s0000k70lw0zys6zs7zr0z7U60s7UQ0k70s1k60s70C0k70s1k60s60C0k70k1k60s60C0k70k1k60s60C0k70k1k60s60C0sr0k1k3ys60C0DY" .
-    "|<Science>*131$50.00007001k0003k00Tk0D0w007y03k7001zU0w0000Ts0T00007r07k0001xk1g1k1wTA0v0Q1zrnUAk70wDws7A1kC0z61n0Q70DlkMk71k1wACA1kM0T3XX0Q607kskk71U1w6QA1kM0T1a30Q707kRUk71k3w3sA1kC0z0w30Q3kzk70k70Txw1kA1k1yS" .
-    "|<CSA>*129$84.000000000000Q0000000000000y0000000000000y0000000000000q0000000000001r0My00z00z0001b0PzU3zk3zk003XUT3k7Vs7Vs003XUS1kD0s70s0031UQ0kC0MC0Q0071kM0sA00A0Q0071kM0sQ00A0A00C0kM0sQ00Dzw00C0sM0sQ00Dzw00DzsM0sQ00A0000TzwM0sA00A0000Q0QM0sC0QC0000s0AM0sD0M70Q00s0CM0s7Vs7Us00k0CM0s3zk3zk01k07M0s0z00zU01k07U" .
-    "|<CSP>*137$35.00000Dzw000Tzw000z0w000C0Q000Q0s000s0sMwDk1krsTU3Vw0z0C3k1y0Q703w3kC07zz0Q0Dzw0s0TU01k0z003U1y00703w00C07s00Q0Dk00s0TU01k0z003U1k00000E"
+    "|<Science>*131$50.00007001k0003k00Tk0D0w007y03k7001zU0w0000Ts0T00007r07k0001xk1g1k1wTA0v0Q1zrnUAk70wDws7A1kC0z61n0Q70DlkMk71k1wACA1kM0T3XX0Q607kskk71U1w6QA1kM0T1a30Q707kRUk71k3w3sA1kC0z0w30Q3kzk70k70Txw1kA1k1yS" 
+ SubjectTargets_2 :=  
+    "|<CSA>*138$23.00000D000S000y003w006M00Qs00tk01Vk073U0C300s701kC030A0Dzw0Tzs1k0s3U1k601UQ03Us071U0700000000U" .
+    "|<CSP>*143$18.000000DzUDzkC1sC0QC0QC0CC0CC0CC0QC0QC1sDzkDzUC00C00C00C00C00C00C00C00U"
 
 BlockedTargets :=
     "|<Chukwudi>*130$161.07w0A000001k0A0000000001Uw00zy0M000003U0M00000000030k03sT0k00000700k0000000006000D0C1U00000C01U000000000A000w0C3000000Q030000000000M001k0E6DU3U30s1rk3U730707skA03000Bzk7061k7DUD0Q60C0TtUM0C000TXkC0A3UQP0S0sA0Q1sz0k0Q000w3UQ0M71kr0y1kM0s70S1U0s001k3Us0kC71i3g30k1kQ0Q301k003U71k1UQQ3A6MC1U3Us0s603U0070C3U30tk6QAsQ3071k1kA07000A0Q7061rkAsskk60C3U1UM0C000M0sC0A3zkMlVXUA0Q7030k0A000k1kQ0M7nUln3a0M0sC0C1U0Q071U3Us0kD3VXi3A0k1kQ0Q300w0C3071k3UQ3X3M6s1k3Us0s600w0s60C1kD0s767kDU3UD0s3kA00y7UA0Q3ky1k7ADUD03Vy0wTUM00zy0M0s3zg3U7MC0S07zg0zv0k00Tk0k1k1wM70CkQ0s03wM0z61U00000000000001U0000000000000000000000000300000000000000000000000000600000000000000000000000000A0000000000001" .
@@ -107,22 +109,9 @@ WriteAppLog(message) {
 
 ; Simple function to convert FindText center coordinates to upper-left coordinates
 ; Simplified for window coordinate system
-GetUpperLeft(centerX, centerY, widthOrTarget, height := 25) {
-    ; If third parameter is a string (target pattern), parse dimensions from it
-    if (Type(widthOrTarget) == "String") {
-        ; Parse width from target pattern format: "|<name>*tolerance$width.hexdata"
-        if (RegExMatch(widthOrTarget, "\$(\d+)\.", &match)) {
-            width := Integer(match[1])
-            return {x: centerX - width / 2, y: centerY - height / 2}
-        }
-        ; Fallback if pattern parsing fails
-        return {x: centerX - 50, y: centerY - 12}  ; Assume 100px width, 25px height
-    }
-    ; Otherwise treat as explicit width (original behavior)
-    else {
-        width := widthOrTarget
-        return {x: centerX - width / 2, y: centerY - height / 2}
-    }
+GetUpperLeft(result) {
+    ; Extract upper-left coordinates directly from FindText result object
+    return {x: result[1].1, y: result[1].2}
 }
 
 ; Find all header targets and store their positions for search zone calculations
@@ -132,7 +121,7 @@ FindHeaders(quiet := false) {
 
     ; Initialize header positions (will be empty if not found)
     global studentHeaderPos := {x: 0, y: 0, found: false}
-    global helpHeaderPos := {x: 0, y: 0, found: false}
+    global subjectHeaderPos := {x: 0, y: 0, found: false}
     global waitTimeHeaderPos := {x: 0, y: 0, found: false}
 
     ; Get window client area dimensions for boundary checking
@@ -144,30 +133,24 @@ FindHeaders(quiet := false) {
     headerY2 := Min(winHeight - 200, 1300)  ; Search up to 1300px or window height - 200px
 
     ; Search for Student Header across full container width
-    X := ""
-    Y := ""
-    if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, StudentHeaderTarget)) {
-        upperLeft := GetUpperLeft(X, Y, StudentHeaderTarget)
+    if (result := FindText(, , 600, headerY1, 1600, headerY2, 0.15, 0.10, StudentHeaderTarget)) {
+        upperLeft := GetUpperLeft(result)
         studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     } else if (!quiet) {
         WriteLog("DEBUG: Student header NOT found in search zone")
     }
 
-    ; Search for Help Header across full container width
-    X := ""
-    Y := ""
-    if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, HelpHeaderTarget)) {
-        upperLeft := GetUpperLeft(X, Y, HelpHeaderTarget)
-        helpHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+    ; Search for Subject Header (was Help Header) across full container width
+    if (result := FindText(, , 600, headerY1, 1600, headerY2, 0.15, 0.10, HelpHeaderTarget)) {
+        upperLeft := GetUpperLeft(result)
+        subjectHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     } else if (!quiet) {
-        WriteLog("DEBUG: Help header NOT found in search zone")
+        WriteLog("DEBUG: Subject header NOT found in search zone")
     }
 
     ; Search for Wait Time Header across full container width
-    X := ""
-    Y := ""
-    if (result := FindText(&X, &Y, 600, headerY1, 1600, headerY2, 0.15, 0.10, WaitTimeHeaderTarget)) {
-        upperLeft := GetUpperLeft(X, Y, WaitTimeHeaderTarget)
+    if (result := FindText(, , 600, headerY1, 1600, headerY2, 0.15, 0.10, WaitTimeHeaderTarget)) {
+        upperLeft := GetUpperLeft(result)
         waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     } else if (!quiet) {
         WriteLog("DEBUG: Wait Time header NOT found in search zone")
@@ -181,9 +164,9 @@ FindHeaders(quiet := false) {
             headersFound++
             headerStatus .= "Student(" . studentHeaderPos.x . "," . studentHeaderPos.y . ") "
         }
-        if (helpHeaderPos.found) {
+        if (subjectHeaderPos.found) {
             headersFound++
-            headerStatus .= "Help(" . helpHeaderPos.x . "," . helpHeaderPos.y . ") "
+            headerStatus .= "Subject(" . subjectHeaderPos.x . "," . subjectHeaderPos.y . ") "
         }
         if (waitTimeHeaderPos.found) {
             headersFound++
@@ -195,7 +178,7 @@ FindHeaders(quiet := false) {
         ; Still need to count headers even if quiet
         if (studentHeaderPos.found)
             headersFound++
-        if (helpHeaderPos.found)
+        if (subjectHeaderPos.found)
             headersFound++
         if (waitTimeHeaderPos.found)
             headersFound++
@@ -330,16 +313,32 @@ ApplyKnownCorrections(ocrResult) {
 ; Extract topic using header-based positioning with fallback
 ; Uses header positions with standard row offsets
 ExtractTopicRaw(baseX, baseY) {
-    global helpHeaderPos, SubjectTargets, targetWindowID
-    
+    global subjectHeaderPos, SubjectTargets, SubjectTargets_2, targetWindowID
+
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-    
-    if (helpHeaderPos.found && helpHeaderPos.x > 0 && helpHeaderPos.y > 0) {
-        ; Use precise header-based positioning: header position + 96px down for data rows
-        searchX := Max(0, helpHeaderPos.x)
-        searchY := Max(0, helpHeaderPos.y + 96 - 25)  ; Header + row offset - margin
-        searchWidth := Min(250, winWidth - searchX)   ; Column width, bounded
-        searchHeight := Min(90, winHeight - searchY)
+
+    if (subjectHeaderPos.found && subjectHeaderPos.x > 0 && subjectHeaderPos.y > 0) {
+        ; Primary zone: x-5, y+95, 150x30 from SubjectHeader upper-left
+        primaryX := Max(0, subjectHeaderPos.x - 5)
+        primaryY := Max(0, subjectHeaderPos.y + 95)
+        primaryWidth := Min(150, winWidth - primaryX)
+        primaryHeight := Min(30, winHeight - primaryY)
+
+        ; Try primary zone with SubjectTargets
+        if (result := FindText(, , primaryX, primaryY, primaryX + primaryWidth, primaryY + primaryHeight, 0.15, 0.10, SubjectTargets)) {
+            return result[1].id
+        }
+
+        ; Secondary zone: x+65, y+95, 35x30 from SubjectHeader upper-left
+        secondaryX := Max(0, subjectHeaderPos.x + 65)
+        secondaryY := Max(0, subjectHeaderPos.y + 95)
+        secondaryWidth := Min(35, winWidth - secondaryX)
+        secondaryHeight := Min(30, winHeight - secondaryY)
+
+        ; Try secondary zone with SubjectTargets_2
+        if (result := FindText(, , secondaryX, secondaryY, secondaryX + secondaryWidth, secondaryY + secondaryHeight, 0.15, 0.10, SubjectTargets_2)) {
+            return result[1].id
+        }
     } else {
         ; Fallback to assumed column positioning: subjects are in middle column around x=940-1260
         searchX := 940  ; Subject column start
@@ -353,16 +352,16 @@ ExtractTopicRaw(baseX, baseY) {
         searchWidth := Min(searchWidth, winWidth - searchX)
         searchHeight := Min(searchHeight, winHeight - searchY)
         WriteLog("DEBUG: Using fallback subject zone: " . searchX . "," . searchY . " to " . (searchX + searchWidth) . "," . (searchY + searchHeight))
+
+        ; Try fallback zone with both pattern sets
+        if (result := FindText(, , searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, SubjectTargets)) {
+            return result[1].id
+        }
+        if (result := FindText(, , searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, SubjectTargets_2)) {
+            return result[1].id
+        }
     }
-    
-    ; Use direct subject pattern matching (much faster and more accurate)
-    X := ""
-    Y := ""
-    if (result := FindText(&X, &Y, searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, SubjectTargets)) {
-        ; Return the exact subject name from pattern match
-        return result[1].id  ; This will be something like "7th Grade Math"
-    }
-    
+
     ; No subject pattern matched - return empty string for manual entry
     return ""
 }
@@ -1241,11 +1240,11 @@ StartDetector() {
             WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
             
             if (waitTimeHeaderPos.found && waitTimeHeaderPos.x > 0 && waitTimeHeaderPos.y > 0) {
-                ; Use header-based positioning: header position + 100px down, with 25px slack
-                waitingX1 := Max(0, waitTimeHeaderPos.x - 25)
-                waitingY1 := Max(0, waitTimeHeaderPos.y + 100)
-                waitingX2 := Min(winWidth, waitingX1 + 334 + 50)  ; Original width + extra slack
-                waitingY2 := Min(winHeight, waitingY1 + 235)
+                ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
+                waitingX1 := Max(0, waitTimeHeaderPos.x - 5)
+                waitingY1 := Max(0, waitTimeHeaderPos.y + 95)
+                waitingX2 := Min(winWidth, waitingX1 + 175)  ; 175px width
+                waitingY2 := Min(winHeight, waitingY1 + 30)  ; 30px height
             } else {
                 ; Fallback to right portion of window for WaitingTarget
                 waitingX1 := Max(0, winWidth * 0.6)  ; Right 40% of window
@@ -1264,7 +1263,7 @@ StartDetector() {
             X := ""
             Y := ""
             scanStart := A_TickCount
-            result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0.15, 0.05, WaitingTarget)
+            result := FindText(&X, &Y, waitingX1, waitingY1, waitingX2, waitingY2, 0.15, 0.1, WaitingTarget)
             scanTime := A_TickCount - scanStart
             
             ; Debug: Only log when student is found (first detection)
