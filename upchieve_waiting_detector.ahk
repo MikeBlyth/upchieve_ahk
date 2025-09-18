@@ -53,9 +53,8 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, verbose 
         SearchStats.searchTimeMs := A_TickCount - startTime
         SearchStats.foundInZone := "zone1"
         ; Log all successful results
-        WriteLog("SUCCESS: FindTextInZones - found=" . targetId . " in zone1 at " . result[1].x . "," . result[1].y . " duration=" . SearchStats.searchTimeMs . "ms")
         if (verbose)
-            WriteLog("VERBOSE: FindTextInZones - SUCCESS in zone1: found=" . targetId . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
+            WriteLog("VERBOSE: FindTextInZones - SUCCESS in zone1: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
         return result
     }
 
@@ -65,9 +64,8 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, verbose 
             SearchStats.searchTimeMs := A_TickCount - startTime
             SearchStats.foundInZone := "zone2"
             ; Log all successful results
-            WriteLog("SUCCESS: FindTextInZones - found=" . targetId . " in zone2 at " . result[1].x . "," . result[1].y . " duration=" . SearchStats.searchTimeMs . "ms")
             if (verbose)
-                WriteLog("VERBOSE: FindTextInZones - SUCCESS in zone2: found=" . targetId . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
+                WriteLog("VERBOSE: FindTextInZones - SUCCESS in zone2: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
             return result
         }
     }
@@ -210,7 +208,7 @@ FindHeaders(quiet := false) {
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
     ; Define search zones for Student Header with fallback
-    studentZone1 := SearchZone(600, 200, 0, 2000, 1000, 0)
+    studentZone1 := SearchZone(600, 1150, 900, 1250)
     studentZone2 := SearchZone(0, 150, 0, 2000, 1800, 0)   ; Wider fallback zone
 
     ; Search for Student Header with fallback zones
@@ -222,8 +220,13 @@ FindHeaders(quiet := false) {
     }
 
     ; Define search zones for Subject Header
-    subjectZone1 := SearchZone(600, 200, 0, 2000, 1000, 0)
-    subjectZone2 := SearchZone(0, 150, 0, 2000, 1800, 0)  ; Wider fallback zone
+    if studentHeaderPos.found {
+        subjectZone1 := SearchZone(upperLeft.x + 200, upperLeft.y - 10, 0, 0, 200, 50)
+       
+    }  else {
+        subjectZone1 := SearchZone(600, 600, 1100, 1400)  
+    }
+    subjectZone2 := SearchZone(0, 150, 2000, 2000)  ; Wider fallback zone
 
     ; Search for Subject Header (was Help Header) with fallback zones
     if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2)) {
@@ -234,8 +237,13 @@ FindHeaders(quiet := false) {
     }
 
     ; Define search zones for Wait Time Header
-    waitTimeZone1 := SearchZone(600, 200, 0, 2000, 1000, 0)
-    waitTimeZone2 := SearchZone(500, 150, 0, 2500, 1200, 0)  ; Wider fallback zone
+    if studentHeaderPos.found {
+        waitTimeZone1 := SearchZone(studentHeaderPos.x + 500, studentHeaderPos.y - 10, 0, 0, 300, 50)
+       
+    }  else {
+        waitTimeZone1 := SearchZone(600, 600, 1100, 1400)  
+    }
+    waitTimeZone2 := SearchZone(100, 150, 2000, 2000)  ; Wider fallback zone
 
     ; Search for Wait Time Header with fallback zones
     if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10, true)) {
@@ -327,12 +335,9 @@ IsNameBlocked(studentName, blockedNames) {
 CheckBlockedNamePatterns() {
     global studentHeaderPos, targetWindowID, BlockedTargets
 
-    ; Calculate search zone using same positioning as student name area
-    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-
     if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
         ; Use precise header-based positioning relative to StudentHeader middle coordinates
-        blockingZone := SearchZone(studentHeaderPos.x - 20, studentHeaderPos.y + 72, 0, 0, 200, 65)
+        blockingZone := SearchZone(studentHeaderPos.x - 5, studentHeaderPos.y + 95, 0, 0, 200, 35)
     } else {
         ; Fallback to assumed column positioning: names are in left column around x=700
         blockingZone := SearchZone(600, 1230, 0, 0, 415, 145)
@@ -340,7 +345,7 @@ CheckBlockedNamePatterns() {
     }
 
     ; Search for blocked patterns in calculated zone
-    if (result := FindTextInZones(BlockedTargets, blockingZone)) {
+    if (result := FindTextInZones(BlockedTargets, blockingZone,, 0.15, 0.10, true)) {
         ; Found a blocked name pattern
         blockedName := result[1].id  ; Get the pattern name (e.g. "Chukwudi", "Camila")
         WriteLog("BLOCKED: " . blockedName)
