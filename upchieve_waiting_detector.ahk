@@ -19,18 +19,26 @@ class SearchZone {
 
 ; FindText wrapper for multiple search zones
 FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10) {
+    startTime := A_TickCount
+
     ; Try first zone
     if (result := FindText(, , zone1.x1, zone1.y1, zone1.x2, zone1.y2, err1, err2, target)) {
+        SearchStats.searchTimeMs := A_TickCount - startTime
+        SearchStats.foundInZone := "zone1"
         return result
     }
 
     ; Try second zone if provided
     if (zone2 != "" && IsObject(zone2)) {
         if (result := FindText(, , zone2.x1, zone2.y1, zone2.x2, zone2.y2, err1, err2, target)) {
+            SearchStats.searchTimeMs := A_TickCount - startTime
+            SearchStats.foundInZone := "zone2"
             return result
         }
     }
 
+    SearchStats.searchTimeMs := A_TickCount - startTime
+    SearchStats.foundInZone := "none"
     return 0
 }
 
@@ -66,6 +74,12 @@ ScanCount := 0
 
 ; Session end detection timing
 lastSessionEndCheck := 0
+
+; Search statistics tracking
+SearchStats := {
+    searchTimeMs: 0,
+    foundInZone: "none"
+}
 
 ; Function to play notification sound
 PlayNotificationSound() {
