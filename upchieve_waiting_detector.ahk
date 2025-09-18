@@ -299,10 +299,10 @@ CheckBlockedNamePatterns() {
 
     if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
         ; Use precise header-based positioning relative to StudentHeader middle coordinates
-        blockingZone := SearchZone(Max(0, studentHeaderPos.x - 20), Max(0, studentHeaderPos.y + 72), Min(winWidth, studentHeaderPos.x + 180), Min(winHeight, studentHeaderPos.y + 137))
+        blockingZone := SearchZone(studentHeaderPos.x - 20, studentHeaderPos.y + 72, studentHeaderPos.x + 180, studentHeaderPos.y + 137)
     } else {
         ; Fallback to assumed column positioning: names are in left column around x=700
-        blockingZone := SearchZone(700, Max(0, 500), Min(winWidth, 930), Min(winHeight, 600))
+        blockingZone := SearchZone(600, 1230, 1015, 1375)
         WriteLog("DEBUG: Using fallback blocking zone: " . blockingZone.ToString())
     }
 
@@ -310,7 +310,7 @@ CheckBlockedNamePatterns() {
     if (result := FindTextInZones(BlockedTargets, blockingZone)) {
         ; Found a blocked name pattern
         blockedName := result[1].id  ; Get the pattern name (e.g. "Chukwudi", "Camila")
-        WriteLog("BLOCKED: Visual pattern detected - " . blockedName)
+        WriteLog("BLOCKED: " . blockedName)
 
         ; Show message box notification
         MsgBox("Blocked student detected: " . blockedName, "Student Blocked", "OK Iconi 4096")
@@ -361,47 +361,27 @@ ExtractTopic() {
 
     if (subjectHeaderPos.found && subjectHeaderPos.x > 0 && subjectHeaderPos.y > 0) {
         ; Define primary zone: x-5, y+95, 150x30 from SubjectHeader upper-left
-        primaryZone := SearchZone(Max(0, subjectHeaderPos.x - 5), Max(0, subjectHeaderPos.y + 95), Min(winWidth, subjectHeaderPos.x + 145), Min(winHeight, subjectHeaderPos.y + 125))
+        primaryZone := SearchZone(subjectHeaderPos.x - 5, subjectHeaderPos.y + 95, subjectHeaderPos.x + 145, subjectHeaderPos.y + 125)
 
         ; Try primary zone with SubjectTargets
-        ; Pre-FindText detailed logging for primary zone
-        preCallTime := A_TickCount
         primaryArea := (primaryZone.x2 - primaryZone.x1) * (primaryZone.y2 - primaryZone.y1)
-        WriteLog("DEBUG: Primary Subject Zone - Pre-FindText: " . primaryZone.ToString() . " area=" . primaryArea)
-        WriteLog("DEBUG: Primary pattern: SubjectTargets length=" . StrLen(SubjectTargets) . " first50chars=" . SubStr(SubjectTargets, 1, 50))
 
-        scanStart := A_TickCount
         if (result := FindTextInZones(SubjectTargets, primaryZone)) {
-            postCallTime := A_TickCount
-            scanTime := postCallTime - scanStart
-            WriteLog("DEBUG: Primary Subject Zone - SUCCESS: found=" . result[1].id . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
+            WriteLog("DEBUG: Subject: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
             return result[1].id
         } else {
-            postCallTime := A_TickCount
-            scanTime := postCallTime - scanStart
-            WriteLog("DEBUG: Primary Subject Zone - MISS: scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
+            WriteLog("DEBUG: Primary Subject Zone - MISS: searchTime=" )
         }
 
         ; Define secondary zone: x+65, y+95, 35x30 from SubjectHeader upper-left
-        secondaryZone := SearchZone(Max(0, subjectHeaderPos.x + 65), Max(0, subjectHeaderPos.y + 95), Min(winWidth, subjectHeaderPos.x + 100), Min(winHeight, subjectHeaderPos.y + 125))
+        secondaryZone := SearchZone(subjectHeaderPos.x + 65, subjectHeaderPos.y + 95, subjectHeaderPos.x + 100, subjectHeaderPos.y + 125)
 
         ; Try secondary zone with SubjectTargets_2
-        ; Pre-FindText detailed logging for secondary zone
-        preCallTime := A_TickCount
-        secondaryArea := (secondaryZone.x2 - secondaryZone.x1) * (secondaryZone.y2 - secondaryZone.y1)
-        WriteLog("DEBUG: Secondary Subject Zone - Pre-FindText: " . secondaryZone.ToString() . " area=" . secondaryArea)
-        WriteLog("DEBUG: Secondary pattern: SubjectTargets_2 length=" . StrLen(SubjectTargets_2) . " first50chars=" . SubStr(SubjectTargets_2, 1, 50))
-
-        scanStart := A_TickCount
         if (result := FindTextInZones(SubjectTargets_2, secondaryZone)) {
-            postCallTime := A_TickCount
-            scanTime := postCallTime - scanStart
-            WriteLog("DEBUG: Secondary Subject Zone - SUCCESS: found=" . result[1].id . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
+            WriteLog("DEBUG: Secondary Subject Zone - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
             return result[1].id
         } else {
-            postCallTime := A_TickCount
-            scanTime := postCallTime - scanStart
-            WriteLog("DEBUG: Secondary Subject Zone - MISS: scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
+            WriteLog("DEBUG: Secondary Subject Zone - MISS: searchTime=" . SearchStats.searchTimeMs )
         }
     } else {
         ; Fallback to assumed column positioning: subjects are in middle column around x=940-1260
@@ -418,41 +398,28 @@ ExtractTopic() {
         WriteLog("DEBUG: Using fallback subject zone: " . searchX . "," . searchY . " to " . (searchX + searchWidth) . "," . (searchY + searchHeight))
 
         ; Try fallback zone with both pattern sets
-        ; Pre-FindText detailed logging for fallback zone - SubjectTargets
-        preCallTime := A_TickCount
         fallbackArea := searchWidth * searchHeight
+        fallbackZone := SearchZone(searchX, searchY, searchX + searchWidth, searchY + searchHeight)
         WriteLog("DEBUG: Fallback Subject Zone 1 - Pre-FindText: zone=" . searchWidth . "x" . searchHeight . " pixels, area=" . fallbackArea)
-        WriteLog("DEBUG: Fallback 1 params: x1=" . searchX . " y1=" . searchY . " x2=" . (searchX + searchWidth) . " y2=" . (searchY + searchHeight) . " tol1=0.15 tol2=0.10")
+        WriteLog("DEBUG: Fallback 1 params: " . fallbackZone.ToString() . " tol1=0.15 tol2=0.10")
         WriteLog("DEBUG: Fallback 1 pattern: SubjectTargets length=" . StrLen(SubjectTargets) . " first50chars=" . SubStr(SubjectTargets, 1, 50))
 
-        scanStart := A_TickCount
-        if (result := FindText(, , searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, SubjectTargets)) {
-            postCallTime := A_TickCount
-            scanTime := postCallTime - scanStart
-            WriteLog("DEBUG: Fallback Subject Zone 1 - SUCCESS: found=" . result[1].id . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
+        if (result := FindTextInZones(SubjectTargets, fallbackZone)) {
+            WriteLog("DEBUG: Fallback Subject Zone 1 - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
             return result[1].id
         } else {
-            postCallTime := A_TickCount
-            scanTime := postCallTime - scanStart
-            WriteLog("DEBUG: Fallback Subject Zone 1 - MISS: scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
+            WriteLog("DEBUG: Fallback Subject Zone 1 - MISS: searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
         }
 
-        ; Pre-FindText detailed logging for fallback zone - SubjectTargets_2
-        preCallTime := A_TickCount
         WriteLog("DEBUG: Fallback Subject Zone 2 - Pre-FindText: zone=" . searchWidth . "x" . searchHeight . " pixels, area=" . fallbackArea)
-        WriteLog("DEBUG: Fallback 2 params: x1=" . searchX . " y1=" . searchY . " x2=" . (searchX + searchWidth) . " y2=" . (searchY + searchHeight) . " tol1=0.15 tol2=0.10")
+        WriteLog("DEBUG: Fallback 2 params: " . fallbackZone.ToString() . " tol1=0.15 tol2=0.10")
         WriteLog("DEBUG: Fallback 2 pattern: SubjectTargets_2 length=" . StrLen(SubjectTargets_2) . " first50chars=" . SubStr(SubjectTargets_2, 1, 50))
 
-        scanStart := A_TickCount
-        if (result := FindText(, , searchX, searchY, searchX + searchWidth, searchY + searchHeight, 0.15, 0.10, SubjectTargets_2)) {
-            postCallTime := A_TickCount
-            scanTime := postCallTime - scanStart
-            WriteLog("DEBUG: Fallback Subject Zone 2 - SUCCESS: found=" . result[1].id . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
+        if (result := FindTextInZones(SubjectTargets_2, fallbackZone)) {
+            WriteLog("DEBUG: Fallback Subject Zone 2 - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
             return result[1].id
         } else {
-            postCallTime := A_TickCount
-            scanTime := postCallTime - scanStart
-            WriteLog("DEBUG: Fallback Subject Zone 2 - MISS: scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
+            WriteLog("DEBUG: Fallback Subject Zone 2 - MISS: searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
         }
     }
 
@@ -1262,43 +1229,19 @@ StartDetector() {
                 waitingZoneLogged := true
             }
 
-            ; Pre-FindText detailed logging
-            preCallTime := A_TickCount
-            zoneWidth := waitingZone1.x2 - waitingZone1.x1
-            zoneHeight := waitingZone1.y2 - waitingZone1.y1
-            WriteLog("DEBUG: Pre-FindText: zone=" . zoneWidth . "x" . zoneHeight . " pixels, window=" . winWidth . "x" . winHeight . ", time=" . preCallTime)
-
-            ; Window state logging
-            WinGetPos(&winX, &winY, &winW, &winH, targetWindowID)
-            WriteLog("DEBUG: Window state: pos=" . winX . "," . winY . " size=" . winW . "x" . winH . " active=" . WinActive(targetWindowID))
-
-            scanStart := A_TickCount
             result := FindTextInZones(WaitingTarget, waitingZone1, waitingZone2)
-            postCallTime := A_TickCount
-            scanTime := postCallTime - scanStart
 
-            ; Search zone validation and parameter logging
-            WriteLog("DEBUG: FindText params: " . waitingZone1.ToString() . " tol1=0.15 tol2=0.1")
-            WriteLog("DEBUG: Calculated zone: width=" . zoneWidth . " height=" . zoneHeight . " area=" . (zoneWidth * zoneHeight) . " pixels")
-
-            ; Context comparison logging
-            WriteLog("DEBUG: Pattern info: WaitingTarget length=" . StrLen(WaitingTarget) . " first50chars=" . SubStr(WaitingTarget, 1, 50))
-            WriteLog("DEBUG: Process info: ProcessGetName=" . ProcessGetName(ProcessExist()) . " PID=" . ProcessExist())
-
-            ; Post-FindText detailed logging
-            WriteLog("DEBUG: Post-FindText: result=" . (result ? "found" : "none") . " scanTime=" . scanTime . "ms callOverhead=" . (scanStart - preCallTime) . "ms")
-            
             ; Debug: Only log when student is found (first detection)
             if (result) {
                 static studentDetectionCount := 0
                 studentDetectionCount++
-                WriteLog("DETECTION #" . studentDetectionCount . ": WaitingTarget found at " . result[1].x . "," . result[1].y . " (scan time: " . scanTime . "ms)")
+                WriteLog("DETECTION #" . studentDetectionCount . ": WaitingTarget found at " . result[1].x . "," . result[1].y . " (scan time: " . SearchStats.searchTimeMs . "ms)")
             }
             
             ; Track scan timing for first 20 scans
             global ScanTimes, ScanCount
             if (ScanCount < 20) {
-                ScanTimes.Push(scanTime)
+                ScanTimes.Push(SearchStats.searchTimeMs)
                 ScanCount++
                 if (ScanCount == 20) {
                     ; Calculate and log average
@@ -1344,11 +1287,9 @@ StartDetector() {
                 WinWaitActive("ahk_id " . targetWindowID, , 2)  ; Wait up to 2 seconds for activation
                 
                 ; Click the waiting target (confirmed this works)
-                preClickTime := A_TickCount
                 Click waitingX, waitingY  ; Click the waiting target coordinates
                 clickTime := A_TickCount - detectionStartTime  ; Total time from detection to click
-                actualClickTime := A_TickCount - preClickTime  ; Just the click operation time
-                WriteLog("CLICK #" . studentDetectionCount . ": Clicked waiting target at " . waitingX . "," . waitingY . " (total: " . clickTime . "ms, click: " . actualClickTime . "ms)")
+                WriteLog("CLICK #" . studentDetectionCount . ": Clicked waiting target at " . waitingX . "," . waitingY . " (total from detection: " . clickTime . " ms)")
 
                 ; Wait for session to start loading, then maximize window
                 Sleep 2000  ; Wait 2 seconds for session to begin loading
