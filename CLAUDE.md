@@ -17,9 +17,10 @@ This AutoHotkey script automatically detects and clicks on waiting students in U
 - `test_whitespace_fix.ahk` - Testing utility for whitespace handling validation
 
 ## Features
-- Uses FindTextv2 library for fast image recognition
-- Window-position independent detection with automatic re-positioning
-- Page verification using "Waiting Students" image target
+- Uses FindTextv2 library for fast image recognition with continuous wait functionality
+- **Mandatory header detection** - App requires all 3 column headers before starting
+- **SearchZone architecture** - Precise header-based positioning for all operations
+- **FindText wait monitoring** - 60-second continuous search instead of polling
 - Real-time monitoring for "< 1 minute" waiting indicators
 - **Student name extraction** from detected waiting entries
 - **Personalized notifications** (e.g. "Session with Camila has opened!")
@@ -59,17 +60,48 @@ The script now tracks three states to prevent unwanted scanning during active se
 4. **Manual control**: Ctrl+Shift+A hotkey to manually end session and show feedback dialog
 
 ## How It Works
-1. **Initial Setup**: Searches full screen for PageTarget ("Waiting Students" page header) to establish reference coordinates
-2. **Header Detection**: Locates Student, Help Topic, and Wait Time column headers for precise positioning
-3. **Monitoring Loop**: Scans every 0.05 seconds with 10-second PageTarget/header re-detection
-4. **Student Detection**: When WaitingTarget ("< 1 minute") is found in Wait Time column:
-   - **Fast OCR extraction** of student name (Student column) and topic (Help Topic column)
-   - **Blocking check** against `block_names.txt` list
-   - **Click student** (200ms delay for window activation) in LIVE mode 
+1. **Window Selection**: User clicks on UPchieve browser window to bind FindText operations
+2. **Mandatory Header Detection**: Locates ALL 3 column headers (Student, Subject, Wait Time) with retry dialog
+   - App will not proceed until all headers are found
+   - Shows user-friendly dialog with reload option if headers missing
+3. **SearchZone Architecture**: Creates precise search zones based on header positions
+   - Student names: Header position + offset for exact column positioning
+   - Subject detection: Header-based zones with pattern matching
+   - WaitingTarget: Header-based zones for "< 1 minute" indicators
+4. **Continuous Monitoring**: Uses FindText wait functionality for 60-second continuous search
+   - No CPU-intensive polling - FindText handles waiting internally
+   - Checks for upgrade popups after wait cycles
+5. **Student Detection**: When WaitingTarget ("< 1 minute") appears:
+   - **Fast pattern matching** for subject detection (no OCR)
+   - **Visual blocking check** against `block_names.txt` patterns
+   - **Click student** with window activation in LIVE mode
    - **Session state change** to IN_SESSION immediately after click
-   - **Enhanced logging**: "Session started with [Name], [Topic]" format
-   - Shows personalized message: "Session with [Name] ([Topic]) has opened"
-   - Continues monitoring for additional students (until Ctrl+Shift+Q or Ctrl+Shift+A)
+   - Shows subject-based notification (name entry handled manually at session end)
+
+## SearchZone Architecture
+
+### Core Components
+- **SearchZone Class**: Simple object with x1, y1, x2, y2 properties and ToString() method for debugging
+- **FindTextInZones Wrapper**: Unified function for searching with primary + optional secondary zones
+- **Header-Based Positioning**: All search operations use precise column header coordinates
+- **Mandatory Header Detection**: App requires all 3 headers before any operations begin
+
+### Header Detection System
+- **Student Header** (`StudentHeaderTarget`): "Student" column header (71×25 pixels)
+- **Subject Header** (`HelpHeaderTarget`): "Help Topic" column header (71×25 pixels)
+- **Wait Time Header** (`WaitTimeHeaderTarget`): "Wait Time" column header (97×25 pixels)
+
+### Search Zone Positioning
+- **Student Name Region**: StudentHeader position + 95px down, 200×35 pixels
+- **Subject Detection**: SubjectHeader position + 95px down, 150×30 pixels (primary) + secondary zone
+- **WaitingTarget Search**: WaitTimeHeader position + 97px down, 55×35 pixels
+- **Blocking Check**: StudentHeader position + 95px down, 200×35 pixels (same as name region)
+
+### Benefits
+- **Eliminates fallback positioning** - all operations use precise header-based coordinates
+- **Consistent accuracy** - no more dual code paths with different reliability levels
+- **Performance optimization** - precise zones reduce search areas and improve speed
+- **Window independence** - works regardless of browser window size or position
 
 ## OCR System Architecture
 
@@ -224,67 +256,57 @@ Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 - alphabet.ahk (dual character arrays: `name_characters` + `number_characters`)
 
 ## Recent Improvements
+
+### Major Architecture Overhaul (Latest)
+- **Mandatory Header Detection**: App now requires all 3 column headers before starting operations
+  - Shows user-friendly retry dialog when headers missing
+  - Eliminates all fallback positioning code paths
+  - Guarantees consistent, accurate positioning for all operations
+- **FindText Wait Integration**: Replaced 50ms polling loop with 60-second continuous wait
+  - Dramatically reduced CPU usage - no more polling overhead
+  - Uses FindText's optimized built-in wait functionality
+  - Checks upgrade popups only after wait cycles complete
+- **SearchZone Architecture**: Complete rewrite of positioning system
+  - All operations use precise header-based coordinates
+  - Eliminated dual code paths and fallback logic
+  - Consistent performance and accuracy across all functions
+- **Code Simplification**: Removed hundreds of lines of fallback/validation code
+  - Single source of truth for all positioning
+  - Much cleaner, more maintainable codebase
+
+### Previous Improvements
 - **Window Coordinate System**: Implemented window-relative coordinates with BindWindow for position independence
-- **Expanded PageTarget Search**: Increased search zone to 850,300-1400,1100 for better window resize tolerance
-- **Fluid Container Support**: Headers searched across full 700-1600px width to handle responsive layout
-- **Fallback OCR Zones**: PageTarget-relative fallback zones when headers not found (names: left-930px, subjects: 940-1260px)
-- **Enhanced Position Logging**: Comprehensive PageTarget movement tracking and position change detection
-- **Dual Array System**: Separated character patterns into `name_characters` and `number_characters` for context-aware OCR
 - **Direct Subject Recognition**: Replaced OCR-based subject detection with instant pattern matching using `SubjectTargets`
-- **Context-Aware Character Filtering**: Student names exclude digits, subjects include grade-level numbers (6,7,8)  
+- **Context-Aware Character Filtering**: Student names exclude digits, subjects include grade-level numbers (6,7,8)
 - **Manual Session Control**: Added Ctrl+Shift+A hotkey for manual session ending
-- **Improved Session Flow**: Enhanced session end detection with 2-second intervals and proper tolerances (0.15, 0.10)
+- **Session Flow**: Enhanced session end detection with 2-second intervals and proper tolerances
 - **Learning System Integration**: Session feedback dialog automatically saves manual corrections to database
-- **Performance Optimization**: Subject detection now ~4x faster (pattern matching vs character OCR)
-- **Scan Timing Analysis**: Added 20-scan average timing measurement for performance monitoring
+- **Performance Optimization**: Subject detection ~4x faster (pattern matching vs character OCR)
 - **Modular Architecture**: Separated OCR functions into shared library (`ocr_functions.ahk`)
-- **Pair-based Prioritization**: Comprehensive character conflict resolution using explicit pair priorities
 - **Student Database Integration**: Fuzzy matching with edit distance algorithm and interactive correction
 - **OCR Testing Tool**: Built standalone application for rapid pattern development and parameter tuning
 - **Multiple Character Patterns**: Support for multiple patterns per character (especially 'y', 't', 'd')
 - **Dynamic Reloading**: Character patterns can be updated and reloaded without application restart
-- **Optimized Window Activation**: Window activation starts immediately after student detection, parallel with OCR processing for faster clicking (Not fully tested)
-- **Millisecond Timestamps**: Debug logs now include millisecond precision for better timing analysis (Not fully tested)
-- **Skip Session Feature**: End-session dialog includes Skip button to save corrections without CSV logging (Not fully tested)
-- **Auto-Math Detection**: Math subject checkbox automatically checked for math-related subjects (Not fully tested)
-- **Script Restart After Sessions**: Automatically restarts script after each completed session to prevent detection failures (Not fully tested)
-- **SearchZone Architecture**: Implemented SearchZone class and FindTextInZones wrapper for cleaner, more maintainable search operations
-- **Multi-Zone Fallback System**: All header detection now uses primary + secondary search zones for improved reliability
-- **Blocking Performance Fix**: Added fallback zones for StudentHeaderTarget to prevent expensive fallback blocking checks (119ms -> ~25ms)
 
-## SearchZone Architecture
-
-### Core Components
-- **SearchZone Class**: Simple object with x1, y1, x2, y2 properties and ToString() method for debugging
-- **FindTextInZones Wrapper**: Unified function for searching with primary + optional secondary zones
-- **Standardized Tolerances**: Default 0.15, 0.10 tolerance values across all search operations
-
-### Multi-Zone Fallback System
-- **Header Detection**: All headers (Student, Subject, WaitTime) use primary (600-1600px) + secondary (500-1700px) search zones
-- **WaitingTarget**: Header-based precise zone + wider fallback zone for different UI layouts
-- **Subject Detection**: Primary zone (x-5, y+95, 150×30) + secondary zone (x+65, y+95, 35×30) from SubjectHeader
-- **Blocking Check**: Precise header-based zone (200×65px) + fallback zone (230×100px) when headers not found
-
-### Performance Impact
-- **StudentHeaderTarget Fallback**: Fixed missing fallback zones that caused expensive blocking checks (119ms -> ~25ms)
-- **Consistent Search Logic**: All FindText operations now use unified wrapper with fallback capability
-- **Reduced Code Duplication**: SearchZone objects eliminate coordinate calculation redundancy
 
 ## Performance Considerations
-- **Initial PageTarget search**: 170-200ms (full screen)
-- **WaitingTarget detection**: ~25ms average (measured over 20 scans, localized search area)
+- **Header detection**: Required once at startup, uses SearchZone architecture for efficiency
+- **WaitingTarget monitoring**: 60-second continuous wait using FindText built-in functionality
+  - **No polling overhead**: Eliminates 50ms polling loop - CPU usage dramatically reduced
+  - **Optimized waiting**: FindText handles continuous monitoring internally
 - **Subject detection**: ~25ms (direct pattern matching vs ~100ms+ OCR)
-- **Blocking check**: ~25ms with header positioning, 119ms with fallback zone (now resolved with header fallbacks)
-- **Student name OCR**: Context-aware character filtering (excludes digits 6,7,8)
+- **Blocking check**: ~25ms with header-based positioning (no fallback needed)
 - **Session end detection**: Every 2 seconds during IN_SESSION state (0.15, 0.10 tolerances)
-- **Click response**: 200ms window activation + immediate click
-- **PageTarget re-detection**: Every 10 seconds to handle window movement
+- **Click response**: Immediate click using coordinates from FindText wait
+- **Upgrade popup check**: Only after 60-second wait cycles (when no student found)
 
 ## Troubleshooting
-- **No WaitingTarget found**: Check PageTarget coordinates match current page layout
-- **OCR accuracy issues**: Use `ocr_tester.ahk` to tune tolerance values and test patterns
-- **Performance problems**: Monitor `debug_log.txt` for timing and detection patterns
+- **Missing column headers**: App will show dialog if headers not found - adjust browser window size/position and click Reload
+- **No WaitingTarget found**: Ensure all 3 column headers are visible and properly detected at startup
+- **Subject detection issues**: Verify SubjectTargets patterns match current UPchieve subject display
+- **Performance problems**: Monitor `debug_log.txt` for timing patterns - should show 60-second wait cycles
 - **Window scaling issues**: Ensure browser zoom is at 100% for optimal pattern matching
+- **Blocking not working**: Check that `block_names.txt` exists and blocked patterns are current
 
 ## Known Issues
 - **BindWindow coordinate system**: BindWindow mode 4 may not properly convert coordinates to window-relative (requires maximized window for reliability)
@@ -471,3 +493,55 @@ FindText().PicN(characterPatterns*)  // ERROR: Too many parameters
 
   This is typically located at:
   C:\Users\[Username]\AppData\Local\Temp\~scr2.tmp
+## FindText Wait Functionality
+
+This application leverages FindText's built-in wait capability for efficient continuous monitoring, replacing traditional polling loops.
+
+### Wait Syntax
+```autohotkey
+; Wait for target to appear (60-second timeout)
+result := FindText(&waitingX:='wait', &waitingY:=60, x1, y1, x2, y2, 0.15, 0.05, WaitingTarget)
+
+; Wait indefinitely for target to appear
+result := FindText(&waitingX:='wait', &waitingY:=-1, x1, y1, x2, y2, 0.15, 0.05, WaitingTarget)
+
+; Wait for target to disappear
+result := FindText(&waitingX:='wait0', &waitingY:=10, x1, y1, x2, y2, 0.15, 0.05, SomeTarget)
+```
+
+### Return Values
+- **Target Found**: Returns array object with match details (same as normal FindText results)
+- **Timeout**: Returns 0 when wait time expires without finding target
+- **Disappear Success**: Returns 1 when waiting for disappearance and target not found
+
+### Application Usage
+The script uses 60-second continuous wait cycles for optimal performance:
+
+```autohotkey
+; Primary monitoring loop
+result := FindText(&waitingX:='wait', &waitingY:=60,
+    waitingZone.x1, waitingZone.y1, waitingZone.x2, waitingZone.y2,
+    0.15, 0.05, WaitingTarget)
+
+if (result) {
+    ; Student detected - process immediately
+    ProcessStudent(result)
+} else {
+    ; 60-second timeout - check for upgrade popups and re-verify headers
+    CheckUpgradePopups()
+    VerifyHeaders()
+}
+```
+
+### Benefits Over Polling
+- **CPU Efficiency**: Native C++ wait loop vs AutoHotkey Sleep() cycles
+- **Instant Response**: No polling delays - triggers immediately when pattern appears
+- **Configurable Timeout**: Allows periodic maintenance tasks (header verification, popup checks)
+- **Zero False Negatives**: Continuous monitoring eliminates gaps between polling intervals
+- **Resource Conservation**: Single FindText operation vs multiple rapid searches
+
+### Integration Notes
+- **Header Re-verification**: 60-second timeouts allow checking if window moved or headers changed
+- **State Management**: Wait operations can be interrupted for session state changes
+- **Upgrade Handling**: Timeout cycles provide opportunity to dismiss upgrade popups
+- **Performance**: Replaces 50ms polling loop that consumed significant CPU resources

@@ -1164,20 +1164,6 @@ StartDetector() {
             }
         }
         
-        ; Check for upgrade popup first (window search) - only when waiting for students
-        if (SessionState == WAITING_FOR_STUDENT) {
-            WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-            if (UpgradeTarget != "") {
-                upgradeZone := SearchZone(0, 0, winWidth, winHeight)
-                WriteLog("DEBUG: Checking for upgrade popup in zone: ")
-                if (result := FindTextInZones(UpgradeTarget, upgradeZone)) {
-                    ToolTip "Found upgrade popup! Clicking...", 10, 10
-                    Click result[1].x, result[1].y  ; Window coordinates work directly
-                    continue  ; Skip to next iteration after handling upgrade
-                }
-            }
-        }
-        
         ; Only scan for waiting students if we're in the right state
         if (SessionState == WAITING_FOR_STUDENT) {
             ; Calculate search zones based on header positions with window coordinates
@@ -1195,38 +1181,22 @@ StartDetector() {
                 waitingZoneLogged := true
             }
 
-            result := FindTextInZones(WaitingTarget, waitingZone1, waitingZone2)
+            ; Use FindText wait to continuously search for 60 seconds in primary zone
+            ; Could use larger zone (waitingZone2) if needed for better coverage
+            result := FindText(&waitingX:='wait', &waitingY:=60, waitingZone1.x1, waitingZone1.y1, waitingZone1.x2, waitingZone1.y2, 0.15, 0.05, WaitingTarget)
 
             ; Debug: Only log when student is found (first detection)
             if (result) {
                 static studentDetectionCount := 0
                 studentDetectionCount++
-                WriteLog("DETECTION #" . studentDetectionCount . ": WaitingTarget found at " . result[1].x . "," . result[1].y . " (scan time: " . SearchStats.searchTimeMs . "ms)")
+                WriteLog("DETECTION #" . studentDetectionCount . ": WaitingTarget found at " . waitingX . "," . waitingY)
             }
-            
-            ; Track scan timing for first 20 scans
-            global ScanTimes, ScanCount
-            if (ScanCount < 20) {
-                ScanTimes.Push(SearchStats.searchTimeMs)
-                ScanCount++
-                if (ScanCount == 20) {
-                    ; Calculate and log average
-                    total := 0
-                    for time in ScanTimes {
-                        total += time
-                    }
-                    average := Round(total / 20, 1)
-                    WriteLog("Average WaitingTarget scan time over 20 scans: " . average . "ms")
-                }
-            }
-            
+
             if (result) {
             global LiveMode
             detectionStartTime := A_TickCount  ; Start timing from WaitingTarget detection
 
-            ; Save WaitingTarget coordinates for clicking
-            waitingX := result[1].x
-            waitingY := result[1].y
+            ; Coordinates are already in waitingX and waitingY from the wait call
 
             ; Step 1: Activate window immediately (parallel with extraction)
             WinActivate("ahk_id " . targetWindowID)
@@ -1348,10 +1318,19 @@ headerCheckResult := false  ; TEMP OVERRIDE TO SKIP CHECKING FOR TESTING
             
             ; Continue monitoring for more students (removed break statement)
             }
+
+            ; Check for upgrade popup after wait completes (if no student found)
+            if (!result && UpgradeTarget != "") {
+                upgradeZone := SearchZone(0, 0, winWidth, winHeight)
+                if (upgradeResult := FindTextInZones(UpgradeTarget, upgradeZone)) {
+                    ToolTip "Found upgrade popup! Clicking...", 10, 10
+                    Click upgradeResult[1].x, upgradeResult[1].y
+                    continue  ; Skip to next iteration after handling upgrade
+                }
+            }
         }
-        
-        ; Wait 50ms before next scan (faster detection)
-        Sleep 50
+
+        ; No sleep needed - FindText wait handles timing
         
         ; Continue monitoring (removed window existence check)
     }
