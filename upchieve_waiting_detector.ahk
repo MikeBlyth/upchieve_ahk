@@ -5,26 +5,55 @@
 
 ; SearchZone class for defining search areas
 class SearchZone {
-    __New(x1, y1, x2, y2) {
+    __New(x1 := 0, y1 := 0, x2 := 0, y2 := 0, width := 0, height := 0) {
         this.x1 := x1
         this.y1 := y1
-        this.x2 := x2
-        this.y2 := y2
+
+        ; Use width/height if provided, otherwise use x2/y2
+        if (width > 0)
+            this.x2 := x1 + width
+        else
+            this.x2 := x2
+
+        if (height > 0)
+            this.y2 := y1 + height
+        else
+            this.y2 := y2
     }
 
     ToString() {
-        return "SearchZone(" . this.x1 . "," . this.y1 . " to " . this.x2 . "," . this.y2 . ")"
+        return "SearchZone(" . Round(this.x1) . "," . Round(this.y1) . " to " . Round(this.x2) . "," . Round(this.y2) . ")"
     }
 }
 
 ; FindText wrapper for multiple search zones
-FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10) {
+FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, verbose := false) {
     startTime := A_TickCount
+
+    ; Extract target ID from pattern for verbose logging
+    targetId := ""
+    if (verbose && target != "") {
+        ; Extract ID from pattern like "|<WaitingTarget>*123$45.hex..."
+        if (RegExMatch(target, "\|<([^>]+)>", &match))
+            targetId := match[1]
+        else if (RegExMatch(target, "<([^>]+)>", &match))
+            targetId := match[1]
+        else
+            targetId := "Unknown"
+    }
+
+    if (verbose) {
+        WriteLog("VERBOSE: FindTextInZones - target=" . targetId . " zone1=" . zone1.ToString() . " err1=" . err1 . " err2=" . err2)
+        if (zone2 != "" && IsObject(zone2))
+            WriteLog("VERBOSE: FindTextInZones - zone2=" . zone2.ToString())
+    }
 
     ; Try first zone
     if (result := FindText(, , zone1.x1, zone1.y1, zone1.x2, zone1.y2, err1, err2, target)) {
         SearchStats.searchTimeMs := A_TickCount - startTime
         SearchStats.foundInZone := "zone1"
+        if (verbose)
+            WriteLog("VERBOSE: FindTextInZones - SUCCESS in zone1: found=" . targetId . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
         return result
     }
 
@@ -33,12 +62,16 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10) {
         if (result := FindText(, , zone2.x1, zone2.y1, zone2.x2, zone2.y2, err1, err2, target)) {
             SearchStats.searchTimeMs := A_TickCount - startTime
             SearchStats.foundInZone := "zone2"
+            if (verbose)
+                WriteLog("VERBOSE: FindTextInZones - SUCCESS in zone2: found=" . targetId . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
             return result
         }
     }
 
     SearchStats.searchTimeMs := A_TickCount - startTime
     SearchStats.foundInZone := "none"
+    if (verbose)
+        WriteLog("VERBOSE: FindTextInZones - NOT FOUND: target=" . targetId . " searchTime=" . SearchStats.searchTimeMs . "ms")
     return 0
 }
 
@@ -172,16 +205,12 @@ FindHeaders(quiet := false) {
     ; Get window client area dimensions for boundary checking
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
-    ; Define search zones for headers
-    headerY1 := 200   ; Start searching from 200px down
-    headerY2 := Min(winHeight - 200, 1300)  ; Search up to 1300px or window height - 200px
-
     ; Define search zones for Student Header with fallback
-    studentZone1 := SearchZone(600, headerY1, 1600, headerY2)
-    studentZone2 := SearchZone(500, headerY1 - 50, 1700, headerY2 + 50)  ; Wider fallback zone
+    studentZone1 := SearchZone(x1 := 600, y1 := 200, width := 1000, y2 := 2000)
+    studentZone2 := SearchZone(x1 := 0, y1 := 150, width := 1800, y2 := 2000)   ; Wider fallback zone
 
     ; Search for Student Header with fallback zones
-    if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2)) {
+    if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2, ,, verbose := true)) {
         upperLeft := GetUpperLeft(result)
         studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     } else if (!quiet) {
@@ -189,8 +218,8 @@ FindHeaders(quiet := false) {
     }
 
     ; Define search zones for Subject Header
-    subjectZone1 := SearchZone(600, headerY1, 1600, headerY2)
-    subjectZone2 := SearchZone(500, headerY1 - 50, 1700, headerY2 + 50)  ; Wider fallback zone
+    subjectZone1 := SearchZone(x1 := 600, y1 := 200, width := 1000, y2 := 2000)
+    subjectZone2 := SearchZone(x1 := 0, y1 := 150, width := 1800, y2 := 2000)  ; Wider fallback zone
 
     ; Search for Subject Header (was Help Header) with fallback zones
     if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2)) {
@@ -201,8 +230,8 @@ FindHeaders(quiet := false) {
     }
 
     ; Define search zones for Wait Time Header
-    waitTimeZone1 := SearchZone(600, headerY1, 1600, headerY2)
-    waitTimeZone2 := SearchZone(500, headerY1 - 50, 1700, headerY2 + 50)  ; Wider fallback zone
+    waitTimeZone1 := SearchZone(x1 := 600, y1 := 200, width := 1000, y2 := 2000)
+    waitTimeZone2 := SearchZone(x1 := 500, y1 := 150, width := 1200, y2 := 2000 + 100)  ; Wider fallback zone
 
     ; Search for Wait Time Header with fallback zones
     if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2)) {
@@ -299,10 +328,10 @@ CheckBlockedNamePatterns() {
 
     if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
         ; Use precise header-based positioning relative to StudentHeader middle coordinates
-        blockingZone := SearchZone(studentHeaderPos.x - 20, studentHeaderPos.y + 72, studentHeaderPos.x + 180, studentHeaderPos.y + 137)
+        blockingZone := SearchZone(x1 := studentHeaderPos.x - 20, y1 := studentHeaderPos.y + 72, width := 200, height := 65)
     } else {
         ; Fallback to assumed column positioning: names are in left column around x=700
-        blockingZone := SearchZone(600, 1230, 1015, 1375)
+        blockingZone := SearchZone(x1 := 600, y1 := 1230, width := 415, height := 145)
         WriteLog("DEBUG: Using fallback blocking zone: " . blockingZone.ToString())
     }
 
@@ -361,7 +390,7 @@ ExtractTopic() {
 
     if (subjectHeaderPos.found && subjectHeaderPos.x > 0 && subjectHeaderPos.y > 0) {
         ; Define primary zone: x-5, y+95, 150x30 from SubjectHeader upper-left
-        primaryZone := SearchZone(subjectHeaderPos.x - 5, subjectHeaderPos.y + 95, subjectHeaderPos.x + 145, subjectHeaderPos.y + 125)
+        primaryZone := SearchZone(x1 := subjectHeaderPos.x - 5, y1 := subjectHeaderPos.y + 95, width := 150, height := 30)
 
         ; Try primary zone with SubjectTargets
         primaryArea := (primaryZone.x2 - primaryZone.x1) * (primaryZone.y2 - primaryZone.y1)
@@ -374,7 +403,7 @@ ExtractTopic() {
         }
 
         ; Define secondary zone: x+65, y+95, 35x30 from SubjectHeader upper-left
-        secondaryZone := SearchZone(subjectHeaderPos.x + 65, subjectHeaderPos.y + 95, subjectHeaderPos.x + 100, subjectHeaderPos.y + 125)
+        secondaryZone := SearchZone(x1 := subjectHeaderPos.x + 65, y1 := subjectHeaderPos.y + 95, width := 35, height := 30)
 
         ; Try secondary zone with SubjectTargets_2
         if (result := FindTextInZones(SubjectTargets_2, secondaryZone)) {
@@ -402,7 +431,6 @@ ExtractTopic() {
         fallbackZone := SearchZone(searchX, searchY, searchX + searchWidth, searchY + searchHeight)
         WriteLog("DEBUG: Fallback Subject Zone 1 - Pre-FindText: zone=" . searchWidth . "x" . searchHeight . " pixels, area=" . fallbackArea)
         WriteLog("DEBUG: Fallback 1 params: " . fallbackZone.ToString() . " tol1=0.15 tol2=0.10")
-        WriteLog("DEBUG: Fallback 1 pattern: SubjectTargets length=" . StrLen(SubjectTargets) . " first50chars=" . SubStr(SubjectTargets, 1, 50))
 
         if (result := FindTextInZones(SubjectTargets, fallbackZone)) {
             WriteLog("DEBUG: Fallback Subject Zone 1 - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
@@ -413,7 +441,6 @@ ExtractTopic() {
 
         WriteLog("DEBUG: Fallback Subject Zone 2 - Pre-FindText: zone=" . searchWidth . "x" . searchHeight . " pixels, area=" . fallbackArea)
         WriteLog("DEBUG: Fallback 2 params: " . fallbackZone.ToString() . " tol1=0.15 tol2=0.10")
-        WriteLog("DEBUG: Fallback 2 pattern: SubjectTargets_2 length=" . StrLen(SubjectTargets_2) . " first50chars=" . SubStr(SubjectTargets_2, 1, 50))
 
         if (result := FindTextInZones(SubjectTargets_2, fallbackZone)) {
             WriteLog("DEBUG: Fallback Subject Zone 2 - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
@@ -1099,7 +1126,6 @@ StartDetector() {
     ; Verify BindWindow is working by checking bound ID and mode
     boundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
     boundMode := FindText().BindWindow(0, 0, 0, 1)  ; get_mode = 1
-    WriteLog("DEBUG: Currently bound to ID " . boundID . " with mode " . boundMode)
     
     ; Confirm window selection
 ;    MsgBox("Window selected! Starting " . modeText . " mode detector...", "Window Selected", "OK 4096")
