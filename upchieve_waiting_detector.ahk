@@ -49,12 +49,11 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, verbose 
     }
 
     ; Try first zone
-    if (result := FindText(, , zone1.x1, zone1.y1, zone1.x2, zone1.y2, err1, err2, target)) {
+    if (result := FindText(, , zone1.x1, zone1.y1, zone1.x2, zone1.y2, err1, err2, target, 0)) {
         SearchStats.searchTimeMs := A_TickCount - startTime
         SearchStats.foundInZone := "zone1"
         ; Log all successful results
-        if (verbose)
-            WriteLog("VERBOSE: FindTextInZones - SUCCESS in zone1: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
+        WriteLog("DEBUG: FindTextInZones - SUCCESS in zone1: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
         return result
     }
 
@@ -64,8 +63,7 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, verbose 
             SearchStats.searchTimeMs := A_TickCount - startTime
             SearchStats.foundInZone := "zone2"
             ; Log all successful results
-            if (verbose)
-                WriteLog("VERBOSE: FindTextInZones - SUCCESS in zone2: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
+            WriteLog("DEBUG: FindTextInZones - SUCCESS in zone2: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
             return result
         }
     }
@@ -523,8 +521,21 @@ ShowSessionStartDialog() {
 
     ; Button event handlers
     result := ""
-    continueBtn.OnEvent("Click", (*) => (result := "Continue", startGui.Destroy()))
-    pauseBtn.OnEvent("Click", (*) => (result := "Pause", startGui.Destroy()))
+
+    ContinueHandler(*) {
+        UpdateSessionInfo()  ; Capture values before destruction
+        result := "Continue"
+        startGui.Destroy()
+    }
+
+    PauseHandler(*) {
+        UpdateSessionInfo()  ; Capture values before destruction
+        result := "Pause"
+        startGui.Destroy()
+    }
+
+    continueBtn.OnEvent("Click", ContinueHandler)
+    pauseBtn.OnEvent("Click", PauseHandler)
 
     ; Update global variables from user input
     UpdateSessionInfo() {
@@ -540,9 +551,6 @@ ShowSessionStartDialog() {
     while (!result) {
         Sleep 100
     }
-
-    ; Update session variables with user input
-    UpdateSessionInfo()
 
     return result
 }
@@ -1233,6 +1241,7 @@ StartDetector() {
             WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
             if (UpgradeTarget != "") {
                 upgradeZone := SearchZone(0, 0, winWidth, winHeight)
+                WriteLog("DEBUG: Checking for upgrade popup in zone: ")
                 if (result := FindTextInZones(UpgradeTarget, upgradeZone)) {
                     ToolTip "Found upgrade popup! Clicking...", 10, 10
                     Click result[1].x, result[1].y  ; Window coordinates work directly
@@ -1249,8 +1258,8 @@ StartDetector() {
             
             if (waitTimeHeaderPos.found && waitTimeHeaderPos.x > 0 && waitTimeHeaderPos.y > 0) {
                 ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
-                waitingZone1 := SearchZone(Max(0, waitTimeHeaderPos.x - 5), Max(0, waitTimeHeaderPos.y + 95), Min(winWidth, waitTimeHeaderPos.x + 170), Min(winHeight, waitTimeHeaderPos.y + 125))
-                waitingZone2 := SearchZone(Max(0, waitTimeHeaderPos.x - 15), Max(0, waitTimeHeaderPos.y + 85), Min(winWidth, waitTimeHeaderPos.x + 190), Min(winHeight, waitTimeHeaderPos.y + 135))  ; Slightly larger fallback
+                waitingZone1 := SearchZone(waitTimeHeaderPos.x - 5, waitTimeHeaderPos.y + 97, waitTimeHeaderPos.x + 50, waitTimeHeaderPos.y + 132)
+                waitingZone2 := SearchZone(waitTimeHeaderPos.x - 10, waitTimeHeaderPos.y + 85, waitTimeHeaderPos.x + 70, waitTimeHeaderPos.y + 145)  ; Slightly larger fallback
             } else {
                 ; Fallback to right portion of window for WaitingTarget
                 waitingZone1 := SearchZone(Max(0, winWidth * 0.6), winHeight * 0.3, winWidth, winHeight * 0.8)
