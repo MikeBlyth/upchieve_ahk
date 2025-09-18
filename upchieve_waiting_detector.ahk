@@ -30,9 +30,9 @@ class SearchZone {
 FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, verbose := false) {
     startTime := A_TickCount
 
-    ; Extract target ID from pattern for verbose logging
+    ; Extract target ID from pattern for logging
     targetId := ""
-    if (verbose && target != "") {
+    if (target != "") {
         ; Extract ID from pattern like "|<WaitingTarget>*123$45.hex..."
         if (RegExMatch(target, "\|<([^>]+)>", &match))
             targetId := match[1]
@@ -43,7 +43,7 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, verbose 
     }
 
     if (verbose) {
-        WriteLog("VERBOSE: FindTextInZones - target=" . targetId . " zone1=" . zone1.ToString() . " err1=" . err1 . " err2=" . err2)
+        WriteLog("VERBOSE: FindTextInZones - target=" . targetId . " zone1=" . zone1.ToString() . " err1=" . Format("{:.2f}", err1) . " err2=" . Format("{:.2f}", err2))
         if (zone2 != "" && IsObject(zone2))
             WriteLog("VERBOSE: FindTextInZones - zone2=" . zone2.ToString())
     }
@@ -52,6 +52,8 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, verbose 
     if (result := FindText(, , zone1.x1, zone1.y1, zone1.x2, zone1.y2, err1, err2, target)) {
         SearchStats.searchTimeMs := A_TickCount - startTime
         SearchStats.foundInZone := "zone1"
+        ; Log all successful results
+        WriteLog("SUCCESS: FindTextInZones - found=" . targetId . " in zone1 at " . result[1].x . "," . result[1].y . " duration=" . SearchStats.searchTimeMs . "ms")
         if (verbose)
             WriteLog("VERBOSE: FindTextInZones - SUCCESS in zone1: found=" . targetId . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
         return result
@@ -62,6 +64,8 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, verbose 
         if (result := FindText(, , zone2.x1, zone2.y1, zone2.x2, zone2.y2, err1, err2, target)) {
             SearchStats.searchTimeMs := A_TickCount - startTime
             SearchStats.foundInZone := "zone2"
+            ; Log all successful results
+            WriteLog("SUCCESS: FindTextInZones - found=" . targetId . " in zone2 at " . result[1].x . "," . result[1].y . " duration=" . SearchStats.searchTimeMs . "ms")
             if (verbose)
                 WriteLog("VERBOSE: FindTextInZones - SUCCESS in zone2: found=" . targetId . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
             return result
