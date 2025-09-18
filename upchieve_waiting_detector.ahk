@@ -206,11 +206,11 @@ FindHeaders(quiet := false) {
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
     ; Define search zones for Student Header with fallback
-    studentZone1 := SearchZone(x1 := 600, y1 := 200, width := 1000, y2 := 2000)
-    studentZone2 := SearchZone(x1 := 0, y1 := 150, width := 1800, y2 := 2000)   ; Wider fallback zone
+    studentZone1 := SearchZone(600, 200, 0, 2000, 1000, 0)
+    studentZone2 := SearchZone(0, 150, 0, 2000, 1800, 0)   ; Wider fallback zone
 
     ; Search for Student Header with fallback zones
-    if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2, ,, verbose := true)) {
+    if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2)) {
         upperLeft := GetUpperLeft(result)
         studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     } else if (!quiet) {
@@ -218,8 +218,8 @@ FindHeaders(quiet := false) {
     }
 
     ; Define search zones for Subject Header
-    subjectZone1 := SearchZone(x1 := 600, y1 := 200, width := 1000, y2 := 2000)
-    subjectZone2 := SearchZone(x1 := 0, y1 := 150, width := 1800, y2 := 2000)  ; Wider fallback zone
+    subjectZone1 := SearchZone(600, 200, 0, 2000, 1000, 0)
+    subjectZone2 := SearchZone(0, 150, 0, 2000, 1800, 0)  ; Wider fallback zone
 
     ; Search for Subject Header (was Help Header) with fallback zones
     if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2)) {
@@ -230,11 +230,11 @@ FindHeaders(quiet := false) {
     }
 
     ; Define search zones for Wait Time Header
-    waitTimeZone1 := SearchZone(x1 := 600, y1 := 200, width := 1000, y2 := 2000)
-    waitTimeZone2 := SearchZone(x1 := 500, y1 := 150, width := 1200, y2 := 2000 + 100)  ; Wider fallback zone
+    waitTimeZone1 := SearchZone(600, 200, 0, 2000, 1000, 0)
+    waitTimeZone2 := SearchZone(500, 150, 0, 2500, 1200, 0)  ; Wider fallback zone
 
     ; Search for Wait Time Header with fallback zones
-    if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2)) {
+    if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10, true)) {
         upperLeft := GetUpperLeft(result)
         waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
     } else if (!quiet) {
@@ -328,10 +328,10 @@ CheckBlockedNamePatterns() {
 
     if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
         ; Use precise header-based positioning relative to StudentHeader middle coordinates
-        blockingZone := SearchZone(x1 := studentHeaderPos.x - 20, y1 := studentHeaderPos.y + 72, width := 200, height := 65)
+        blockingZone := SearchZone(studentHeaderPos.x - 20, studentHeaderPos.y + 72, 0, 0, 200, 65)
     } else {
         ; Fallback to assumed column positioning: names are in left column around x=700
-        blockingZone := SearchZone(x1 := 600, y1 := 1230, width := 415, height := 145)
+        blockingZone := SearchZone(600, 1230, 0, 0, 415, 145)
         WriteLog("DEBUG: Using fallback blocking zone: " . blockingZone.ToString())
     }
 
@@ -390,7 +390,7 @@ ExtractTopic() {
 
     if (subjectHeaderPos.found && subjectHeaderPos.x > 0 && subjectHeaderPos.y > 0) {
         ; Define primary zone: x-5, y+95, 150x30 from SubjectHeader upper-left
-        primaryZone := SearchZone(x1 := subjectHeaderPos.x - 5, y1 := subjectHeaderPos.y + 95, width := 150, height := 30)
+        primaryZone := SearchZone(subjectHeaderPos.x - 5, subjectHeaderPos.y + 95, 0, 0, 150, 30)
 
         ; Try primary zone with SubjectTargets
         primaryArea := (primaryZone.x2 - primaryZone.x1) * (primaryZone.y2 - primaryZone.y1)
@@ -403,7 +403,7 @@ ExtractTopic() {
         }
 
         ; Define secondary zone: x+65, y+95, 35x30 from SubjectHeader upper-left
-        secondaryZone := SearchZone(x1 := subjectHeaderPos.x + 65, y1 := subjectHeaderPos.y + 95, width := 35, height := 30)
+        secondaryZone := SearchZone(subjectHeaderPos.x + 65, subjectHeaderPos.y + 95, 0, 0, 35, 30)
 
         ; Try secondary zone with SubjectTargets_2
         if (result := FindTextInZones(SubjectTargets_2, secondaryZone)) {
