@@ -193,93 +193,71 @@ GetUpperLeft(result) {
 }
 
 ; Find all header targets and store their positions for search zone calculations
-; Search headers directly in known zones without PageTarget dependency
-FindHeaders(quiet := false) {
+; This function will not return until ALL headers are found or user cancels
+FindHeaders() {
     global StudentHeaderTarget, HelpHeaderTarget, WaitTimeHeaderTarget, targetWindowID
 
-    ; Initialize header positions (will be empty if not found)
-    global studentHeaderPos := {x: 0, y: 0, found: false}
-    global subjectHeaderPos := {x: 0, y: 0, found: false}
-    global waitTimeHeaderPos := {x: 0, y: 0, found: false}
+    while (true) {
+        ; Initialize header positions (will be empty if not found)
+        global studentHeaderPos := {x: 0, y: 0, found: false}
+        global subjectHeaderPos := {x: 0, y: 0, found: false}
+        global waitTimeHeaderPos := {x: 0, y: 0, found: false}
 
-    ; Get window client area dimensions for boundary checking
-    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
+        ; Get window client area dimensions for boundary checking
+        WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
-    ; Define search zones for Student Header with fallback
-    studentZone1 := SearchZone(600, 1150, 900, 1250)
-    studentZone2 := SearchZone(0, 150, 0, 2000, 1800, 0)   ; Wider fallback zone
+        ; Define search zones for Student Header
+        studentZone1 := SearchZone(600, 1150, 900, 1250)
+        studentZone2 := SearchZone(0, 150, 0, 2000, 1800, 0)   ; Wider fallback zone
 
-    ; Search for Student Header with fallback zones
-    if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2)) {
-        upperLeft := GetUpperLeft(result)
-        studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-    } else if (!quiet) {
-        WriteLog("DEBUG: Student header NOT found in any search zone")
-    }
+        ; Search for Student Header
+        if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2)) {
+            upperLeft := GetUpperLeft(result)
+            studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+        }
 
-    ; Define search zones for Subject Header
-    if studentHeaderPos.found {
-        subjectZone1 := SearchZone(upperLeft.x + 200, upperLeft.y - 10, 0, 0, 200, 50)
-       
-    }  else {
-        subjectZone1 := SearchZone(600, 600, 1100, 1400)  
-    }
-    subjectZone2 := SearchZone(0, 150, 2000, 2000)  ; Wider fallback zone
-
-    ; Search for Subject Header (was Help Header) with fallback zones
-    if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2)) {
-        upperLeft := GetUpperLeft(result)
-        subjectHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-    } else if (!quiet) {
-        WriteLog("DEBUG: Subject header NOT found in any search zone")
-    }
-
-    ; Define search zones for Wait Time Header
-    if studentHeaderPos.found {
-        waitTimeZone1 := SearchZone(studentHeaderPos.x + 500, studentHeaderPos.y - 10, 0, 0, 300, 50)
-       
-    }  else {
-        waitTimeZone1 := SearchZone(600, 600, 1100, 1400)  
-    }
-    waitTimeZone2 := SearchZone(100, 150, 2000, 2000)  ; Wider fallback zone
-
-    ; Search for Wait Time Header with fallback zones
-    if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10, true)) {
-        upperLeft := GetUpperLeft(result)
-        waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-    } else if (!quiet) {
-        WriteLog("DEBUG: Wait Time header NOT found in any search zone")
-    }
-
-    ; Log header detection results (skip if quiet)
-    headersFound := 0
-    if (!quiet) {
-        headerStatus := ""
+        ; Define search zones for Subject Header (position relative to Student header if found)
         if (studentHeaderPos.found) {
-            headersFound++
-            headerStatus .= "Student(" . studentHeaderPos.x . "," . studentHeaderPos.y . ") "
+            subjectZone1 := SearchZone(studentHeaderPos.x + 200, studentHeaderPos.y - 10, 0, 0, 200, 50)
+        } else {
+            subjectZone1 := SearchZone(600, 600, 1100, 1400)
         }
-        if (subjectHeaderPos.found) {
-            headersFound++
-            headerStatus .= "Subject(" . subjectHeaderPos.x . "," . subjectHeaderPos.y . ") "
-        }
-        if (waitTimeHeaderPos.found) {
-            headersFound++
-            headerStatus .= "WaitTime(" . waitTimeHeaderPos.x . "," . waitTimeHeaderPos.y . ") "
+        subjectZone2 := SearchZone(0, 150, 2000, 2000)  ; Wider fallback zone
+
+        ; Search for Subject Header (was Help Header)
+        if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2)) {
+            upperLeft := GetUpperLeft(result)
+            subjectHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
         }
 
-        WriteLog("DEBUG: Found " . headersFound . "/3 headers: " . headerStatus)
-    } else {
-        ; Still need to count headers even if quiet
-        if (studentHeaderPos.found)
-            headersFound++
-        if (subjectHeaderPos.found)
-            headersFound++
-        if (waitTimeHeaderPos.found)
-            headersFound++
+        ; Define search zones for Wait Time Header (position relative to Student header if found)
+        if (studentHeaderPos.found) {
+            waitTimeZone1 := SearchZone(studentHeaderPos.x + 500, studentHeaderPos.y - 10, 0, 0, 300, 50)
+        } else {
+            waitTimeZone1 := SearchZone(600, 600, 1100, 1400)
+        }
+        waitTimeZone2 := SearchZone(100, 150, 2000, 2000)  ; Wider fallback zone
+
+        ; Search for Wait Time Header
+        if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10, true)) {
+            upperLeft := GetUpperLeft(result)
+            waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+        }
+
+        ; Check if all headers found
+        if (studentHeaderPos.found && subjectHeaderPos.found && waitTimeHeaderPos.found) {
+            ; All headers found - return successfully
+            WriteLog("All 3 headers found")
+            return
+        } else {
+            ; Missing headers - show simple message box
+            result := MsgBox("Missing column headers. Please adjust the browser window to ensure all column headers are visible, then click OK to retry.", "Missing Column Headers", "1 4096")  ; OK/Cancel
+            if (result = "Cancel") {
+                CleanExit()
+            }
+            ; If OK clicked, the loop will continue and retry
+        }
     }
-
-    return headersFound
 }
 
 /* ; Load blocked names from block_names.txt
@@ -333,14 +311,8 @@ IsNameBlocked(studentName, blockedNames) {
 CheckBlockedNamePatterns() {
     global studentHeaderPos, targetWindowID, BlockedTargets
 
-    if (studentHeaderPos.found && studentHeaderPos.x > 0 && studentHeaderPos.y > 0) {
-        ; Use precise header-based positioning relative to StudentHeader middle coordinates
-        blockingZone := SearchZone(studentHeaderPos.x - 5, studentHeaderPos.y + 95, 0, 0, 200, 35)
-    } else {
-        ; Fallback to assumed column positioning: names are in left column around x=700
-        blockingZone := SearchZone(600, 1230, 0, 0, 415, 145)
-        WriteLog("DEBUG: Using fallback blocking zone: " . blockingZone.ToString())
-    }
+    ; Use precise header-based positioning relative to StudentHeader middle coordinates
+    blockingZone := SearchZone(studentHeaderPos.x - 5, studentHeaderPos.y + 95, 0, 0, 200, 35)
 
     ; Search for blocked patterns in calculated zone
     if (result := FindTextInZones(BlockedTargets, blockingZone,, 0.15, 0.10, true)) {
@@ -388,73 +360,27 @@ ApplyKnownCorrections(ocrResult) {
 
 
 
-; Extract topic using header-based positioning with fallback
+; Extract topic using header-based positioning
 ; Uses header positions with standard row offsets
 ExtractTopic() {
     global subjectHeaderPos, SubjectTargets, SubjectTargets_2, targetWindowID
 
-    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
+    ; Define primary zone: x-5, y+95, 150x30 from SubjectHeader upper-left
+    primaryZone := SearchZone(subjectHeaderPos.x - 5, subjectHeaderPos.y + 95, 0, 0, 150, 30)
 
-    if (subjectHeaderPos.found && subjectHeaderPos.x > 0 && subjectHeaderPos.y > 0) {
-        ; Define primary zone: x-5, y+95, 150x30 from SubjectHeader upper-left
-        primaryZone := SearchZone(subjectHeaderPos.x - 5, subjectHeaderPos.y + 95, 0, 0, 150, 30)
+    ; Try primary zone with SubjectTargets
+    if (result := FindTextInZones(SubjectTargets, primaryZone)) {
+        WriteLog("DEBUG: Subject: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
+        return result[1].id
+    }
 
-        ; Try primary zone with SubjectTargets
-        primaryArea := (primaryZone.x2 - primaryZone.x1) * (primaryZone.y2 - primaryZone.y1)
+    ; Define secondary zone: x+65, y+95, 35x30 from SubjectHeader upper-left
+    secondaryZone := SearchZone(subjectHeaderPos.x + 65, subjectHeaderPos.y + 95, 0, 0, 35, 30)
 
-        if (result := FindTextInZones(SubjectTargets, primaryZone)) {
-            WriteLog("DEBUG: Subject: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
-            return result[1].id
-        } else {
-            WriteLog("DEBUG: Primary Subject Zone - MISS: searchTime=" )
-        }
-
-        ; Define secondary zone: x+65, y+95, 35x30 from SubjectHeader upper-left
-        secondaryZone := SearchZone(subjectHeaderPos.x + 65, subjectHeaderPos.y + 95, 0, 0, 35, 30)
-
-        ; Try secondary zone with SubjectTargets_2
-        if (result := FindTextInZones(SubjectTargets_2, secondaryZone)) {
-            WriteLog("DEBUG: Secondary Subject Zone - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
-            return result[1].id
-        } else {
-            WriteLog("DEBUG: Secondary Subject Zone - MISS: searchTime=" . SearchStats.searchTimeMs )
-        }
-    } else {
-        ; Fallback to assumed column positioning: subjects are in middle column around x=940-1260
-        searchX := 940  ; Subject column start
-        searchY := Max(0, 500)  ; Start around 500px down (typical data row area)
-        searchWidth := Min(320, winWidth - searchX)  ; Standard column width (940 to 1260)
-        searchHeight := Min(100, winHeight - searchY)  ; Standard row height
-
-        ; Ensure fallback coordinates stay within window bounds
-        searchX := Max(0, searchX)
-        searchY := Max(0, searchY)
-        searchWidth := Min(searchWidth, winWidth - searchX)
-        searchHeight := Min(searchHeight, winHeight - searchY)
-        WriteLog("DEBUG: Using fallback subject zone: " . searchX . "," . searchY . " to " . (searchX + searchWidth) . "," . (searchY + searchHeight))
-
-        ; Try fallback zone with both pattern sets
-        fallbackArea := searchWidth * searchHeight
-        fallbackZone := SearchZone(searchX, searchY, searchX + searchWidth, searchY + searchHeight)
-        WriteLog("DEBUG: Fallback Subject Zone 1 - Pre-FindText: zone=" . searchWidth . "x" . searchHeight . " pixels, area=" . fallbackArea)
-        WriteLog("DEBUG: Fallback 1 params: " . fallbackZone.ToString() . " tol1=0.15 tol2=0.10")
-
-        if (result := FindTextInZones(SubjectTargets, fallbackZone)) {
-            WriteLog("DEBUG: Fallback Subject Zone 1 - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
-            return result[1].id
-        } else {
-            WriteLog("DEBUG: Fallback Subject Zone 1 - MISS: searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
-        }
-
-        WriteLog("DEBUG: Fallback Subject Zone 2 - Pre-FindText: zone=" . searchWidth . "x" . searchHeight . " pixels, area=" . fallbackArea)
-        WriteLog("DEBUG: Fallback 2 params: " . fallbackZone.ToString() . " tol1=0.15 tol2=0.10")
-
-        if (result := FindTextInZones(SubjectTargets_2, fallbackZone)) {
-            WriteLog("DEBUG: Fallback Subject Zone 2 - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
-            return result[1].id
-        } else {
-            WriteLog("DEBUG: Fallback Subject Zone 2 - MISS: searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
-        }
+    ; Try secondary zone with SubjectTargets_2
+    if (result := FindTextInZones(SubjectTargets_2, secondaryZone)) {
+        WriteLog("DEBUG: Secondary Subject Zone - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
+        return result[1].id
     }
 
     ; No subject pattern matched - return empty string for manual entry
@@ -902,6 +828,7 @@ CompareDates(date1, date2) {
     return num1 - num2
 }
 
+
 ; Clean exit function to restore normal sleep behavior
 CleanExit() {
     ; Restore normal power management
@@ -1163,10 +1090,11 @@ StartDetector() {
     }
 
     ; Find header targets directly in expected zones (no PageTarget dependency)
-    headersFound := FindHeaders()
+    ; FindHeaders() will not return until all headers are found or user cancels
+    FindHeaders()
     lastPageCheck := A_TickCount
-    
-    ToolTip "Found 'Waiting Students' page! Found " . headersFound . "/3 headers. Starting " . modeText . " mode detector...", 10, 50
+
+    ToolTip "Found 'Waiting Students' page! Found all 3/3 headers. Starting " . modeText . " mode detector...", 10, 50
     Sleep 1000
     ToolTip ""
     
@@ -1177,7 +1105,7 @@ StartDetector() {
         ; Periodic header re-detection (every 30 seconds) to handle layout changes
         ; Only do this when WAITING_FOR_STUDENT, not during sessions
         if (SessionState == WAITING_FOR_STUDENT && A_TickCount - lastPageCheck > 30000) {
-            FindHeaders(true)  ; Re-find headers quietly (skip logging)
+            FindHeaders()  ; Re-find headers quietly (skip logging)
             lastPageCheck := A_TickCount
         }
         
@@ -1256,15 +1184,9 @@ StartDetector() {
             global waitTimeHeaderPos
             WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
             
-            if (waitTimeHeaderPos.found && waitTimeHeaderPos.x > 0 && waitTimeHeaderPos.y > 0) {
-                ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
-                waitingZone1 := SearchZone(waitTimeHeaderPos.x - 5, waitTimeHeaderPos.y + 97, waitTimeHeaderPos.x + 50, waitTimeHeaderPos.y + 132)
-                waitingZone2 := SearchZone(waitTimeHeaderPos.x - 10, waitTimeHeaderPos.y + 85, waitTimeHeaderPos.x + 70, waitTimeHeaderPos.y + 145)  ; Slightly larger fallback
-            } else {
-                ; Fallback to right portion of window for WaitingTarget
-                waitingZone1 := SearchZone(Max(0, winWidth * 0.6), winHeight * 0.3, winWidth, winHeight * 0.8)
-                waitingZone2 := SearchZone(Max(0, winWidth * 0.5), winHeight * 0.2, winWidth, winHeight * 0.9)  ; Wider fallback
-            }
+            ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
+            waitingZone1 := SearchZone(waitTimeHeaderPos.x - 5, waitTimeHeaderPos.y + 97, waitTimeHeaderPos.x + 50, waitTimeHeaderPos.y + 132)
+            waitingZone2 := SearchZone(waitTimeHeaderPos.x - 10, waitTimeHeaderPos.y + 85, waitTimeHeaderPos.x + 70, waitTimeHeaderPos.y + 145)  ; Slightly larger fallback
             
             ; Debug: Log WaitingTarget search zone (once per monitoring session)
             static waitingZoneLogged := false
@@ -1342,7 +1264,7 @@ StartDetector() {
                 ; Check if click succeeded by verifying if student header is still present
                 ; If header still visible, the click was too slow and someone else claimed the student
                 WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-                headerCheckZone := SearchZone(600, 200, 1600, Min(winHeight - 200, 1300))
+                headerCheckZone := SearchZone(600, 200, 1600, 1300)
                 headerCheckResult := FindTextInZones(StudentHeaderTarget, headerCheckZone)
 headerCheckResult := false  ; TEMP OVERRIDE TO SKIP CHECKING FOR TESTING
                 if (headerCheckResult) {
