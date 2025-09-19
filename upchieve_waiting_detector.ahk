@@ -1236,7 +1236,7 @@ StartDetector() {
                 WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
                 headerCheckZone := SearchZone(600, 200, 1600, 1300)
                 headerCheckResult := FindTextInZones(StudentHeaderTarget, headerCheckZone)
-headerCheckResult := false  ; TEMP OVERRIDE TO SKIP CHECKING FOR TESTING
+; headerCheckResult := false  ; TEMP OVERRIDE TO SKIP CHECKING FOR TESTING
                 if (headerCheckResult) {
                     ; Click failed - student header still present, session didn't open
                     WriteLog("MISSED: ? - " . topic )
