@@ -4,6 +4,7 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
+
         {
             "name": "ocr_tester.ahk",
             "type": "ahk2",
@@ -12,6 +13,16 @@
             "args": [],
             "stopOnEntry": true
         },
+
+        {
+            "name": "pattern tester",
+            "type": "ahk2",
+            "request": "launch",
+            "program": "c:/users/mike/upchieve_ahk/findtext_pattern_tester.ahk",
+            "args": [],
+            "stopOnEntry": true
+        },
+
 
         {
             "type": "ahk2",
