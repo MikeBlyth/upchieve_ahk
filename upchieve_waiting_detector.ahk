@@ -203,7 +203,6 @@ CheckUpgradePopups() {
     if (UpgradeTarget == "") {
         return false
     }
-    Sleep 5000
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
     upgradeResult := FindText(,,winWidth/3, winHeight/3, winWidth*2/3, winHeight*2/3,0.1,0.1, UpgradeTarget)
     
