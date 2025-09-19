@@ -29,6 +29,31 @@ targetFound := false
 lastSeenTime := 0
 IsActive := true
 
+; Window selection and binding
+startupResult := MsgBox("Click in the game window...", "My Turn Monitor - Click Game Window", "OKCancel 4096")
+if (startupResult = "Cancel") {
+    ExitApp()  ; Exit application
+}
+
+; Wait for user to click and capture the window
+global targetWindowID := ""
+; Show tooltip that follows mouse cursor
+while (!GetKeyState("LButton", "P")) {
+    MouseGetPos(&mouseX, &mouseY)
+    ToolTip "Click on the game window now...", , , 3
+    Sleep(50)
+}
+KeyWait("LButton", "U")  ; Wait for button release
+MouseGetPos(&mouseX, &mouseY, &targetWindowID)  ; Get window ID under mouse
+ToolTip "", , , 3  ; Clear tooltip
+
+; Bind FindText to the selected window for improved performance and reliability
+; Mode 4 is essential for proper window targeting
+bindResult := FindText().BindWindow(targetWindowID, 4)
+
+; Confirm window selection
+MsgBox("Game window selected! Starting turn monitor...", "Window Selected", "OK 4096")
+
 ; Main monitoring loop
 while (IsActive) {
     ; Search for game targets (3 times per second = 333ms intervals)
