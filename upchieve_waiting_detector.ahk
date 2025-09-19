@@ -203,11 +203,12 @@ CheckUpgradePopups() {
     if (UpgradeTarget == "") {
         return false
     }
-
+    Sleep 5000
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
     upgradeResult := FindText(,,winWidth/3, winHeight/3, winWidth*2/3, winHeight*2/3,0.1,0.1, UpgradeTarget)
     
     if (upgradeResult) {
+        WinActivate("ahk_id " . targetWindowID)
         ToolTip "Found upgrade popup! Clicking...", 10, 10
         click_x := upgradeResult[1].x 
         click_y := upgradeResult[1].y
