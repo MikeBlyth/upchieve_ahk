@@ -145,8 +145,7 @@ TestPatterns(*) {
     statusText.Text := "Status: Testing patterns..."
     resultsList.Text := ""
 
-    ; Hard-coded single test for comparison
-    startTime := A_TickCount
+/*     ; Hard-coded single test for comparison
     student := "<Student>*146$71.00000000000000000000001w3z00k000003sTzUDU000007nzzkT000000Djzzky000000TTUT1w000000yy0QTznw7k3txw0EzzbsDUTvvy01zzDkT1zzrzk3zyTUy3zzjzw0y0z1wDkzDzy1w1y3sT0yDzy3s3w7ky1w3zw7k7sDVw3s0TsDUDkT3s7m0DkT0TUy7kDa0DUy0z1wDUTT0z1w1y7sTVzzzy3zlzzkzzxzzs7zXzzUzztzzU7z3zD0znkTs03w3wS0T7U00000000000000000000001"
     result := FindText(,, 0,0,3200,2000, 0.15,0.10, student)
     if (result) {
@@ -154,10 +153,11 @@ TestPatterns(*) {
     } else {
         MsgBox("Student not found")
     }
-
+ */
     ; Test combined patterns
-;    result := FindText(,, searchX1, searchY1, searchX2, searchY2, err1, err2, patterns, useScreenshot, findAll)
-    result := FindText(,, searchX1, searchY1, searchX2, searchY2, err1, err2, patterns,1,0)
+    startTime := A_TickCount
+    result := FindText(,, searchX1, searchY1, searchX2, searchY2, err1, err2, patterns, useScreenshot, findAll)
+;    result := FindText(,, searchX1, searchY1, searchX2, searchY2, err1, err2, patterns,1,0)
     searchTime := A_TickCount - startTime
 
     ; Log all parameters for debugging
@@ -172,7 +172,7 @@ TestPatterns(*) {
     paramLog .= "  result=" . (result ? "object with " . result.Length . " matches" : "null/0") . "`r`n"
 
     output := "=== COMBINED PATTERN TEST ===`r`n"
-    output .= paramLog . "`r`n"
+;    output .= paramLog . "`r`n"
     output .= "Search Region: " . searchX1 . "," . searchY1 . " to " . searchX2 . "," . searchY2 . "`r`n"
     output .= "Tolerances: " . Format("{:.2f}", err1) . ", " . Format("{:.2f}", err2) . "`r`n"
     output .= "Options: FindAll=" . (findAll ? "Yes" : "No") . ", UseScreenshot=" . (useScreenshot ? "New" : "Last") . "`r`n"
@@ -195,7 +195,30 @@ TestPatterns(*) {
         output .= "NOT FOUND`r`n"
     }
 
+    ; Test with different tolerances
+    output .= "`r`n=== TOLERANCE VARIATION TESTS ===`r`n"
+    tolerancePairs := [[0.05, 0.05], [0.10, 0.08], [0.15, 1.0]]
 
+    for pair in tolerancePairs {
+        testErr1 := pair[1]
+        testErr2 := pair[2]
+
+        startTime := A_TickCount
+        result := FindText(,, searchX1, searchY1, searchX2, searchY2, testErr1, testErr2, patterns, useScreenshot, findAll)
+        searchTime := A_TickCount - startTime
+
+        output .= Format("Tolerances {:.2f},{:.2f}: ", testErr1, testErr2)
+
+        if (result && result.Length > 0) {
+            output .= "FOUND " . result.Length . " match(es)"
+            if (result.Length > 0) {
+                output .= " - " . result[1].id . "@(" . result[1].x . "," . result[1].y . ")"
+            }
+        } else {
+            output .= "NOT FOUND"
+        }
+        output .= " (" . searchTime . "ms)`r`n"
+    }
 
     resultsList.Text := output
     statusText.Text := "Status: Pattern testing complete!"
