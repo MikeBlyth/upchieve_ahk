@@ -239,7 +239,7 @@ FindHeaders() {
         waitTimeZone2 := SearchZone(100, 150, 2000, 2000)  ; Wider fallback zone
 
         ; Search for Wait Time Header
-        if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10, true)) {
+        if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10)) {
             upperLeft := GetUpperLeft(result)
             waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
         }
@@ -315,7 +315,7 @@ CheckBlockedNamePatterns() {
     blockingZone := SearchZone(studentHeaderPos.x - 5, studentHeaderPos.y + 95, 0, 0, 200, 35)
 
     ; Search for blocked patterns in calculated zone
-    if (result := FindTextInZones(BlockedTargets, blockingZone,, 0.15, 0.10, true)) {
+    if (result := FindTextInZones(BlockedTargets, blockingZone,, 0.15, 0.10)) {
         ; Found a blocked name pattern
         blockedName := result[1].id  ; Get the pattern name (e.g. "Chukwudi", "Camila")
         WriteLog("BLOCKED: " . blockedName)
