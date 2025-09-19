@@ -49,7 +49,7 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, verbose 
     }
 
     ; Try first zone
-    if (result := FindText(, , zone1.x1, zone1.y1, zone1.x2, zone1.y2, err1, err2, target, 0)) {
+    if (result := FindText(, , zone1.x1, zone1.y1, zone1.x2, zone1.y2, err1, err2, target, 0,1)) {
         SearchStats.searchTimeMs := A_TickCount - startTime
         SearchStats.foundInZone := "zone1"
         ; Log all successful results
@@ -131,10 +131,13 @@ WaitingTarget1 := "|<Waiting>*150$65.00000000000000000s0000000003k000000000DU000
 WaitingTarget2 := "|<Waiting>*151$86.00000000000000000000600000000000003U0000000000003s0000000000U03y0000000000s01tU000000000y00QM00CTUz000z0006003jwTs00y0001U00z7i700y0000M00DUT0s1y00006003k7UC0y00001U00s1k1UC00000M00C0Q0M3k00006003U7060T00001U00s1k1U1y0000M00C0Q0M07s0006003U70600TU001U00s1k1U00y000M00C0Q0M003U006003U7060008001U00s1k1U000000M00C0Q0M00000000000000000000000000000U"
 WaitingTarget3 := "|<Waiting>*152$38.000001k00000w00000T00400Tk0700TQ07k0770Dk001kDk000QDk0007DU0001rU0000RU00007S00001ns0000QDU00070y0001k3w000Q0Dk00700w001k03000Q0000070000008"
 
-WaitingTarget := WaitingTarget3
+WaitingTarget := WaitingTarget3 
 
-UpgradeTarget :="|<Upgrade>*197$75.zzzzzzzzzzzzzzzzzzzzzzzzzszss07zU7w07z7z700Ds0TU0DszssT1y31wD0z7z73y7Vy7Vy7szssTssTswDsz7z73z33z3Vz3szssTsMzzwDsT7z73z77zzVz7szssTkszzwDkz7z73w77zzVw7szss01sy0Q01z7z700z7k3U0zszssTzszsQD7z7z73zz7z3VsTsTssTzsTsQDXz3y73zzXz3VwDwDksTzwDsQDkzUsD3zzkQ3Vy6y03sTzz01wDsLw1z3zzy0TVzUzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw"
-
+; Using "New" is a workaround for the first two targets not being found for unknown reasons
+UpgradeTarget := "|<Upgrade>*196$93.zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzwTwQ03zk3y03zzzzXzXU07w0Dk07zzzwTwQDUz1Uy7UTzzzXzXVz3kz3kz3zzzwTwQDwQDwS7wTzzzXzXVzVVzVkzVzzzwTwQDwATzy7wDzzzXzXVzXXzzkzXzzzwTwQDsQTzy7sTzzzXzXVy3Xzzky3zzzwTwQ00wT0C00zzzzXzXU0TXs1k0TzzzwTwQDzwTwC7XzzzzXzXVzzXzVkwDzzzwDwQDzwDwC7lzzzzVz3VzzlzVky7zzzy7sQDzy7wC7sTzzzkQ7VzzsC1kz3zzzz01wDzzU0y7wDzzzy0zVzzz0Dkzkzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw"
+               . "|<UpgradeGray2Two_wide>*230$137.00M001zzzzzzzzzzzzzzzzy00k007zzzzzzzzzzzzzzzzw00U00Dzzzzzzzzzzzzzzzzs01U00Tzzzzzzztzls0TzUTk03000zzzzzzzznzXk0Dw0DU02003zzzzzzzzbz7bwDkwD004007zzzzzzzzDyDDyD7yS00800DzzzzzzzyTwSTwSDwQ00M00Tzzzzzzzwzswzwwzws00k00zzzzzzzztzltztlzzk01U01zzzzzzzznzXnzXXzzU03003zzzzzzzzbz7bz77zz006007zzzzzzzzDyDDwSDzy00A00DzzzzzzzyTwS01wT0Q00M00Tzzzzzzzwzsw07sy0s00k00zzzzzzzztzltzzlztk01U01zzzzzzzznzXnzzXznU03003zzzzzzzzbz7bzzbzb004007zzzzzzzzDyTDzz7zC00800DzzzzzzzyDsyTzz7yQ00E00TzzzzzzzyDXwzzy7ks01U00Tzzzzzzzy0Dtzzy03k03000zzzzzzzzz0znzzz0TU04001zzzzzzzzzzzzzzzzz00M003zzzzzzzzzzzzzzzzz"
+               . "|<New>*134$76.7U07U00000000T00S000000001y01s000000007s07U00000000Tk0S000000001zU1s000000007y07U00000000Tw0S01y0Q0Q0Fvk1s0Ty1s1s17bU7U3zw7U7U4SD0S0S3sC0y0Fsw1s3k7Us3w37Vs7US0C3kDkAS7kS1s0w71r0lsD1s703kQ7Q37US7UQ071kQsQS1wS3zzw7VXVls3lsDzzkCCC77U7bUzzz0ssQQS0TS3k003XVnVs0xsD000DQ7C7U1zUQ000RkCsS07y1s001z0vVs0Ds7U007s3w7U0zUD0C0DU7kS01y0z1s0y0T1s03s1zzU3k1s7U0DU1zs0D07US00S01y00Q0C00000000000000000000000002"
+ 
 EndSessionTarget :="|<EndSession>*194$193.00C0000000000000000000000000000000C0000000000000000000000000000000C0000000000000000000000000000000C0000000000000000000000000000000C000000000000000000000000000000060000000000000000000000000000000600000000000000000000000000000007000000000000000000000000000000030000000000000000000000000000000300000000000000000000000000000003U0000000000000000000000000000001U0000000000000000000000000000000k0000000000000000000000000000000k0000000000000000000000000000000M0000000000000000000000000000000Q0000000000000000000000000000000A000000000000000000000000000000060000000000000000S0000000000000070000000000000000D00000000000000300000000zzw000007U007w0000000001U0000000Tzy000003k00DzU000000000k0000000Dzz000001s00Dzs000000000s00000007U0000000w00D0S000000000M00000003k0000000S00D07000000000A00000001s00STU0zD007U103w03w0Ds600000000w00DTs0zzU03k007zU7zUTz300000000S007zy0zzk01w007zs7zsDzlU0000000D003w7Uw3s00zU07US7UQD1sk00000007zw1w3kS0w00DzU3U73k470MM00000003zy0w0sS0S003zw3k3Vs03k0A00000001zz0S0QD0D000TzVzzkzU1y0600000000w00D0C7U7U000zkzzsDz0Tw300000000S007U73k3k0001wTzw1zk3zVU0000000D003k3Vs1s0000SD0007w0Dsk00000007U01s1kw0w0080D7U000D00wQ00000003k00w0sD0S00C07Vs20U7V0C600000001s00S0Q7UT007k7Uw3ks3lkD300000000zzwD0C1zzU01zzUDzkTzkzzVU0000000Tzy7U70Txk00TzU3zk7zkDzUs0000000Dzz3k3U7ss003z00Tk0zU1z0A0000000000000000000000000000000600000000000000000000000000000003U0000000000000000000000000000000k0000000000000000000000000000000M000000000000000000000000000000060000000000000000000000000000000300000000000000000000000000000001k0000000000000000000000000000000M0000000000000000000000000000000600000000000000000000000000000003U0000000000000000000000000000000k0000000000000000000000000000000A0000000000000000000000000000000700000000000000000000000000000001k0000000000000000000000000000000Q0000000000000000000000000000000700000000000000000000000000000001k0000000000000000000000000000000Q0000000000000000000000000000000700000000000000000000000000000001s0000000000000000000000000000E"
 FinishTarget :="|<Finish>*225$127.01000000000000000000001U00000000000000000001U00000000000000000000U00000000000000000000k00000000000000000000E00000000000000000000E00000000000000000000M00000000000000000000800000000000000000000400000000000000000000400000000000000000000200000000000000000000300000000000000000000100000000000T0000w0000U0000000000DU000z0000E0000000Dzz7k000TU000M00000007zzXk0007U000800000003zzk000000000400000001s00000000000200000000w00000000000100000000S00D1tz0S0zk0U0000000D007UzzkD0zy0k00000007U03kTzw7Uzz0M00000003k01sDky3ky7kA00000001zz0w7kD1sS1k600000000zzkS3s7kwDU0300000000TzsD1s3sS7y01U0000000D007Uw1wD1zs0E00000007U03kS0y7UTz0800000003k01sD0T3k1zk400000001s00w7UDVs03s200000000w00S3k7kw60w100000000S00D1s3sS7Uy0k0000000D007Uw1wD3zz0800000007U03kS0y7Uzz0400000003k01sD0T3k7y02000000000000000000001U00000000000000000000E000000000000000000008000000000000000000002000000000000000000001000000000000000000000k0000000000000000000E"
 
@@ -190,6 +193,36 @@ WriteAppLog(message) {
 GetUpperLeft(result) {
     ; Extract upper-left coordinates directly from FindText result object
     return {x: result[1].1, y: result[1].2}
+}
+
+; Check for upgrade popup and click it if found
+; Returns true if popup was found and clicked, false otherwise
+CheckUpgradePopups() {
+    global UpgradeTarget, targetWindowID
+
+    if (UpgradeTarget == "") {
+        return false
+    }
+
+    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
+    upgradeResult := FindText(,,winWidth/3, winHeight/3, winWidth*2/3, winHeight*2/3,0.1,0.1, UpgradeTarget)
+    
+    if (upgradeResult) {
+        ToolTip "Found upgrade popup! Clicking...", 10, 10
+        click_x := upgradeResult[1].x 
+        click_y := upgradeResult[1].y
+        if upgradeResult[1].id = "New" {
+            click_x := upgradeResult[1].x + 480
+            click_y := upgradeResult[1].y + 200
+        }
+        Click upgradeResult[1].x, upgradeResult[1].y
+        WriteLog("Upgrade button clicked at " . click_x . "," . click_y)
+;        MsgBox("Upgrade button clicked at " . click_x . "," . click_y)
+        Sleep 3000  ; Pause to allow reloading page
+        ToolTip ""
+        return true
+    } 
+    return false
 }
 
 ; Find all header targets and store their positions for search zone calculations
@@ -1041,6 +1074,21 @@ StartDetector()
 StartDetector() {
     global
     WriteLog("Upchieve Detector starting up")
+
+/*     ; Testing problem with finding Upgrade targets
+    MsgBox("Checking for popup ")
+    UpgradeTarget := "|<Upgrade>*196$93.zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzwTwQ03zk3y03zzzzXzXU07w0Dk07zzzwTwQDUz1Uy7UTzzzXzXVz3kz3kz3zzzwTwQDwQDwS7wTzzzXzXVzVVzVkzVzzzwTwQDwATzy7wDzzzXzXVzXXzzkzXzzzwTwQDsQTzy7sTzzzXzXVy3Xzzky3zzzwTwQ00wT0C00zzzzXzXU0TXs1k0TzzzwTwQDzwTwC7XzzzzXzXVzzXzVkwDzzzwDwQDzwDwC7lzzzzVz3VzzlzVky7zzzy7sQDzy7wC7sTzzzkQ7VzzsC1kz3zzzz01wDzzU0y7wDzzzy0zVzzz0Dkzkzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw"
+               . "|<UpgradeGray2Two_wide>*230$137.00M001zzzzzzzzzzzzzzzzy00k007zzzzzzzzzzzzzzzzw00U00Dzzzzzzzzzzzzzzzzs01U00Tzzzzzzztzls0TzUTk03000zzzzzzzznzXk0Dw0DU02003zzzzzzzzbz7bwDkwD004007zzzzzzzzDyDDyD7yS00800DzzzzzzzyTwSTwSDwQ00M00Tzzzzzzzwzswzwwzws00k00zzzzzzzztzltztlzzk01U01zzzzzzzznzXnzXXzzU03003zzzzzzzzbz7bz77zz006007zzzzzzzzDyDDwSDzy00A00DzzzzzzzyTwS01wT0Q00M00Tzzzzzzzwzsw07sy0s00k00zzzzzzzztzltzzlztk01U01zzzzzzzznzXnzzXznU03003zzzzzzzzbz7bzzbzb004007zzzzzzzzDyTDzz7zC00800DzzzzzzzyDsyTzz7yQ00E00TzzzzzzzyDXwzzy7ks01U00Tzzzzzzzy0Dtzzy03k03000zzzzzzzzz0znzzz0TU04001zzzzzzzzzzzzzzzzz00M003zzzzzzzzzzzzzzzzz"
+               . "|<New>*134$76.7U07U00000000T00S000000001y01s000000007s07U00000000Tk0S000000001zU1s000000007y07U00000000Tw0S01y0Q0Q0Fvk1s0Ty1s1s17bU7U3zw7U7U4SD0S0S3sC0y0Fsw1s3k7Us3w37Vs7US0C3kDkAS7kS1s0w71r0lsD1s703kQ7Q37US7UQ071kQsQS1wS3zzw7VXVls3lsDzzkCCC77U7bUzzz0ssQQS0TS3k003XVnVs0xsD000DQ7C7U1zUQ000RkCsS07y1s001z0vVs0Ds7U007s3w7U0zUD0C0DU7kS01y0z1s0y0T1s03s1zzU3k1s7U0DU1zs0D07US00S01y00Q0C00000000000000000000000002"
+    target := UpgradeTarget
+    result := FindText(,, 800,600,1500,1400, 0.05,0.1, target)
+    if (result) {
+        MsgBox("Found target " . result[1].id . " at " . result[1].1  . "," . result[1].2)
+    } else {
+        MsgBox("Target not found")
+    }
+ */   
+
     ; Combined startup dialog with mode selection
     modeResult := MsgBox("Upchieve detector will search for 'Waiting Students' page and start monitoring automatically.`n`nSelect mode, then click OK and immediately click in the UPchieve browser window to identify it.`n`nYes = LIVE mode (clicks students)`nNo = TESTING mode (no clicking)`nCancel = Exit", "Upchieve Detector - Select Mode & Click Window", "YNC Default2 4096")
     if (modeResult = "Cancel") {
@@ -1079,14 +1127,8 @@ StartDetector() {
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)  ; Get window dimensions
 
     ; Check for upgrade popup that might be blocking the page
-    if (UpgradeTarget != "") {
-        upgradeZone := SearchZone(0, 0, winWidth, winHeight)
-        if (upgradeResult := FindTextInZones(UpgradeTarget, upgradeZone)) {
-            ToolTip "Found upgrade popup blocking page! Clicking to dismiss...", 10, 50
-            WriteLog("DEBUG: Found upgrade popup at " . upgradeResult[1].x . "," . upgradeResult[1].y)
-            Click upgradeResult[1].x, upgradeResult[1].y  ; Window coordinates work directly
-            Sleep 1000  ; Wait for popup to dismiss
-        }
+    if (CheckUpgradePopups()) {
+        WriteLog("DEBUG: Dismissed upgrade popup before header detection")
     }
 
     ; Find header targets directly in expected zones (no PageTarget dependency)
@@ -1102,6 +1144,13 @@ StartDetector() {
     
     ; Main detection loop
     while (IsActive) {
+        ; Check for upgrade popup first (before headers) - it can obscure header detection
+        if (SessionState == WAITING_FOR_STUDENT) {
+            if (CheckUpgradePopups()) {
+                continue  ; Skip to next iteration after handling upgrade
+            }
+        }
+
         ; Periodic header re-detection (every 30 seconds) to handle layout changes
         ; Only do this when WAITING_FOR_STUDENT, not during sessions
         if (SessionState == WAITING_FOR_STUDENT && A_TickCount - lastPageCheck > 30000) {
@@ -1319,15 +1368,6 @@ StartDetector() {
             ; Continue monitoring for more students (removed break statement)
             }
 
-            ; Check for upgrade popup after wait completes (if no student found)
-            if (!result && UpgradeTarget != "") {
-                upgradeZone := SearchZone(0, 0, winWidth, winHeight)
-                if (upgradeResult := FindTextInZones(UpgradeTarget, upgradeZone)) {
-                    ToolTip "Found upgrade popup! Clicking...", 10, 10
-                    Click upgradeResult[1].x, upgradeResult[1].y
-                    continue  ; Skip to next iteration after handling upgrade
-                }
-            }
         }
 
         ; No sleep needed - FindText wait handles timing
