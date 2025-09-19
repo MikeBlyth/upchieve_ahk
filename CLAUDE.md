@@ -49,7 +49,7 @@ The script now tracks three states to prevent unwanted scanning during active se
 - **PAUSED** - Manually paused via Ctrl+Shift+H
 
 ### State Flow:
-1. **Student detected and clicked** → Changes to IN_SESSION state
+1. **Student detected and clicked** → Immediately changes to IN_SESSION state (no verification)
 2. **While IN_SESSION**: Only monitors for "Waiting Students" page to detect session end
 3. **Session ends** (PageTarget appears) → Shows comprehensive feedback dialog with:
    - Student name and subject (editable, pre-filled from OCR)
@@ -298,7 +298,7 @@ Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 - **Blocking check**: ~25ms with header-based positioning (no fallback needed)
 - **Session end detection**: Every 2 seconds during IN_SESSION state (0.15, 0.10 tolerances)
 - **Click response**: Immediate click using coordinates from FindText wait
-- **Upgrade popup check**: Only after 60-second wait cycles (when no student found)
+- **Maintenance tasks**: Performed in main loop after 60-second wait timeouts
 
 ## Troubleshooting
 - **Missing column headers**: App will show dialog if headers not found - adjust browser window size/position and click Reload
@@ -312,6 +312,7 @@ Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 - **BindWindow coordinate system**: BindWindow mode 4 may not properly convert coordinates to window-relative (requires maximized window for reliability)
 - **FindText OCR accuracy**: Character-by-character pattern matching struggles with antialiasing, font variations, and complex text rendering
 - **Speed vs accuracy tradeoff**: Better OCR solutions (Tesseract, Windows OCR) are too slow for competitive student claiming (200-400ms delay)
+- **No click verification**: Click verification was removed to prevent false negatives - session detection relies on session end monitoring
 - JoinText method requires further refinement for optimal results
 - Some characters (especially 'y') require multiple patterns due to descender positioning
 - Window occlusion/shading significantly impacts FindText performance (3-5 seconds vs 170-200ms)
@@ -527,21 +528,20 @@ if (result) {
     ; Student detected - process immediately
     ProcessStudent(result)
 } else {
-    ; 60-second timeout - check for upgrade popups and re-verify headers
-    CheckUpgradePopups()
-    VerifyHeaders()
+    ; 60-second timeout - execution falls through to main loop for maintenance tasks
+    ; No explicit timeout handling needed - natural code flow handles maintenance
 }
 ```
 
 ### Benefits Over Polling
 - **CPU Efficiency**: Native C++ wait loop vs AutoHotkey Sleep() cycles
 - **Instant Response**: No polling delays - triggers immediately when pattern appears
-- **Configurable Timeout**: Allows periodic maintenance tasks (header verification, popup checks)
+- **Configurable Timeout**: Allows periodic maintenance tasks via natural main loop flow
 - **Zero False Negatives**: Continuous monitoring eliminates gaps between polling intervals
 - **Resource Conservation**: Single FindText operation vs multiple rapid searches
 
 ### Integration Notes
-- **Header Re-verification**: 60-second timeouts allow checking if window moved or headers changed
-- **State Management**: Wait operations can be interrupted for session state changes
-- **Upgrade Handling**: Timeout cycles provide opportunity to dismiss upgrade popups
+- **Natural Timeout Flow**: 60-second timeouts naturally continue to main loop for maintenance tasks
+- **State Management**: Wait operations only run during WAITING_FOR_STUDENT state
+- **Upgrade Handling**: Timeout cycles provide opportunity to dismiss upgrade popups via main loop
 - **Performance**: Replaces 50ms polling loop that consumed significant CPU resources

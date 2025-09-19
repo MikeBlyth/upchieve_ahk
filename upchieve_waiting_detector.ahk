@@ -1281,17 +1281,19 @@ StartDetector() {
                 Sleep 2000  ; Wait 2 seconds for session to begin loading
                 WinMaximize("ahk_id " . targetWindowID)
 
+
+ /*    This is too unreliable given that I can't afford to miss a session     
                 ; Check if click succeeded by verifying if student header is still present
                 ; If header still visible, the click was too slow and someone else claimed the student
                 WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
                 headerCheckZone := SearchZone(600, 200, 1600, 1300)
                 headerCheckResult := FindTextInZones(StudentHeaderTarget, headerCheckZone)
-; headerCheckResult := false  ; TEMP OVERRIDE TO SKIP CHECKING FOR TESTING
                 if (headerCheckResult) {
                     ; Click failed - student header still present, session didn't open
                     WriteLog("MISSED: ? - " . topic )
                     continue  ; Continue waiting for students, don't change to IN_SESSION
                 }
+ */
 
                 ; IMMEDIATELY change state to IN_SESSION after clicking (only if successful)
                 global SessionState
