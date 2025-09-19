@@ -83,21 +83,13 @@ CoordMode("Pixel", "Window")
 ; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+A to end session
 
 TargetWindow := "UPchieve"
-IsActive := false
 SoundTimerFunc := ""
 LiveMode := false
 
-; Session state management
-WAITING_FOR_STUDENT := "WAITING_FOR_STUDENT"
-IN_SESSION := "IN_SESSION" 
-PAUSED := "PAUSED"
-SessionState := WAITING_FOR_STUDENT
-
-; Session tracking variables
+; Session tracking variables (state management removed - simplified flow)
 LastStudentName := ""
-LastStudentTopic := ""
-LastRawStudentName := ""  ; Original OCR result for student name
 LastStudentTopic := ""  ; Subject from pattern matching
+LastRawStudentName := ""  ; Original OCR result for student name
 SessionStartTime := ""
 SessionEndTime := ""
 
@@ -363,6 +355,128 @@ CheckBlockedNamePatterns() {
     return {blocked: false, name: ""}
 }
 
+; Handle session after student is detected
+HandleSession(waitingX, waitingY, detectionStartTime, studentDetectionCount) {
+    global LiveMode, targetWindowID, LastStudentName, LastStudentTopic, LastRawStudentName, SessionStartTime, SoundTimerFunc
+
+    ; Step 1: Activate window immediately (parallel with extraction)
+    WinActivate("ahk_id " . targetWindowID)
+
+    ; Step 2: Extract topic using fast pattern detection (no OCR)
+    topic := ExtractTopic()
+    WriteLog("Subject detected: '" . topic . "'")
+
+    ; Calculate detection time (blocking check + subject detection)
+    detectionTime := A_TickCount - detectionStartTime
+    WriteLog("Blocking check + subject detection finished (" . detectionTime . "ms)")
+
+    ; Step 3: Click the student
+    if (LiveMode) {
+        ; Wait for window activation (started earlier)
+        WriteLog("Preparing to click")
+        WinWaitActive("ahk_id " . targetWindowID, , 2)  ; Wait up to 2 seconds for activation
+
+        ; Click the waiting target (confirmed this works)
+        Click waitingX, waitingY  ; Click the waiting target coordinates
+        clickTime := A_TickCount - detectionStartTime  ; Total time from detection to click
+        WriteLog("CLICK #" . studentDetectionCount . ": Clicked waiting target at " . waitingX . "," . waitingY . " (total from detection: " . clickTime . " ms)")
+
+        ; Wait for session to start loading, then maximize window
+        Sleep 2000  ; Wait 2 seconds for session to begin loading
+        WinMaximize("ahk_id " . targetWindowID)
+
+        ; Update session tracking variables (no name, subject only)
+        LastRawStudentName := ""  ; No OCR extraction
+        LastStudentName := ""  ; Manual entry required
+        LastStudentTopic := topic  ; Direct use of pattern-matched subject
+        SessionStartTime := A_Now
+
+        ; Log session start
+        logMessage := "Session started"
+        toolTipMessage := "Session"
+        if (LastStudentTopic != "") {
+            logMessage .= " with " . LastStudentTopic
+            toolTipMessage .= " (" . LastStudentTopic . ")"
+        }
+        logMessage .= " (detection: " . detectionTime . "ms, total: " . clickTime . "ms)"
+        WriteLog(logMessage)
+        ; Session details will be logged via end-session CSV dialog
+        ToolTip(toolTipMessage . " has opened", 10, 50)
+        SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
+    } else {
+        ; TESTING mode - no name extraction
+        LastRawStudentName := ""  ; No OCR extraction
+        LastStudentName := ""  ; Manual entry required
+        LastStudentTopic := topic  ; Direct use of pattern-matched subject
+        SessionStartTime := A_Now
+
+        ; Log session start in testing mode
+        logMessage := "TESTING: Found student"
+        toolTipMessage := "Found student"
+        if (LastStudentTopic != "") {
+            logMessage .= " with " . LastStudentTopic
+            toolTipMessage .= " (" . LastStudentTopic . ")"
+        }
+        logMessage .= " (detection: " . detectionTime . "ms)"
+        WriteLog(logMessage)
+        ; Session details will be logged via end-session CSV dialog
+        ToolTip(toolTipMessage . " waiting", 10, 50)
+        SetTimer(() => ToolTip(), -3000)
+    }
+
+    ; Step 4: Start repeating notification sound (every 2 seconds)
+    PlayNotificationSound()  ; Play immediately
+    SoundTimerFunc := PlayNotificationSound  ; Store function reference
+    SetTimer SoundTimerFunc, 2000  ; Then every 2 seconds
+
+    ToolTip ""  ; Clear tooltip
+
+    ; Step 5: Show session start dialog for name and subject entry
+    dialogResult := ShowSessionStartDialog()
+
+    ; Step 6: Stop the sound and handle dialog result
+    if (SoundTimerFunc != "") {
+        SetTimer SoundTimerFunc, 0  ; Stop the timer
+        SoundTimerFunc := ""
+    }
+
+    ; Step 7: Monitor for session end
+    MonitorSessionEnd()
+
+    ; Step 8: Show session feedback dialog
+    continueResult := ShowSessionFeedbackDialog()
+
+    if (continueResult = "Restart") {
+        WriteLog("DEBUG: Session ended - restarting script")
+        Reload
+    } else if (continueResult = "No") {
+        CleanExit()
+    } else {  ; Cancel (Pause) - simplified flow continues after pause
+        SuspendDetection()
+        WriteLog("DEBUG: Resuming after pause, returning to wait loop")
+    }
+}
+
+; Monitor for session end in a dedicated loop
+MonitorSessionEnd() {
+    global targetWindowID
+
+    ; Monitor for session end
+    WriteLog("DEBUG: Starting session end monitoring")
+
+    while (true) {
+        WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
+        sessionEndZone := SearchZone(0, 0, winWidth, winHeight)
+
+        if (tempResult := FindTextInZones(SessionEndedTarget, sessionEndZone, "", 0.0, 0.03)) {
+            WriteLog("DEBUG: SessionEndedTarget found at " . tempResult[1].x . "," . tempResult[1].y)
+            break
+        }
+
+        Sleep 2000  ; Check every 2 seconds
+    }
+}
+
 ; Apply only known corrections from database without user prompts
 ApplyKnownCorrections(ocrResult) {
     global correctionDatabase, knownStudents
@@ -423,21 +537,8 @@ ExtractTopic() {
 ;
 ; Suspend detection with resume option
 SuspendDetection() {
-    global SessionState
-    previousState := SessionState
-    SessionState := PAUSED
-    ; WriteLog("Detection paused. Previous state: " . previousState)
-    
+    ; Simple pause dialog - no state management needed in simplified flow
     MsgBox("Upchieve suspended`n`nPress OK to resume", "Detection Paused", "OK")
-    
-    ; Resume to appropriate state
-    if (previousState == IN_SESSION) {
-        SessionState := IN_SESSION
-        ; WriteLog("Detection resumed to IN_SESSION state")
-    } else {
-        SessionState := WAITING_FOR_STUDENT
-        ; WriteLog("Detection resumed to WAITING_FOR_STUDENT state")
-    }
 }
 
 ; Session start dialog for name and subject entry
@@ -703,45 +804,19 @@ DllCall("kernel32.dll\SetThreadExecutionState", "UInt", 0x80000003)
 
 ; Manual session start/end function
 EndSession() {
-    WriteLog("DEBUG: EndSession() called - Current state: " . SessionState)
-    global SessionState, LastStudentName, LastStudentTopic, LastRawStudentName, LastRawStudentTopic, SessionStartTime
-    
-    if (SessionState == IN_SESSION) {
-        ; Currently in session - end it with feedback dialog
-        continueResult := ShowSessionFeedbackDialog()
-        
-        if (continueResult = "Restart") {
-            WriteLog("Manual session end - restarting script")
-            Reload
-        } else if (continueResult = "No") {
-            CleanExit()
-        } else {  ; Cancel (Pause)
-            SessionState := PAUSED
-            SuspendDetection()
-            SessionState := WAITING_FOR_STUDENT  ; Resume after pause dialog
-        }
-    } else {
-        ; Not in session - start a manual session
-        ; Clear previous session data since we don't have OCR info
-        LastStudentName := ""
-        LastStudentTopic := ""
-        LastRawStudentName := ""
-        ; LastRawStudentTopic removed - no longer needed
-        SessionStartTime := A_Now
+    global LastStudentName, LastStudentTopic, LastRawStudentName, SessionStartTime
+    WriteLog("DEBUG: Manual EndSession() called")
 
-        ; Show session start dialog for manual session
-        dialogResult := ShowSessionStartDialog()
+    ; Always show session feedback dialog when called manually
+    continueResult := ShowSessionFeedbackDialog()
 
-        if (dialogResult == "Pause") {
-            SessionState := PAUSED
-            WriteLog("Manual session start paused via dialog")
-            return
-        }
-
-        ; Change to IN_SESSION state
-        SessionState := IN_SESSION
-        global lastSessionEndCheck := A_TickCount  ; Initialize session end check timer
-        WriteLog("Manual session start - no OCR data available, initialized session end detection")
+    if (continueResult = "Restart") {
+        WriteLog("Manual session end - restarting script")
+        Reload
+    } else if (continueResult = "No") {
+        CleanExit()
+    } else {  ; Cancel (Pause)
+        SuspendDetection()
     }
 }
 
@@ -1126,256 +1201,56 @@ StartDetector() {
     ; Go directly to header detection in known zones
     WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)  ; Get window dimensions
 
-    ; Check for upgrade popup that might be blocking the page
-    if (CheckUpgradePopups()) {
-        WriteLog("DEBUG: Dismissed upgrade popup before header detection")
-    }
-
-    ; Find header targets directly in expected zones (no PageTarget dependency)
-    ; FindHeaders() will not return until all headers are found or user cancels
-    FindHeaders()
-    lastPageCheck := A_TickCount
-
-    ToolTip "Found 'Waiting Students' page! Found all 3/3 headers. Starting " . modeText . " mode detector...", 10, 50
+    ToolTip "Starting " . modeText . " mode detector...", 10, 50
     Sleep 1000
     ToolTip ""
     
-    IsActive := true
-    
-    ; Main detection loop
-    while (IsActive) {
-        ; Check for upgrade popup first (before headers) - it can obscure header detection
-        if (SessionState == WAITING_FOR_STUDENT) {
-            if (CheckUpgradePopups()) {
-                continue  ; Skip to next iteration after handling upgrade
-            }
+    ; Wait for students loop - simplified flow
+    while (true) {
+        ; Step 1: Check for upgrade popups
+        if (CheckUpgradePopups()) {
+            WriteLog("DEBUG: Dismissed upgrade popup")
         }
 
-        ; Periodic header re-detection (every 30 seconds) to handle layout changes
-        ; Only do this when WAITING_FOR_STUDENT, not during sessions
-        if (SessionState == WAITING_FOR_STUDENT && A_TickCount - lastPageCheck > 30000) {
-            FindHeaders()  ; Re-find headers quietly (skip logging)
-            lastPageCheck := A_TickCount
-        }
-        
-        ; Check for session end: SessionEndedTarget appears while we're IN_SESSION (every 2 seconds)
-        ; SessionEndedTarget is located in upper-right area: width-600,0 to width,350
-        if (SessionState == IN_SESSION) {
-            if (A_TickCount - lastSessionEndCheck > 2000) {
-            WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-            sessionEndZone := SearchZone(0, 0, winWidth, winHeight)
+        ; Step 2: Find headers - required each iteration
+        FindHeaders()
+        WriteLog("DEBUG: Headers found, starting student wait")
 
-            ; Debug: Log session end search attempts (every 10th check to avoid spam)
-            static sessionEndCheckCount := 0
-            sessionEndCheckCount++
-            if (tempResult := FindTextInZones(SessionEndedTarget, sessionEndZone, "", 0.0, 0.03)) {
-                WriteLog("DEBUG: SessionEndedTarget found at " . tempResult[1].x . "," . tempResult[1].y)
-                ; Session ended - show session feedback dialog
-                continueResult := ShowSessionFeedbackDialog()
-                
-                if (continueResult = "Restart") {
-                    WriteLog("DEBUG: Session ended - restarting script")
-                    Reload
-                } else if (continueResult = "No") {
-                    CleanExit()
-                } else {  ; Cancel (Pause)
-                    global SessionState
-                    SessionState := PAUSED
-                    SuspendDetection()
-                    SessionState := WAITING_FOR_STUDENT  ; Resume after pause dialog
-                }
-            }
-            
-            ; Always update the timer, whether target was found or not
-            lastSessionEndCheck := A_TickCount
-            }
-        }
-        
-        ; Permanent status tooltip - update every loop iteration
-        ; Use window-relative coordinates for tooltip
-        CoordMode("ToolTip", "Window")
-        tooltipX := 600
-        tooltipY := 225
-        
-        ; Debug: Log state changes and show tooltip only when state changes
-        static lastLoggedState := ""
-        if (SessionState != lastLoggedState) {
-            WriteLog("DEBUG: State changed from '" . lastLoggedState . "' to '" . SessionState . "'")
-            lastLoggedState := SessionState
+        ; Step 3: Calculate search zones based on header positions
+        global waitTimeHeaderPos
+        WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
-            ; Show tooltip only when state changes
-            if (SessionState == WAITING_FOR_STUDENT) {
-                ToolTip "State: Waiting for Student", tooltipX, tooltipY, 2
-            } else if (SessionState == IN_SESSION) {
-                ToolTip "State: In Session", tooltipX, tooltipY, 2
-            } else {
-                ToolTip "State: Paused", tooltipX, tooltipY, 2
-            }
-        }
-        
-        ; Only scan for waiting students if we're in the right state
-        if (SessionState == WAITING_FOR_STUDENT) {
-            ; Calculate search zones based on header positions with window coordinates
-            global waitTimeHeaderPos
-            WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-            
-            ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
-            waitingZone1 := SearchZone(waitTimeHeaderPos.x - 5, waitTimeHeaderPos.y + 97, waitTimeHeaderPos.x + 50, waitTimeHeaderPos.y + 132)
-            waitingZone2 := SearchZone(waitTimeHeaderPos.x - 10, waitTimeHeaderPos.y + 85, waitTimeHeaderPos.x + 70, waitTimeHeaderPos.y + 145)  ; Slightly larger fallback
-            
-            ; Debug: Log WaitingTarget search zone (once per monitoring session)
-            static waitingZoneLogged := false
-            if (!waitingZoneLogged) {
-                WriteLog("DEBUG: WaitingTarget search zone: " . waitingZone1.ToString())
-                waitingZoneLogged := true
-            }
+        ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
+        waitingZone1 := SearchZone(waitTimeHeaderPos.x - 5, waitTimeHeaderPos.y + 97, waitTimeHeaderPos.x + 50, waitTimeHeaderPos.y + 132)
 
-            ; Use FindText wait to continuously search for 60 seconds in primary zone
-            ; Could use larger zone (waitingZone2) if needed for better coverage
-            result := FindText(&waitingX:='wait', &waitingY:=60, waitingZone1.x1, waitingZone1.y1, waitingZone1.x2, waitingZone1.y2, 0.15, 0.05, WaitingTarget)
+        WriteLog("DEBUG: WaitingTarget search zone: " . waitingZone1.ToString())
 
-            ; Debug: Only log when student is found (first detection)
-            if (result) {
-                static studentDetectionCount := 0
-                studentDetectionCount++
-                WriteLog("DETECTION #" . studentDetectionCount . ": WaitingTarget found at " . waitingX . "," . waitingY)
-            }
+        ; Step 4: Wait for students (60 seconds)
+        result := FindText(&waitingX:='wait', &waitingY:=60, waitingZone1.x1, waitingZone1.y1, waitingZone1.x2, waitingZone1.y2, 0.15, 0.05, WaitingTarget)
 
-            if (result) {
-            global LiveMode
-            detectionStartTime := A_TickCount  ; Start timing from WaitingTarget detection
+        ; Step 5: If student found, check if blocked and exit loop
+        if (result) {
+            static studentDetectionCount := 0
+            studentDetectionCount++
+            WriteLog("DETECTION #" . studentDetectionCount . ": WaitingTarget found at " . waitingX . "," . waitingY)
 
-            ; Coordinates are already in waitingX and waitingY from the wait call
-
-            ; Step 1: Activate window immediately (parallel with extraction)
-            WinActivate("ahk_id " . targetWindowID)
-
-            ; Step 2: Check for blocked name patterns FIRST (fast visual detection)
+            ; Check for blocked name patterns FIRST (fast visual detection)
             blockResult := CheckBlockedNamePatterns()
             if (blockResult.blocked) {
                 WriteLog("BLOCKED: Pattern detected - " . blockResult.name . " - skipping student")
-                continue  ; Skip this student entirely
+                continue  ; Skip this student entirely, continue waiting
             }
 
-            ; Step 3: Extract topic using fast pattern detection (no OCR)
-            topic := ExtractTopic()
-            WriteLog("Subject detected: '" . topic . "'")
-            
-            ; Calculate detection time (blocking check + subject detection)
-            detectionTime := A_TickCount - detectionStartTime
-            WriteLog("Blocking check + subject detection finished (" . detectionTime . "ms)")
-
-            ; Step 4: Click the student
-            if (LiveMode) {
-                ; Wait for window activation (started earlier)
-                WriteLog("Preparing to click")
-                WinWaitActive("ahk_id " . targetWindowID, , 2)  ; Wait up to 2 seconds for activation
-                
-                ; Click the waiting target (confirmed this works)
-                Click waitingX, waitingY  ; Click the waiting target coordinates
-                clickTime := A_TickCount - detectionStartTime  ; Total time from detection to click
-                WriteLog("CLICK #" . studentDetectionCount . ": Clicked waiting target at " . waitingX . "," . waitingY . " (total from detection: " . clickTime . " ms)")
-
-                ; Wait for session to start loading, then maximize window
-                Sleep 2000  ; Wait 2 seconds for session to begin loading
-                WinMaximize("ahk_id " . targetWindowID)
-
-
- /*    This is too unreliable given that I can't afford to miss a session     
-                ; Check if click succeeded by verifying if student header is still present
-                ; If header still visible, the click was too slow and someone else claimed the student
-                WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-                headerCheckZone := SearchZone(600, 200, 1600, 1300)
-                headerCheckResult := FindTextInZones(StudentHeaderTarget, headerCheckZone)
-                if (headerCheckResult) {
-                    ; Click failed - student header still present, session didn't open
-                    WriteLog("MISSED: ? - " . topic )
-                    continue  ; Continue waiting for students, don't change to IN_SESSION
-                }
- */
-
-                ; IMMEDIATELY change state to IN_SESSION after clicking (only if successful)
-                global SessionState
-                SessionState := IN_SESSION
-                
-                ; Update session tracking variables (no name, subject only)
-                global LastStudentName, LastStudentTopic, LastRawStudentName, SessionStartTime
-                LastRawStudentName := ""  ; No OCR extraction
-                LastStudentName := ""  ; Manual entry required
-                LastStudentTopic := topic  ; Direct use of pattern-matched subject
-                SessionStartTime := A_Now
-
-                ; Log session start
-                logMessage := "Session started"
-                toolTipMessage := "Session"
-                if (LastStudentTopic != "") {
-                    logMessage .= " with " . LastStudentTopic
-                    toolTipMessage .= " (" . LastStudentTopic . ")"
-                }
-                logMessage .= " (detection: " . detectionTime . "ms, total: " . clickTime . "ms)"
-                WriteLog(logMessage)
-                ; Session details will be logged via end-session CSV dialog
-                ToolTip(toolTipMessage . " has opened", 10, 50)
-                SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
-            } else {
-                ; TESTING mode - no name extraction
-                global LastStudentName, LastStudentTopic, LastRawStudentName, SessionStartTime
-                LastRawStudentName := ""  ; No OCR extraction
-                LastStudentName := ""  ; Manual entry required
-                LastStudentTopic := topic  ; Direct use of pattern-matched subject
-                SessionStartTime := A_Now
-
-                ; Log session start in testing mode
-                logMessage := "TESTING: Found student"
-                toolTipMessage := "Found student"
-                if (LastStudentTopic != "") {
-                    logMessage .= " with " . LastStudentTopic
-                    toolTipMessage .= " (" . LastStudentTopic . ")"
-                }
-                logMessage .= " (detection: " . detectionTime . "ms)"
-                WriteLog(logMessage)
-                ; Session details will be logged via end-session CSV dialog
-                ToolTip(toolTipMessage . " waiting", 10, 50)
-                SetTimer(() => ToolTip(), -3000)
-
-                ; In testing mode, also simulate being in session for state testing
-                global SessionState
-                SessionState := IN_SESSION
-            }
-            
-            ; Step 4: Start repeating notification sound (every 2 seconds)
-            global SoundTimerFunc
-            PlayNotificationSound()  ; Play immediately
-            SoundTimerFunc := PlayNotificationSound  ; Store function reference
-            SetTimer SoundTimerFunc, 2000  ; Then every 2 seconds
-            
-            ToolTip ""  ; Clear tooltip
-            
-            ; Step 5: Show session start dialog for name and subject entry
-            dialogResult := ShowSessionStartDialog()
-
-            ; Step 6: Stop the sound and handle dialog result
-            if (SoundTimerFunc != "") {
-                SetTimer SoundTimerFunc, 0  ; Stop the timer
-                SoundTimerFunc := ""
-            }
-
-            ; Handle dialog result
-            if (dialogResult == "Pause") {
-                SessionState := PAUSED
-                WriteLog("Session paused via start dialog")
-                continue  ; Skip to next loop iteration
-            }
-            
-            ; Continue monitoring for more students (removed break statement)
-            }
-
+            ; Student found and not blocked - exit wait loop to handle session
+            detectionStartTime := A_TickCount
+            break
         }
 
-        ; No sleep needed - FindText wait handles timing
-        
-        ; Continue monitoring (removed window existence check)
+        ; No student found in 60 seconds - continue loop (no sleep needed)
     }
+
+    ; Handle the session
+    HandleSession(waitingX, waitingY, detectionStartTime, studentDetectionCount)
     
     ; Clear tooltip when done
     ToolTip ""
