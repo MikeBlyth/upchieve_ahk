@@ -2,6 +2,7 @@
 #Include FindTextv2.ahk
 #Include alphabet.ahk
 #Include student_database.ahk
+#Include ahk_utilities.ahk
 
 ; SearchZone class for defining search areas
 class SearchZone {
@@ -26,54 +27,6 @@ class SearchZone {
     }
 }
 
-; FindText wrapper for multiple search zones
-FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, verbose := false) {
-    startTime := A_TickCount
-
-    ; Extract target ID from pattern for logging
-    targetId := ""
-    if (target != "") {
-        ; Extract ID from pattern like "|<WaitingTarget>*123$45.hex..."
-        if (RegExMatch(target, "\|<([^>]+)>", &match))
-            targetId := match[1]
-        else if (RegExMatch(target, "<([^>]+)>", &match))
-            targetId := match[1]
-        else
-            targetId := "Unknown"
-    }
-
-    if (verbose) {
-        WriteLog("VERBOSE: FindTextInZones - target=" . targetId . " zone1=" . zone1.ToString() . " err1=" . Format("{:.2f}", err1) . " err2=" . Format("{:.2f}", err2))
-        if (zone2 != "" && IsObject(zone2))
-            WriteLog("VERBOSE: FindTextInZones - zone2=" . zone2.ToString())
-    }
-
-    ; Try first zone
-    if (result := FindText(, , zone1.x1, zone1.y1, zone1.x2, zone1.y2, err1, err2, target, 0,1)) {
-        SearchStats.searchTimeMs := A_TickCount - startTime
-        SearchStats.foundInZone := "zone1"
-        ; Log all successful results
-        WriteLog("DEBUG: FindTextInZones - SUCCESS in zone1: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
-        return result
-    }
-
-    ; Try second zone if provided
-    if (zone2 != "" && IsObject(zone2)) {
-        if (result := FindText(, , zone2.x1, zone2.y1, zone2.x2, zone2.y2, err1, err2, target)) {
-            SearchStats.searchTimeMs := A_TickCount - startTime
-            SearchStats.foundInZone := "zone2"
-            ; Log all successful results
-            WriteLog("DEBUG: FindTextInZones - SUCCESS in zone2: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . SearchStats.searchTimeMs . "ms")
-            return result
-        }
-    }
-
-    SearchStats.searchTimeMs := A_TickCount - startTime
-    SearchStats.foundInZone := "none"
-    if (verbose)
-        WriteLog("VERBOSE: FindTextInZones - NOT FOUND: target=" . targetId . " searchTime=" . SearchStats.searchTimeMs . "ms")
-    return 0
-}
 
 ; Set coordinate mode to window coordinates for unified coordinate system
 CoordMode("Mouse", "Window")
@@ -236,7 +189,7 @@ FindHeaders() {
         studentZone2 := SearchZone(0, 150, 0, 2000, 1800, 0)   ; Wider fallback zone
 
         ; Search for Student Header
-        if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2)) {
+        if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2, 0.15, 0.10, &SearchStats)) {
             upperLeft := GetUpperLeft(result)
             studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
         }
@@ -250,7 +203,7 @@ FindHeaders() {
         subjectZone2 := SearchZone(0, 150, 2000, 2000)  ; Wider fallback zone
 
         ; Search for Subject Header (was Help Header)
-        if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2)) {
+        if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2, 0.15, 0.10, &SearchStats)) {
             upperLeft := GetUpperLeft(result)
             subjectHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
         }
@@ -264,7 +217,7 @@ FindHeaders() {
         waitTimeZone2 := SearchZone(100, 150, 2000, 2000)  ; Wider fallback zone
 
         ; Search for Wait Time Header
-        if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10)) {
+        if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10, &SearchStats)) {
             upperLeft := GetUpperLeft(result)
             waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
         }
@@ -340,7 +293,7 @@ CheckBlockedNamePatterns() {
     blockingZone := SearchZone(studentHeaderPos.x - 5, studentHeaderPos.y + 95, 0, 0, 200, 35)
 
     ; Search for blocked patterns in calculated zone
-    if (result := FindTextInZones(BlockedTargets, blockingZone,, 0.15, 0.10)) {
+    if (result := FindTextInZones(BlockedTargets, blockingZone,, 0.15, 0.10, &SearchStats)) {
         ; Found a blocked name pattern
         blockedName := result[1].id  ; Get the pattern name (e.g. "Chukwudi", "Camila")
         WriteLog("BLOCKED: " . blockedName)
@@ -470,7 +423,7 @@ MonitorSessionEnd() {
         WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
         sessionEndZone := SearchZone(0, 0, winWidth, winHeight)
 
-        if (tempResult := FindTextInZones(SessionEndedTarget, sessionEndZone, "", 0.0, 0.03)) {
+        if (tempResult := FindTextInZones(SessionEndedTarget, sessionEndZone, "", 0.0, 0.03, &SearchStats)) {
             WriteLog("DEBUG: SessionEndedTarget found at " . tempResult[1].x . "," . tempResult[1].y)
             break
         }
@@ -518,7 +471,7 @@ ExtractTopic() {
     primaryZone := SearchZone(subjectHeaderPos.x - 5, subjectHeaderPos.y + 95, 0, 0, 150, 30)
 
     ; Try primary zone with SubjectTargets
-    if (result := FindTextInZones(SubjectTargets, primaryZone)) {
+    if (result := FindTextInZones(SubjectTargets, primaryZone, "", 0.15, 0.10, &SearchStats)) {
         WriteLog("DEBUG: Subject: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
         return result[1].id
     }
@@ -527,7 +480,7 @@ ExtractTopic() {
     secondaryZone := SearchZone(subjectHeaderPos.x + 65, subjectHeaderPos.y + 95, 0, 0, 35, 30)
 
     ; Try secondary zone with SubjectTargets_2
-    if (result := FindTextInZones(SubjectTargets_2, secondaryZone)) {
+    if (result := FindTextInZones(SubjectTargets_2, secondaryZone, "", 0.15, 0.10, &SearchStats)) {
         WriteLog("DEBUG: Secondary Subject Zone - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
         return result[1].id
     }

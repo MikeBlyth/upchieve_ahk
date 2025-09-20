@@ -29,33 +29,40 @@ soundFile := "water_drop.mp3"
 targetFound := false
 lastSeenTime := 0
 IsActive := true
-
-; Window selection and binding
-startupResult := MsgBox("Click in the game window...", "My Turn Monitor - Click Game Window", "OKCancel 4096")
-if (startupResult = "Cancel") {
-    ExitApp()  ; Exit application
-}
-
-; Wait for user to click and capture the window
 global targetWindowID := ""
-; Show tooltip that follows mouse cursor
-while (!GetKeyState("LButton", "P")) {
-    MouseGetPos(&mouseX, &mouseY)
-    ToolTip "Click on the game window now...", , , 3
-    Sleep(50)
+
+GetTargetWindow(message := 'Select window', confirm := true) {
+    ; Function to get the target window ID
+    ; This is a placeholder function; actual implementation may vary
+    ; Window selection and binding
+    startupResult := MsgBox(message, "Select Window", "OKCancel 4096")
+    if (startupResult = "Cancel") {
+        ExitApp()  ; Exit application
+    }
+
+    ; Wait for user to click and capture the window
+    ; Show tooltip that follows mouse cursor
+    while (!GetKeyState("LButton", "P")) {
+        MouseGetPos(&mouseX, &mouseY)
+        ToolTip "Click on the game window now...", , , 3
+        Sleep(50)
+    }
+    KeyWait("LButton", "U")  ; Wait for button release
+    MouseGetPos(&mouseX, &mouseY, &windowID)  ; Get window ID under mouse
+    ToolTip "", , , 3  ; Clear tooltip
+
+    ; Bind FindText to the selected window for improved performance and reliability
+    ; Mode 4 is essential for proper window targeting
+    if (confirm) {
+        bindResult := FindText().BindWindow(windowID, 4)
+        boundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
+        boundMode := FindText().BindWindow(0, 0, 0, 1)  ; get_mode = 1
+        MsgBox("Game window " . boundID . " in " . boundMode . " mode selected! Starting turn monitor...", "Window Selected", "OK 4096")
+    }
+    return targetWindowID
 }
-KeyWait("LButton", "U")  ; Wait for button release
-MouseGetPos(&mouseX, &mouseY, &targetWindowID)  ; Get window ID under mouse
-ToolTip "", , , 3  ; Clear tooltip
 
-; Bind FindText to the selected window for improved performance and reliability
-; Mode 4 is essential for proper window targeting
-bindResult := FindText().BindWindow(targetWindowID, 4)
-
-; Confirm window selection
-MsgBox("Game window selected! Starting turn monitor...", "Window Selected", "OK 4096")
-
-
+targetWindowId := GetTargetWindow("Select game window", 1)  ; Get and bind to target window
 
 ; Main monitoring loop
 while (IsActive) {
