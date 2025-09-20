@@ -66,15 +66,20 @@ while (IsActive) {
         lastSeenTime := A_TickCount
         
         if (!targetFound) {
-            ; Target found for first time - play sound
-            if (FileExist(soundFile)) {
-                SoundPlay(soundFile)
-            } else {
-                ; Fallback beep if sound file not found
-                SoundBeep(800, 300)
-            }
+            ; Target found for first time - start repeated beeping
             targetFound := true
         }
+
+        ; Play sound/beep repeatedly while target is present
+        if (FileExist(soundFile)) {
+            SoundPlay(soundFile)
+        } else {
+            ; Fallback beep if sound file not found - higher frequency for more volume
+            SoundBeep(1200, 300)
+        }
+
+        ; Sleep for 60 seconds before next detection cycle
+        Sleep(60000)
     } else if (targetFound) {
         ; Target not found, but we think it's still there
         ; Check if it's been absent for 10 seconds (10000ms)

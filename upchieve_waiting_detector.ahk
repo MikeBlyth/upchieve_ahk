@@ -401,8 +401,9 @@ HandleSession(waitingX, waitingY, detectionStartTime, studentDetectionCount) {
         logMessage .= " (detection: " . detectionTime . "ms, total: " . clickTime . "ms)"
         WriteLog(logMessage)
         ; Session details will be logged via end-session CSV dialog
-        ToolTip(toolTipMessage . " has opened", 10, 50)
-        SetTimer(() => ToolTip(), -3000)  ; Clear tooltip after 3 seconds
+        WinGetPos(&activeX, &activeY, , , "A")
+        CoordMode "ToolTip", "Screen"
+        ToolTip "📚 In session" . (LastStudentTopic ? " (" . LastStudentTopic . ")" : ""), activeX + 100, activeY + 100, 1
     } else {
         ; TESTING mode - no name extraction
         LastRawStudentName := ""  ; No OCR extraction
@@ -420,8 +421,9 @@ HandleSession(waitingX, waitingY, detectionStartTime, studentDetectionCount) {
         logMessage .= " (detection: " . detectionTime . "ms)"
         WriteLog(logMessage)
         ; Session details will be logged via end-session CSV dialog
-        ToolTip(toolTipMessage . " waiting", 10, 50)
-        SetTimer(() => ToolTip(), -3000)
+        WinGetPos(&activeX, &activeY, , , "A")
+        CoordMode "ToolTip", "Screen"
+        ToolTip "🧪 Testing mode - student detected" . (LastStudentTopic ? " (" . LastStudentTopic . ")" : ""), activeX + 100, activeY + 100, 1
     }
 
     ; Step 4: Start repeating notification sound (every 2 seconds)
@@ -1213,6 +1215,10 @@ StartDetector() {
         }
 
         ; Step 2: Find headers - required each iteration
+        ; Get active window position for tooltip
+        WinGetPos(&activeX, &activeY, , , "A")
+        CoordMode "ToolTip", "Screen"
+        ToolTip "🔍 Searching for headers...", activeX + 100, activeY + 100, 1
         FindHeaders()
         WriteLog("DEBUG: Headers found, starting student wait")
 
@@ -1226,6 +1232,9 @@ StartDetector() {
         WriteLog("DEBUG: WaitingTarget search zone: " . waitingZone1.ToString())
 
         ; Step 4: Wait for students (60 seconds)
+        WinGetPos(&activeX, &activeY, , , "A")
+        CoordMode "ToolTip", "Screen"
+        ToolTip "⏳ Waiting for students... (" . modeText . " mode)", activeX + 100, activeY + 100, 1
         result := FindText(&waitingX:='wait', &waitingY:=60, waitingZone1.x1, waitingZone1.y1, waitingZone1.x2, waitingZone1.y2, 0.15, 0.05, WaitingTarget)
 
         ; Step 5: If student found, check if blocked and exit loop
