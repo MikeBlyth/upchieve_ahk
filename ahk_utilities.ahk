@@ -1,17 +1,18 @@
 GetTargetWindow(message := 'Select window', confirm := true) {
     ; Function to get the target window ID
-    ; This is a placeholder function; actual implementation may vary
     ; Window selection and binding
     startupResult := MsgBox(message, "Select Window", "OKCancel 4096")
     if (startupResult = "Cancel") {
-        ExitApp()  ; Exit application
+        ; Clear any existing FindText window binding before returning
+        FindText().BindWindow(0)
+        return ""  ; Return empty string if cancelled
     }
 
     ; Wait for user to click and capture the window
     ; Show tooltip that follows mouse cursor
     while (!GetKeyState("LButton", "P")) {
         MouseGetPos(&mouseX, &mouseY)
-        ToolTip "Click on the game window now...", , , 3
+        ToolTip "Click on the target window now...", , , 3
         Sleep(50)
     }
     KeyWait("LButton", "U")  ; Wait for button release
@@ -20,13 +21,22 @@ GetTargetWindow(message := 'Select window', confirm := true) {
 
     ; Bind FindText to the selected window for improved performance and reliability
     ; Mode 4 is essential for proper window targeting
+    FindText().BindWindow(windowID, 4)
+
     if (confirm) {
-        bindResult := FindText().BindWindow(windowID, 4)
         boundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
         boundMode := FindText().BindWindow(0, 0, 0, 1)  ; get_mode = 1
-        MsgBox("Game window " . boundID . " in " . boundMode . " mode selected! Starting turn monitor...", "Window Selected", "OK 4096")
+        MsgBox("Target window " . boundID . " in " . boundMode . " mode selected! Starting turn monitor...", "Window Selected", "OK 4096")
     }
-    return targetWindowID
+    return windowID
+}
+
+; SearchStats class for tracking search performance
+class SearchStatsClass {
+    __New() {
+        this.searchTimeMs := 0
+        this.foundInZone := "none"
+    }
 }
 
 ; SearchZone class for defining search areas
@@ -55,6 +65,11 @@ class SearchZone {
 ; FindText wrapper for multiple search zones
 FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, &stats := "", verbose := false) {
     startTime := A_TickCount
+
+    ; Initialize stats if not provided
+    if (!IsSet(stats)) {
+        stats := SearchStatsClass()
+    }
 
     ; Extract target ID from pattern for logging
     targetId := ""
@@ -108,4 +123,11 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, &stats :
     if (verbose)
         WriteLog("VERBOSE: FindTextInZones - NOT FOUND: target=" . targetId . " searchTime=" . searchTime . "ms")
     return 0
+}
+
+; Write message to debug log with timestamp
+WriteLog(message) {
+    logFile := "debug_log.txt"
+    timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss") . "." . Format("{:03d}", A_MSec)
+    FileAppend timestamp . " - " . message . "`n", logFile
 }

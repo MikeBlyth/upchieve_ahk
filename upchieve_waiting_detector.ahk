@@ -4,28 +4,6 @@
 #Include student_database.ahk
 #Include ahk_utilities.ahk
 
-; SearchZone class for defining search areas
-class SearchZone {
-    __New(x1 := 0, y1 := 0, x2 := 0, y2 := 0, width := 0, height := 0) {
-        this.x1 := x1
-        this.y1 := y1
-
-        ; Use width/height if provided, otherwise use x2/y2
-        if (width > 0)
-            this.x2 := x1 + width
-        else
-            this.x2 := x2
-
-        if (height > 0)
-            this.y2 := y1 + height
-        else
-            this.y2 := y2
-    }
-
-    ToString() {
-        return "SearchZone(" . Round(this.x1) . "," . Round(this.y1) . " to " . Round(this.x2) . "," . Round(this.y2) . ")"
-    }
-}
 
 
 ; Set coordinate mode to window coordinates for unified coordinate system
@@ -54,10 +32,7 @@ ScanCount := 0
 lastSessionEndCheck := 0
 
 ; Search statistics tracking
-SearchStats := {
-    searchTimeMs: 0,
-    foundInZone: "none"
-}
+SearchStats := SearchStatsClass()
 
 ; Function to play notification sound
 PlayNotificationSound() {
@@ -114,11 +89,6 @@ BlockedTargets :=
     "|<Camila>*130$106.000000000000000000000000000000s60000000000000003kM00003w000000000D1U0000zw000000000s60000DVw0000000000M0001s1k0000000001U000703U00000000060000s000TU37kDU3UM0TU3U007z0BznzU61U3zUQ000wC0y7yD0M60QD1k0070Q3kDUQ3UM3UA700081kC0Q0s61U40sQ000070s1k3UM6003Vk0000Q3U70C1UM00S70001zkA0Q0s61U0zsQ000Tz0k1k3UM60DzUk003kQ3070C1UM1sC3U0MQ1kC0Q0s61UC0s703VU70k1k3UM60k3US0Q70w3070C1UM30S0y7kQ7kA0Q0s61kC3s0zw0zvks1k3UM7sTxk0z00y73070C1U7Uz70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002"
 
 ; Debug log function
-WriteLog(message) {
-    logFile := "debug_log.txt"
-    timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss") . "." . Format("{:03d}", A_MSec)
-    FileAppend timestamp . " - " . message . "`n", logFile
-}
 
 ; App log function for session data in CSV format
 WriteAppLog(message) {
@@ -182,7 +152,7 @@ FindHeaders() {
         global waitTimeHeaderPos := {x: 0, y: 0, found: false}
 
         ; Get window client area dimensions for boundary checking
-        WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
+;        WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
         ; Define search zones for Student Header
         studentZone1 := SearchZone(600, 1150, 900, 1250)
@@ -293,7 +263,7 @@ CheckBlockedNamePatterns() {
     blockingZone := SearchZone(studentHeaderPos.x - 5, studentHeaderPos.y + 95, 0, 0, 200, 35)
 
     ; Search for blocked patterns in calculated zone
-    if (result := FindTextInZones(BlockedTargets, blockingZone,, 0.15, 0.10, &SearchStats)) {
+    if (result := FindTextInZones(BlockedTargets, blockingZone, "", 0.15, 0.10, &SearchStats)) {
         ; Found a blocked name pattern
         blockedName := result[1].id  ; Get the pattern name (e.g. "Chukwudi", "Camila")
         WriteLog("BLOCKED: " . blockedName)
@@ -323,7 +293,14 @@ HandleSession(waitingX, waitingY, detectionStartTime, studentDetectionCount) {
     detectionTime := A_TickCount - detectionStartTime
     WriteLog("Blocking check + subject detection finished (" . detectionTime . "ms)")
 
-    ; Step 3: Click the student
+    ; Step 3: Capture student name region for training before clicking
+    global studentHeaderPos
+    if (studentHeaderPos.found) {
+        CaptureNameRegion(studentHeaderPos)
+        WriteLog("Student name region captured for training")
+    }
+
+    ; Step 4: Click the student
     if (LiveMode) {
         ; Wait for window activation (started earlier)
         WriteLog("Preparing to click")
@@ -354,7 +331,13 @@ HandleSession(waitingX, waitingY, detectionStartTime, studentDetectionCount) {
         logMessage .= " (detection: " . detectionTime . "ms, total: " . clickTime . "ms)"
         WriteLog(logMessage)
         ; Session details will be logged via end-session CSV dialog
-        WinGetPos(&activeX, &activeY, , , "A")
+        try {
+            WinGetPos(&activeX, &activeY, , , "A")
+        } catch {
+            ; Fallback if no active window (rare edge case)
+            activeX := 100
+            activeY := 100
+        }
         CoordMode "ToolTip", "Screen"
         ToolTip "📚 In session" . (LastStudentTopic ? " (" . LastStudentTopic . ")" : ""), activeX + 100, activeY + 100, 1
     } else {
@@ -374,7 +357,13 @@ HandleSession(waitingX, waitingY, detectionStartTime, studentDetectionCount) {
         logMessage .= " (detection: " . detectionTime . "ms)"
         WriteLog(logMessage)
         ; Session details will be logged via end-session CSV dialog
-        WinGetPos(&activeX, &activeY, , , "A")
+        try {
+            WinGetPos(&activeX, &activeY, , , "A")
+        } catch {
+            ; Fallback if no active window (rare edge case)
+            activeX := 100
+            activeY := 100
+        }
         CoordMode "ToolTip", "Screen"
         ToolTip "🧪 Testing mode - student detected" . (LastStudentTopic ? " (" . LastStudentTopic . ")" : ""), activeX + 100, activeY + 100, 1
     }
@@ -420,10 +409,12 @@ MonitorSessionEnd() {
     WriteLog("DEBUG: Starting session end monitoring")
 
     while (true) {
-        WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
-        sessionEndZone := SearchZone(0, 0, winWidth, winHeight)
+        WinGetClientPos(&winX, &winY, &winWidth, &winHeight, targetWindowID)
+        sessionEndZone := SearchZone(winWidth-400, 0, winWidth, 300)
+        ; try in screenbased coords also
+        sessionEndZone2 := SearchZone(winX + winWidth - 400, winY, winx + winWidth, winY + 300)  ; Full window zone
 
-        if (tempResult := FindTextInZones(SessionEndedTarget, sessionEndZone, "", 0.0, 0.03, &SearchStats)) {
+        if (tempResult := FindTextInZones(SessionEndedTarget, sessionEndZone, sessionEndZone2, 0.0, 0.03, &SearchStats)) {
             WriteLog("DEBUG: SessionEndedTarget found at " . tempResult[1].x . "," . tempResult[1].y)
             break
         }
@@ -914,8 +905,14 @@ TempScreenshotPath := ""
 SessionCounter := 0
 
 ; Capture screenshot of student name region for OCR training
-CaptureNameRegion(searchX, searchY, searchWidth, searchHeight, rawOCRResult) {
+CaptureNameRegion(headerPos) {
     global TempScreenshotPath, SessionCounter, targetWindowID
+
+    ; Calculate name region coordinates from header position
+    searchX := headerPos.x - 5
+    searchY := headerPos.y + 95
+    searchWidth := 200
+    searchHeight := 35
     
     ; Create ocr_training folder if it doesn't exist
     trainingFolder := "ocr_training"
@@ -955,7 +952,7 @@ CaptureNameRegion(searchX, searchY, searchWidth, searchHeight, rawOCRResult) {
         
         if (success) {
             TempScreenshotPath := tempFilename  ; Store for later rename
-            WriteLog("DEBUG: OCR training screenshot captured: " . tempFilename . " (OCR: '" . rawOCRResult . "')")
+            WriteLog("DEBUG: Name region screenshot captured: " . tempFilename)
             return tempFilename
         } else {
             WriteLog("ERROR: Failed to capture OCR training screenshot")
@@ -1041,11 +1038,6 @@ CaptureRegionToFile(screenX, screenY, width, height, filename) {
         ; Take screenshot with screen coordinates
         FindText().SavePic(filename, x1, y1, x2, y2, 1)
 
-        ; ; Restore previous bind settings
-        ; if (currentBoundID > 0) {
-        ;     FindText().BindWindow(currentBoundID, currentBoundMode)
-        ; }
-
         ; Verify file was created
         if (FileExist(filename)) {
             return true
@@ -1128,33 +1120,13 @@ StartDetector() {
     LiveMode := (modeResult = "Yes")
     modeText := LiveMode ? "LIVE" : "TESTING"
     
-    ; Wait for user to click and capture the window
-    global targetWindowID := ""
-    ; Show tooltip that follows mouse cursor
-    while (!GetKeyState("LButton", "P")) {
-        MouseGetPos(&mouseX, &mouseY)
-        ToolTip "Click on the UPchieve browser window now...", , , 3
-        Sleep(50)
+    ; Get target window using utility function
+    global targetWindowID := GetTargetWindow("Click on the UPchieve browser window now...", false)
+    if (targetWindowID = "") {
+        CleanExit()  ; Exit if user cancelled window selection
     }
-    KeyWait("LButton", "U")  ; Wait for button release
-    MouseGetPos(&mouseX, &mouseY, &targetWindowID)  ; Get window ID under mouse
-    ToolTip "", , , 3  ; Clear tooltip ID 3
     
-    ; Bind FindText to the selected window for improved performance and reliability
-    ; Mode 4 is essential for proper window targeting
-    bindResult := FindText().BindWindow(targetWindowID, 4)
-;    WriteLog("DEBUG: BindWindow result for ID " . targetWindowID . " with mode 4: " . (bindResult ? "Success" : "Failed"))
-    
-    ; Verify BindWindow is working by checking bound ID and mode
-    boundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
-    boundMode := FindText().BindWindow(0, 0, 0, 1)  ; get_mode = 1
-    
-    ; Confirm window selection
-;    MsgBox("Window selected! Starting " . modeText . " mode detector...", "Window Selected", "OK 4096")
-    
-    ; Skip PageTarget detection - we already have the right window
-    ; Go directly to header detection in known zones
-    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)  ; Get window dimensions
+;    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)  ; Get window dimensions
 
     ToolTip "Starting " . modeText . " mode detector...", 10, 50
     Sleep 1000
@@ -1169,7 +1141,13 @@ StartDetector() {
 
         ; Step 2: Find headers - required each iteration
         ; Get active window position for tooltip
-        WinGetPos(&activeX, &activeY, , , "A")
+        try {
+            WinGetPos(&activeX, &activeY, , , "A")
+        } catch {
+            ; Fallback if no active window (rare edge case)
+            activeX := 100
+            activeY := 100
+        }
         CoordMode "ToolTip", "Screen"
         ToolTip "🔍 Searching for headers...", activeX + 100, activeY + 100, 1
         FindHeaders()
@@ -1185,7 +1163,13 @@ StartDetector() {
         WriteLog("DEBUG: WaitingTarget search zone: " . waitingZone1.ToString())
 
         ; Step 4: Wait for students (60 seconds)
-        WinGetPos(&activeX, &activeY, , , "A")
+        try {
+            WinGetPos(&activeX, &activeY, , , "A")
+        } catch {
+            ; Fallback if no active window (rare edge case)
+            activeX := 100
+            activeY := 100
+        }
         CoordMode "ToolTip", "Screen"
         ToolTip "⏳ Waiting for students... (" . modeText . " mode)", activeX + 100, activeY + 100, 1
         result := FindText(&waitingX:='wait', &waitingY:=60, waitingZone1.x1, waitingZone1.y1, waitingZone1.x2, waitingZone1.y2, 0.15, 0.05, WaitingTarget)

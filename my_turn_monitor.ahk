@@ -1,15 +1,16 @@
 #Requires AutoHotkey v2.0
 #Include FindTextv2.ahk
+#Include ahk_utilities.ahk
 
 ; My Turn Monitor
 ; Monitors for game turn targets and plays sound when found
 
 ; Game targets to search for
 GameTargets := "|<GamesReady>*206$56.000000000000000000000M000s0003zk03zs003zz03zzU01y3s1w3w01w0Dzw0DU0S00zy00w0D1s7z1w703VzUUVzUslkzw00zyCQQTzU0TzVr77zw07zwRlXzz01zz7Qszzk0TzlnCDzw07zwQlXzz3Vzz7AQTzksTzln77zsT7zsQlkzw7kzyCQC7y3w7y3b3kS0zUS1nkS00Tw00ww7k0DzU0ST0w0Dzy077k70Tzzw1nw1kDzzz0Qz0M3zzzk7Dk60Tzzw1nw1k1zzs0Qz0w07zw07bkS00zw00wwD0s7y0s7D3VzUz0zUtlszw7kzwCQQTzVwDzVr77zsS7zwRlXzz3Vzz7AMzzk0Tzln6Dzw0DzwQlXzz01zz7AQTzk0Tzln77zs07zsRlkzy00zyCQC7z007z3b3kz1zkT1s0S00zy00w2"
-    ; "<Game1>*163$70.00000000000000000000000000000000000000000000000000000000000001y0000000000Tw00000001k1Us0000000Tzw1U0000003XUk60000000M630M0001zznUM41U0007zzA000A0000Tzwk003U0001zzVU00600007zw3k00M0000TzU4000k0001zw0k00700007zU3001w0000Tw0A000s0001zU0k001s0007w03U003U000TU0Q00070001w030080Q0007U0801U1s000Q01UE207U001U061UA0S000400MDzk3s000001ljzkT0000003wDzzw000000300DzU000000000Tw0000000000D0000000U" . 
-    ; "|<Game2>*169$71.zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw007yDwzzzzzs00TyDlzzzzzk01zwTbzzzzzU07zwSDzzzzz00Tzswzzzzzy01zzsls3tzzw07zzlbU3nzzs0TzzkCDXbzzk1zzzUwzbDzzU7zzzVlz6Tzz0Tzzz7XyAzzy1zzzyD7wNzzw7zzzwSDslzzsTzzzsyTnXzzlzzzzlwT77zzbzzzzXw0T3zzTzzzz7w1z7zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz" .
-    ; "|<Game>*158$20.zzzzzzzzzzzzyzzzDzzXzzkzzsDzw3zy0zz0DzU3zk0zs0Dw03y00z00DU03k00s00DzzzzzzzzzzzzzU" .
-    ; "|<Game>*160$23.zzzzzzzzzzzy003y007y00Dy00Ty00zy01zy03zy07zy0Dzy0Tzy0zzy1zzy3zzy7zzyDzzyTzzyzzzzzzzzzzzzk"
+TriangleTargets := "<Game>*163$70.00000000000000000000000000000000000000000000000000000000000001y0000000000Tw00000001k1Us0000000Tzw1U0000003XUk60000000M630M0001zznUM41U0007zzA000A0000Tzwk003U0001zzVU00600007zw3k00M0000TzU4000k0001zw0k00700007zU3001w0000Tw0A000s0001zU0k001s0007w03U003U000TU0Q00070001w030080Q0007U0801U1s000Q01UE207U001U061UA0S000400MDzk3s000001ljzkT0000003wDzzw000000300DzU000000000Tw0000000000D0000000U" . 
+     "|<Game>*169$71.zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw007yDwzzzzzs00TyDlzzzzzk01zwTbzzzzzU07zwSDzzzzz00Tzswzzzzzy01zzsls3tzzw07zzlbU3nzzs0TzzkCDXbzzk1zzzUwzbDzzU7zzzVlz6Tzz0Tzzz7XyAzzy1zzzyD7wNzzw7zzzwSDslzzsTzzzsyTnXzzlzzzzlwT77zzbzzzzXw0T3zzTzzzz7w1z7zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz" .
+     "|<Game>*158$20.zzzzzzzzzzzzyzzzDzzXzzkzzsDzw3zy0zz0DzU3zk0zs0Dw03y00z00DU03k00s00DzzzzzzzzzzzzzU" .
+     "|<Game>*160$23.zzzzzzzzzzzy003y007y00Dy00Ty00zy01zy03zy07zy0Dzy0Tzy0zzy1zzy3zzy7zzyDzzyTzzyzzzzzzzzzzzzk"
 
 
 ; Search area coordinates
@@ -31,37 +32,6 @@ lastSeenTime := 0
 IsActive := true
 global targetWindowID := ""
 
-GetTargetWindow(message := 'Select window', confirm := true) {
-    ; Function to get the target window ID
-    ; This is a placeholder function; actual implementation may vary
-    ; Window selection and binding
-    startupResult := MsgBox(message, "Select Window", "OKCancel 4096")
-    if (startupResult = "Cancel") {
-        ExitApp()  ; Exit application
-    }
-
-    ; Wait for user to click and capture the window
-    ; Show tooltip that follows mouse cursor
-    while (!GetKeyState("LButton", "P")) {
-        MouseGetPos(&mouseX, &mouseY)
-        ToolTip "Click on the game window now...", , , 3
-        Sleep(50)
-    }
-    KeyWait("LButton", "U")  ; Wait for button release
-    MouseGetPos(&mouseX, &mouseY, &windowID)  ; Get window ID under mouse
-    ToolTip "", , , 3  ; Clear tooltip
-
-    ; Bind FindText to the selected window for improved performance and reliability
-    ; Mode 4 is essential for proper window targeting
-    if (confirm) {
-        bindResult := FindText().BindWindow(windowID, 4)
-        boundID := FindText().BindWindow(0, 0, 1, 0)  ; get_id = 1
-        boundMode := FindText().BindWindow(0, 0, 0, 1)  ; get_mode = 1
-        MsgBox("Game window " . boundID . " in " . boundMode . " mode selected! Starting turn monitor...", "Window Selected", "OK 4096")
-    }
-    return targetWindowID
-}
-
 targetWindowId := GetTargetWindow("Select game window", 1)  ; Get and bind to target window
 
 ; Main monitoring loop
@@ -78,6 +48,11 @@ while (IsActive) {
     Y := ""
     result := FindText(&X, &Y, searchX1, searchY1, searchX2, searchY2, toleranceVar, toleranceText, GameTargets)
     
+    if (!result) {
+        ; If not found, also try triangle targets
+        result := FindText(,,700, 0, 2000, 100, toleranceVar, toleranceText, TriangleTargets)
+    }   
+
     if (result) {
         ; Target is present
         lastSeenTime := A_TickCount
@@ -107,8 +82,8 @@ while (IsActive) {
     }
     
     ; Check 3 times per second (333ms interval)
-    Sleep(333)
+    Sleep(1000)
 }
 
 ; Hotkey to exit (Ctrl+Shift+Q)
-^+q::ExitApp()
+^+g::ExitApp()

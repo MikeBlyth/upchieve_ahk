@@ -4,6 +4,7 @@
 ; Based on ocr_tester.ahk design
 
 #Include "FindTextv2.ahk"
+#Include "ahk_utilities.ahk"
 
 ; GUI variables
 myGui := ""
@@ -15,9 +16,15 @@ err2Text := ""
 resultsList := ""
 searchBtn := ""
 selectBtn := ""
+bindWindowBtn := ""
 statusText := ""
+bindingStatusText := ""
 findAllCheck := ""
 screenshotCheck := ""
+
+; Window binding variables
+boundWindowID := ""
+windowBindingStatus := "No window bound"
 
 ; Search region variables
 searchX1 := 0
@@ -68,14 +75,21 @@ CreateGUI() {
     searchBtn := myGui.Add("Button", "x170 y260 w100 h30", "Test Patterns")
     searchBtn.OnEvent("Click", TestPatterns)
 
+    ; Window binding button
+    bindWindowBtn := myGui.Add("Button", "x280 y260 w120 h30", "Bind Window")
+    bindWindowBtn.OnEvent("Click", BindWindow)
+
     ; Status
     statusText := myGui.Add("Text", "x10 y300 w600", "Status: Ready. Click 'Select Search Area' to define search region.")
 
-    ; Results
-    myGui.Add("Text", "x10 y330", "Results:")
-    resultsList := myGui.Add("Edit", "x10 y350 w600 h200 ReadOnly VScroll")
+    ; Window binding status
+    bindingStatusText := myGui.Add("Text", "x10 y320 w600", "Window Binding: " . windowBindingStatus)
 
-    myGui.Show("x100 y100 w630 h570")
+    ; Results
+    myGui.Add("Text", "x10 y350", "Results:")
+    resultsList := myGui.Add("Edit", "x10 y370 w600 h200 ReadOnly VScroll")
+
+    myGui.Show("x100 y100 w630 h590")
 }
 
 UpdateErr1(*) {
@@ -222,6 +236,39 @@ TestPatterns(*) {
 
     resultsList.Text := output
     statusText.Text := "Status: Pattern testing complete!"
+}
+
+BindWindow(*) {
+    global
+
+    statusText.Text := "Status: Select a window to bind FindText to (or cancel to unbind)..."
+
+    ; Use GetTargetWindow utility function (handles unbinding automatically on cancel)
+    windowID := GetTargetWindow("Click on the window to bind FindText to...", false)
+
+    if (windowID != "") {
+        boundWindowID := windowID
+
+        ; Get window title for display
+        try {
+            windowTitle := WinGetTitle("ahk_id " . windowID)
+            if (StrLen(windowTitle) > 50) {
+                windowTitle := SubStr(windowTitle, 1, 47) . "..."
+            }
+        } catch {
+            windowTitle := "Unknown Window"
+        }
+
+        windowBindingStatus := "Bound to window ID " . windowID . " (" . windowTitle . ")"
+        bindingStatusText.Text := "Window Binding: " . windowBindingStatus
+        statusText.Text := "Status: Window bound successfully!"
+    } else {
+        ; User cancelled - GetTargetWindow already cleared the binding
+        boundWindowID := ""
+        windowBindingStatus := "No window bound"
+        bindingStatusText.Text := "Window Binding: " . windowBindingStatus
+        statusText.Text := "Status: Window binding cleared."
+    }
 }
 
 ; Hotkey to close
