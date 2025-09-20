@@ -1,3 +1,10 @@
+; Write message to debug log with timestamp
+WriteLog(message) {
+    logFile := "debug_log.txt"
+    timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss") . "." . Format("{:03d}", A_MSec)
+    FileAppend timestamp . " - " . message . "`n", logFile
+}
+
 GetTargetWindow(message := 'Select window', confirm := true) {
     ; Function to get the target window ID
     ; Window selection and binding
@@ -125,9 +132,3 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, &stats :
     return 0
 }
 
-; Write message to debug log with timestamp
-WriteLog(message) {
-    logFile := "debug_log.txt"
-    timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss") . "." . Format("{:03d}", A_MSec)
-    FileAppend timestamp . " - " . message . "`n", logFile
-}

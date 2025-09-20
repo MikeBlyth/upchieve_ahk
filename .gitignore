@@ -5,5 +5,4 @@ priority_test*
 debug*
 ahk_bug_report.md
 ocr_training/
-.vscode/
 *.png

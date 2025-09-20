@@ -33,6 +33,15 @@ searchX2 := 0
 searchY2 := 0
 regionSelected := false
 
+; Command storage for copying
+currentCommand := ""
+
+; Ensure clean startup - unbind any previous FindText window bindings
+FindText().BindWindow(0)
+
+; Set coordinate mode to screen for mouse operations
+CoordMode("Mouse", "Screen")
+
 ; Create GUI
 CreateGUI()
 
@@ -42,14 +51,15 @@ CreateGUI() {
     myGui := Gui("+Resize +AlwaysOnTop", "Popup Pattern Tester")
     myGui.SetFont("s10")
 
+    ; Handle window close event
+    myGui.OnEvent("Close", (*) => ExitApp())
+
     ; Pattern input
     myGui.Add("Text", "x10 y10", "Test Patterns (separated by . or |):")
     patternEdit := myGui.Add("Edit", "x10 y35 w600 h100 VScroll")
 
     ; Default popup patterns
-    defaultPatterns := '"|<Upgrade>*197$75.zzzzzzzzzzzzzzzzzzzzzzzzzszss07zU7w07z7z700Ds0TU0DszssT1y31wD0z7z73y7Vy7Vy7szssTssTswDsz7z73z33z3Vz3szssTsMzzwDsT7z73z77zzVz7szssTkszzwDkz7z73w77zzVw7szss01sy0Q01z7z700z7k3U0zszssTzszsQD7z7z73zz7z3VsTsTssTzsTsQDXz3y73zzXz3VwDwDksTzwDsQDkzUsD3zzkQ3Vy6y03sTzz01wDsLw1z3zzy0TVzUzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw" . '
-    . '"|<Upgrade2>*197$51.60ME0Q0X1U1W00kA8MA6Ey611a7sG4sEMAlVXEVX30YM4+448F6X0zEUV68IE024AMXWW00EXWAQQFzu7klWlW81E068qAF0+03X4FWDVEwMEz4M4+4V200V0VEaAk06A4+4EoDwEvVEX3X1X1kO4AQE4A07EVV60ks1W460k21zsTUTw0M00000000000000004" . '
-    . '"|<New>*132$69.0000000000000000000000000000000000000000000000k03k0000000700S00000000w03k00000007U0S00000000y03k00000007s0S00000000z03k00000006w0S01y0Q0Q0rU3k0zw3k3k6S0S0DzkS0S0ls3k3kS1k7k6D0S0w1sC0z0kw3kD071s7s67kS1s0w71r0kS3kC03UsCs61sS1k0Q71nVkDXkTzzUwAQC0wS3zzw3XXVk3nkTzzUQQCC0SS3k003XVnk1vkS000SsCS07y1k001r0vk0zkD000Cs7S03y1s001y0zk0Dk7U707k3y01y0z1s0y0Tk07k3zz07U3q00y07zU0w0Sk03k0Dk03U1o"'
+    defaultPatterns := '<Waiting>*152$38.000001k00000w00000T00400Tk0700TQ07k0770Dk001kDk000QDk0007DU0001rU0000RU00007S00001ns0000QDU00070y0001k3w000Q0Dk00700w001k03000Q0000070000008'
 
     patternEdit.Text := defaultPatterns
 
@@ -79,6 +89,14 @@ CreateGUI() {
     bindWindowBtn := myGui.Add("Button", "x280 y260 w120 h30", "Bind Window")
     bindWindowBtn.OnEvent("Click", BindWindow)
 
+    ; Copy command button
+    copyBtn := myGui.Add("Button", "x410 y260 w100 h30", "Copy Command")
+    copyBtn.OnEvent("Click", CopyCommand)
+
+    ; Close button
+    closeBtn := myGui.Add("Button", "x520 y260 w80 h30", "Close")
+    closeBtn.OnEvent("Click", (*) => ExitApp())
+
     ; Status
     statusText := myGui.Add("Text", "x10 y300 w600", "Status: Ready. Click 'Select Search Area' to define search region.")
 
@@ -89,7 +107,7 @@ CreateGUI() {
     myGui.Add("Text", "x10 y350", "Results:")
     resultsList := myGui.Add("Edit", "x10 y370 w600 h200 ReadOnly VScroll")
 
-    myGui.Show("x100 y100 w630 h590")
+    myGui.Show("x100 y100 w620 h590")
 }
 
 UpdateErr1(*) {
@@ -107,6 +125,9 @@ UpdateErr2(*) {
 SelectSearchArea(*) {
     global
     statusText.Text := "Status: Click and drag to select search area..."
+
+    ; Ensure we use screen coordinates
+    CoordMode("Mouse", "Screen")
 
     ; Hide GUI temporarily
     myGui.Hide()
@@ -134,7 +155,13 @@ SelectSearchArea(*) {
     ; Show GUI again
     myGui.Show()
 
-    statusText.Text := "Status: Search region selected: " . searchX1 . "," . searchY1 . " to " . searchX2 . "," . searchY2
+    statusText.Text := "Status: Search region selected: " . searchX1 . "," . searchY1 . " to " . searchX2 . "," . searchY2 . " (screen coords)"
+
+    ; Debug: Show what we captured
+    WriteLog("FPT Region Selection:")
+    WriteLog("  Start: " . startX . "," . startY)
+    WriteLog("  End: " . endX . "," . endY)
+    WriteLog("  Final: " . searchX1 . "," . searchY1 . " to " . searchX2 . "," . searchY2)
 }
 
 TestPatterns(*) {
@@ -191,6 +218,66 @@ TestPatterns(*) {
     output .= "Tolerances: " . Format("{:.2f}", err1) . ", " . Format("{:.2f}", err2) . "`r`n"
     output .= "Options: FindAll=" . (findAll ? "Yes" : "No") . ", UseScreenshot=" . (useScreenshot ? "New" : "Last") . "`r`n"
     output .= "Search Time: " . searchTime . "ms`r`n"
+
+    ; Show result immediately
+    if (result && result.Length > 0) {
+        output .= "RESULT: FOUND " . result.Length . " match(es)`r`n"
+        if (result.Length > 0) {
+            output .= "  First match: " . result[1].id . " at (" . result[1].x . "," . result[1].y . ")`r`n"
+        }
+    } else {
+        output .= "RESULT: NOT FOUND`r`n"
+    }
+
+    ; Generate exact executable command string
+    output .= "`r`n=== ACTUAL EXECUTABLE COMMAND ===`r`n"
+
+    ; Create the actual command that was executed
+    cleanPatterns := StrReplace(patterns, "`r", "")
+    cleanPatterns := StrReplace(cleanPatterns, "`n", "")
+
+    ; Store the full executable command (for copying)
+    global currentCommand
+    currentCommand := "result := FindText(,, "
+    currentCommand .= searchX1 . ", " . searchY1 . ", " . searchX2 . ", " . searchY2 . ", "
+    currentCommand .= Format("{:.3f}", err1) . ", " . Format("{:.3f}", err2) . ", "
+
+    ; Handle pattern quoting - patterns from edit box now need quotes
+    currentCommand .= '"' . cleanPatterns . '", '
+
+    currentCommand .= useScreenshot . ", " . findAll . ")"
+
+    ; Show the command (truncated for display if needed)
+    displayCommand := currentCommand
+    if (StrLen(displayCommand) > 120) {
+        ; Find a good break point around the pattern area
+        patternStart := InStr(displayCommand, '"')
+        if (patternStart > 0 && patternStart < 100) {
+            beforePattern := SubStr(displayCommand, 1, patternStart)
+            afterPattern := SubStr(displayCommand, InStr(displayCommand, '"', , patternStart + 1))
+            displayCommand := beforePattern . '"[PATTERN_TRUNCATED]' . afterPattern
+        } else {
+            displayCommand := SubStr(displayCommand, 1, 117) . "..."
+        }
+    }
+
+    output .= displayCommand . "`r`n"
+    output .= "`r`n(Full command saved for copying - use 'Copy Command' button)`r`n"
+
+    ; Show what actually got executed with debug info
+    output .= "`r`n=== DEBUG: ACTUAL EXECUTION ===`r`n"
+    output .= "Parameters passed to FindText():`r`n"
+    output .= "  X1=" . searchX1 . ", Y1=" . searchY1 . ", X2=" . searchX2 . ", Y2=" . searchY2 . "`r`n"
+    output .= "  err1=" . Format("{:.3f}", err1) . ", err2=" . Format("{:.3f}", err2) . "`r`n"
+    output .= "  useScreenshot=" . useScreenshot . " (0=reuse last, 1=take new)`r`n"
+    output .= "  findAll=" . findAll . " (0=first match only, 1=all matches)`r`n"
+    output .= "  pattern length=" . StrLen(cleanPatterns) . " characters`r`n"
+
+    ; Also show alternative wait syntax
+    output .= "`r`n=== WAIT SYNTAX ALTERNATIVES ===`r`n"
+    output .= "Wait 10 seconds: FindText(&x:='wait', &y:=10, " . searchX1 . ", " . searchY1 . ", " . searchX2 . ", " . searchY2 . ", " . Format("{:.3f}", err1) . ", " . Format("{:.3f}", err2) . ", patterns)`r`n"
+    output .= "Wait infinite: FindText(&x:='wait', &y:=-1, " . searchX1 . ", " . searchY1 . ", " . searchX2 . ", " . searchY2 . ", " . Format("{:.3f}", err1) . ", " . Format("{:.3f}", err2) . ", patterns)`r`n"
+    output .= "Wait disappear: FindText(&x:='wait0', &y:=5, " . searchX1 . ", " . searchY1 . ", " . searchX2 . ", " . searchY2 . ", " . Format("{:.3f}", err1) . ", " . Format("{:.3f}", err2) . ", patterns)`r`n"
 
     if (result && result.Length > 0) {
         output .= "FOUND " . result.Length . " match(es):`r`n"
@@ -269,6 +356,24 @@ BindWindow(*) {
         bindingStatusText.Text := "Window Binding: " . windowBindingStatus
         statusText.Text := "Status: Window binding cleared."
     }
+}
+
+CopyCommand(*) {
+    global
+
+    if (!regionSelected) {
+        statusText.Text := "Status: Please select a search area first!"
+        return
+    }
+
+    if (currentCommand == "") {
+        statusText.Text := "Status: Please run a test first to generate a command!"
+        return
+    }
+
+    ; Copy the command to clipboard
+    A_Clipboard := currentCommand
+    statusText.Text := "Status: Command copied to clipboard!"
 }
 
 ; Hotkey to close
