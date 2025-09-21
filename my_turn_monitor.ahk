@@ -11,7 +11,7 @@ TriangleTargets := "<Game>*163$70.0000000000000000000000000000000000000000000000
      "|<Game>*169$71.zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw007yDwzzzzzs00TyDlzzzzzk01zwTbzzzzzU07zwSDzzzzz00Tzswzzzzzy01zzsls3tzzw07zzlbU3nzzs0TzzkCDXbzzk1zzzUwzbDzzU7zzzVlz6Tzz0Tzzz7XyAzzy1zzzyD7wNzzw7zzzwSDslzzsTzzzsyTnXzzlzzzzlwT77zzbzzzzXw0T3zzTzzzz7w1z7zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz" .
      "|<Game>*158$20.zzzzzzzzzzzzyzzzDzzXzzkzzsDzw3zy0zz0DzU3zk0zs0Dw03y00z00DU03k00s00DzzzzzzzzzzzzzU" .
      "|<Game>*160$23.zzzzzzzzzzzy003y007y00Dy00Ty00zy01zy03zy07zy0Dzy0Tzy0zzy1zzy3zzy7zzyDzzyTzzyzzzzzzzzzzzzk"
-
+YourTurn := "|<ItsYourTurn>#3566-0.90$207.00000A0000000000000000000000000000001k01U000000000000000000000003U00000C00A000000000000000000000000Q000001kC1U000000000000003U00000003U00000C1kA000000000000000Q00000000Q000001kC1U000000000000003U00000003U00000C1k8000000000000000Q00000000Q000001kzl0Q00Q1k7U3UQ6A0DwQ1kslVk3U00000C7y0Tw03US3z0Q3UnU1zXUC7CCzUQ000001kzk7zk0S3Uzw3UQ7w0DwQ1kzlzy3U00000C1s0sC01kQD3kQ3UzU0Q3UC7yD3kQ000001kC071s0C7VkC3UQ7U03UQ1kw1kC3U00000C1k0s001ssS1sQ3Us00Q3UC70C1kQ000001kC07k00773U73UQ7003UQ1ks1kC3U00000C1k0Ts00ssQ0sQ3Us00Q3UC70C1kQ000001kC00zk07C3U73UQ7003UQ1ks1kC3U00000C1k00y00RkQ0sQ3Us00Q3UC70C1k0000001kC001s03y3kD3UQ7003UQ1ks1kC0000000C1s1k700DUC1kQ3Us00Q3kS70C1k0000001kD071k01w1sS3kw7003kS7ks1kC3U00000C0y0zy00DU7zUTzUs00TVzy70C1kQ000001k7k3zU00s0Ts1zQ7001wDtks1kC3U00000C0C03U00700w03XUs007UQC70C1kA00000000000000s000000000000000000000000000000000C000000000000000000000004"
 
 ; Search area coordinates
 searchX1 := 100
@@ -51,6 +51,11 @@ while (IsActive) {
     if (!result) {
         ; If not found, also try triangle targets
         result := FindText(,,700, 0, 2000, 100, toleranceVar, toleranceText, TriangleTargets)
+    }   
+
+    if (!result) {
+        ; If not found, also try It's Your Turn target (red)
+        result := FindText(,,winWidth/4, 200, winWidth*3/4, 250, toleranceVar, toleranceText, YourTurn)
     }   
 
     if (result) {

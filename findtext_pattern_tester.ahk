@@ -58,8 +58,8 @@ CreateGUI() {
     myGui.Add("Text", "x10 y10", "Test Patterns (separated by . or |):")
     patternEdit := myGui.Add("Edit", "x10 y35 w600 h100 VScroll")
 
-    ; Default popup patterns
-    defaultPatterns := '<Waiting>*152$38.000001k00000w00000T00400Tk0700TQ07k0770Dk001kDk000QDk0007DU0001rU0000RU00007S00001ns0000QDU00070y0001k3w000Q0Dk00700w001k03000Q0000070000008'
+    ; Default popup patterns - properly quoted
+    defaultPatterns := '"|<Waiting>*152$38.000001k00000w00000T00400Tk0700TQ07k0770Dk001kDk000QDk0007DU0001rU0000RU00007S00001ns0000QDU00070y0001k3w000Q0Dk00700w001k03000Q0000070000008"'
 
     patternEdit.Text := defaultPatterns
 
@@ -232,9 +232,34 @@ TestPatterns(*) {
     ; Generate exact executable command string
     output .= "`r`n=== ACTUAL EXECUTABLE COMMAND ===`r`n"
 
-    ; Create the actual command that was executed
-    cleanPatterns := StrReplace(patterns, "`r", "")
-    cleanPatterns := StrReplace(cleanPatterns, "`n", "")
+    ; Parse and clean patterns - split on '.', strip quotes, rejoin
+    rawPatterns := StrReplace(patterns, "`r", "")
+    rawPatterns := StrReplace(rawPatterns, "`n", "")
+
+    ; Split on '.' to handle multiple quoted patterns
+    patternParts := StrSplit(rawPatterns, ".")
+    cleanedParts := []
+
+    for index, part in patternParts {
+        ; Trim whitespace
+        cleanPart := Trim(part)
+
+        ; Remove surrounding quotes if present
+        if (SubStr(cleanPart, 1, 1) == '"' && SubStr(cleanPart, -1) == '"') {
+            cleanPart := SubStr(cleanPart, 2, StrLen(cleanPart) - 2)
+        }
+
+        ; Add to cleaned parts if not empty
+        if (cleanPart != "") {
+            cleanedParts.Push(cleanPart)
+        }
+    }
+
+    ; Join all parts back together
+    cleanPatterns := ""
+    for index, part in cleanedParts {
+        cleanPatterns .= part
+    }
 
     ; Store the full executable command (for copying)
     global currentCommand
@@ -247,19 +272,12 @@ TestPatterns(*) {
 
     currentCommand .= useScreenshot . ", " . findAll . ")"
 
-    ; Show the command (truncated for display if needed)
-    displayCommand := currentCommand
-    if (StrLen(displayCommand) > 120) {
-        ; Find a good break point around the pattern area
-        patternStart := InStr(displayCommand, '"')
-        if (patternStart > 0 && patternStart < 100) {
-            beforePattern := SubStr(displayCommand, 1, patternStart)
-            afterPattern := SubStr(displayCommand, InStr(displayCommand, '"', , patternStart + 1))
-            displayCommand := beforePattern . '"[PATTERN_TRUNCATED]' . afterPattern
-        } else {
-            displayCommand := SubStr(displayCommand, 1, 117) . "..."
-        }
-    }
+    ; Show the command (truncated for display)
+    displayCommand := "result := FindText(,, "
+    displayCommand .= searchX1 . ", " . searchY1 . ", " . searchX2 . ", " . searchY2 . ", "
+    displayCommand .= Format("{:.3f}", err1) . ", " . Format("{:.3f}", err2) . ", "
+    displayCommand .= '"[PATTERN]", '
+    displayCommand .= useScreenshot . ", " . findAll . ")"
 
     output .= displayCommand . "`r`n"
     output .= "`r`n(Full command saved for copying - use 'Copy Command' button)`r`n"
@@ -272,6 +290,13 @@ TestPatterns(*) {
     output .= "  useScreenshot=" . useScreenshot . " (0=reuse last, 1=take new)`r`n"
     output .= "  findAll=" . findAll . " (0=first match only, 1=all matches)`r`n"
     output .= "  pattern length=" . StrLen(cleanPatterns) . " characters`r`n"
+
+    ; Show truncated pattern for readability
+    patternDisplay := cleanPatterns
+    if (StrLen(patternDisplay) > 80) {
+        patternDisplay := SubStr(patternDisplay, 1, 17) . "..."
+    }
+    output .= "  exact pattern: [" . patternDisplay . "]`r`n"
 
     ; Also show alternative wait syntax
     output .= "`r`n=== WAIT SYNTAX ALTERNATIVES ===`r`n"
