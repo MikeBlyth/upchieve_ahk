@@ -11,14 +11,15 @@ CoordMode("Mouse", "Window")
 CoordMode("Pixel", "Window")
 
 ; Upchieve Waiting Student Detector
-; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+A to end session
+; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+A to start/end session
 
 TargetWindow := "UPchieve"
 SoundTimerFunc := ""
 LiveMode := false
 ScanMode := false  ; If true, just scan for students and log times, do not click
 
-; Session tracking variables (state management removed - simplified flow)
+; Session tracking variables (minimal state management for manual session control)
+InSession := false  ; Track if currently in an active session
 LastStudentName := ""
 LastStudentTopic := ""  ; Subject from pattern matching
 LastRawStudentName := ""  ; Original OCR result for student name
@@ -265,7 +266,7 @@ CheckBlockedNamePatterns() {
         WriteLog("BLOCKED: " . blockedName)
 
         ; Show message box notification
-        MsgBox("Blocked student detected: " . blockedName, "Student Blocked", "OK Iconi 4096")
+;        MsgBox("Blocked student detected: " . blockedName, "Student Blocked", "OK Iconi 4096")
 
         return {blocked: true, name: blockedName}
     }
@@ -274,104 +275,116 @@ CheckBlockedNamePatterns() {
     return {blocked: false, name: ""}
 }
 
-; Handle session after student is detected
-HandleSession(waitingX, waitingY, detectionStartTime, studentDetectionCount) {
+; Handle session after student is detected or manually started
+HandleSession(waitingX := 0, waitingY := 0, detectionStartTime := 0, studentDetectionCount := 0, isManual := false) {
     global LiveMode, targetWindowID, LastStudentName, LastStudentTopic, LastRawStudentName, SessionStartTime, SoundTimerFunc
 
-    ; Step 1: Activate window immediately (parallel with extraction)
-    WinActivate("ahk_id " . targetWindowID)
+    ; Skip automated steps for manual sessions (user already clicked and activated window)
+    if (!isManual) {
+        ; Step 1: Activate window immediately (parallel with extraction)
+        WinActivate("ahk_id " . targetWindowID)
 
-    ; Step 2: Extract topic using fast pattern detection (no OCR)
-    topic := ExtractTopic()
-    WriteLog("Subject detected: '" . topic . "'")
+        ; Step 2: Extract topic using fast pattern detection (no OCR)
+        topic := ExtractTopic()
+        WriteLog("Subject detected: '" . topic . "'")
 
-    ; Calculate detection time (blocking check + subject detection)
-    detectionTime := A_TickCount - detectionStartTime
-    WriteLog("Blocking check + subject detection finished (" . detectionTime . "ms)")
+        ; Calculate detection time (blocking check + subject detection)
+        detectionTime := A_TickCount - detectionStartTime
+        WriteLog("Blocking check + subject detection finished (" . detectionTime . "ms)")
 
-    ; Step 3: Capture student name region for training before clicking
-    global studentHeaderPos
-    if (studentHeaderPos.found) {
-        CaptureNameRegion(studentHeaderPos)
-        WriteLog("Student name region captured for training")
-    }
-
-    ; Step 4: Click the student
-    if (LiveMode) {
-        ; Wait for window activation (started earlier)
-        WriteLog("Preparing to click")
-        WinWaitActive("ahk_id " . targetWindowID, , 2)  ; Wait up to 2 seconds for activation
-
-        ; Click the waiting target (confirmed this works)
-        Click waitingX, waitingY  ; Click the waiting target coordinates
-        clickTime := A_TickCount - detectionStartTime  ; Total time from detection to click
-        WriteLog("CLICK #" . studentDetectionCount . ": Clicked waiting target at " . waitingX . "," . waitingY . " (total from detection: " . clickTime . " ms)")
-
-        ; Wait for session to start loading, then maximize window
-        Sleep 2000  ; Wait 2 seconds for session to begin loading
-        WinMaximize("ahk_id " . targetWindowID)
-
-        ; Update session tracking variables (no name, subject only)
-        LastRawStudentName := ""  ; No OCR extraction
-        LastStudentName := ""  ; Manual entry required
-        LastStudentTopic := topic  ; Direct use of pattern-matched subject
-        SessionStartTime := A_Now
-
-        ; Log session start
-        logMessage := "Session started"
-        toolTipMessage := "Session"
-        if (LastStudentTopic != "") {
-            logMessage .= " with " . LastStudentTopic
-            toolTipMessage .= " (" . LastStudentTopic . ")"
+        ; Step 3: Capture student name region for training before clicking
+        global studentHeaderPos
+        if (studentHeaderPos.found) {
+            CaptureNameRegion(studentHeaderPos)
+            WriteLog("Student name region captured for training")
         }
-        logMessage .= " (detection: " . detectionTime . "ms, total: " . clickTime . "ms)"
-        WriteLog(logMessage)
-        ; Session details will be logged via end-session CSV dialog
-        try {
-            WinGetPos(&activeX, &activeY, , , "A")
-        } catch {
-            ; Fallback if no active window (rare edge case)
-            activeX := 100
-            activeY := 100
+
+        ; Step 4: Click the student
+        if (LiveMode) {
+            ; Wait for window activation (started earlier)
+            WriteLog("Preparing to click")
+            WinWaitActive("ahk_id " . targetWindowID, , 2)  ; Wait up to 2 seconds for activation
+
+            ; Click the waiting target (confirmed this works)
+            Click waitingX, waitingY  ; Click the waiting target coordinates
+            clickTime := A_TickCount - detectionStartTime  ; Total time from detection to click
+            WriteLog("CLICK #" . studentDetectionCount . ": Clicked waiting target at " . waitingX . "," . waitingY . " (total from detection: " . clickTime . " ms)")
+
+            ; Wait for session to start loading, then maximize window
+            Sleep 2000  ; Wait 2 seconds for session to begin loading
+            WinMaximize("ahk_id " . targetWindowID)
+
+            ; Update session tracking variables (no name, subject only)
+            LastRawStudentName := ""  ; No OCR extraction
+            LastStudentName := ""  ; Manual entry required
+            LastStudentTopic := topic  ; Direct use of pattern-matched subject
+            SessionStartTime := A_Now
+
+            ; Log session start
+            logMessage := "Session started"
+            toolTipMessage := "Session"
+            if (LastStudentTopic != "") {
+                logMessage .= " with " . LastStudentTopic
+                toolTipMessage .= " (" . LastStudentTopic . ")"
+            }
+            logMessage .= " (detection: " . detectionTime . "ms, total: " . clickTime . "ms)"
+            WriteLog(logMessage)
+            ; Session details will be logged via end-session CSV dialog
+            try {
+                WinGetPos(&activeX, &activeY, , , "A")
+            } catch {
+                ; Fallback if no active window (rare edge case)
+                activeX := 100
+                activeY := 100
+            }
+            CoordMode "ToolTip", "Screen"
+            ToolTip "📚 In session" . (LastStudentTopic ? " (" . LastStudentTopic . ")" : ""), activeX + 100, activeY + 100, 1
+        } else {
+            ; TESTING mode - no name extraction
+            LastRawStudentName := ""  ; No OCR extraction
+            LastStudentName := ""  ; Manual entry required
+            LastStudentTopic := topic  ; Direct use of pattern-matched subject
+            SessionStartTime := A_Now
+
+            ; Log session start in testing mode
+            logMessage := "TESTING: Found student"
+            toolTipMessage := "Found student"
+            if (LastStudentTopic != "") {
+                logMessage .= " with " . LastStudentTopic
+                toolTipMessage .= " (" . LastStudentTopic . ")"
+            }
+            logMessage .= " (detection: " . detectionTime . "ms)"
+            WriteLog(logMessage)
+            ; Session details will be logged via end-session CSV dialog
+            try {
+                WinGetPos(&activeX, &activeY, , , "A")
+            } catch {
+                ; Fallback if no active window (rare edge case)
+                activeX := 100
+                activeY := 100
+            }
+            CoordMode "ToolTip", "Screen"
+            ToolTip "🧪 Testing mode - student detected" . (LastStudentTopic ? " (" . LastStudentTopic . ")" : ""), activeX + 100, activeY + 100, 1
         }
-        CoordMode "ToolTip", "Screen"
-        ToolTip "📚 In session" . (LastStudentTopic ? " (" . LastStudentTopic . ")" : ""), activeX + 100, activeY + 100, 1
+
+        ; Step 4: Start repeating notification sound (every 2 seconds)
+        PlayNotificationSound()  ; Play immediately
+        SoundTimerFunc := PlayNotificationSound  ; Store function reference
+        SetTimer SoundTimerFunc, 2000  ; Then every 2 seconds
+
+        ToolTip ""  ; Clear tooltip
     } else {
-        ; TESTING mode - no name extraction
-        LastRawStudentName := ""  ; No OCR extraction
+        ; Manual session - initialize variables for session start dialog
+        WriteLog("Manual session started via Ctrl+Shift+A")
+        LastRawStudentName := ""  ; Manual entry required
         LastStudentName := ""  ; Manual entry required
-        LastStudentTopic := topic  ; Direct use of pattern-matched subject
+        LastStudentTopic := ""  ; Manual entry required
         SessionStartTime := A_Now
-
-        ; Log session start in testing mode
-        logMessage := "TESTING: Found student"
-        toolTipMessage := "Found student"
-        if (LastStudentTopic != "") {
-            logMessage .= " with " . LastStudentTopic
-            toolTipMessage .= " (" . LastStudentTopic . ")"
-        }
-        logMessage .= " (detection: " . detectionTime . "ms)"
-        WriteLog(logMessage)
-        ; Session details will be logged via end-session CSV dialog
-        try {
-            WinGetPos(&activeX, &activeY, , , "A")
-        } catch {
-            ; Fallback if no active window (rare edge case)
-            activeX := 100
-            activeY := 100
-        }
-        CoordMode "ToolTip", "Screen"
-        ToolTip "🧪 Testing mode - student detected" . (LastStudentTopic ? " (" . LastStudentTopic . ")" : ""), activeX + 100, activeY + 100, 1
     }
-
-    ; Step 4: Start repeating notification sound (every 2 seconds)
-    PlayNotificationSound()  ; Play immediately
-    SoundTimerFunc := PlayNotificationSound  ; Store function reference
-    SetTimer SoundTimerFunc, 2000  ; Then every 2 seconds
-
-    ToolTip ""  ; Clear tooltip
 
     ; Step 5: Show session start dialog for name and subject entry
+    global InSession
+    InSession := true  ; Mark that we're now in a session
     dialogResult := ShowSessionStartDialog()
 
     ; Step 6: Stop the sound and handle dialog result
@@ -384,6 +397,7 @@ HandleSession(waitingX, waitingY, detectionStartTime, studentDetectionCount) {
     MonitorSessionEnd()
 
     ; Step 8: Show session feedback dialog
+    InSession := false  ; Session has ended
     continueResult := ShowSessionFeedbackDialog()
 
     if (continueResult = "Restart") {
@@ -746,8 +760,11 @@ DllCall("kernel32.dll\SetThreadExecutionState", "UInt", 0x80000003)
 
 ; Manual session start/end function
 EndSession() {
-    global LastStudentName, LastStudentTopic, LastRawStudentName, SessionStartTime
+    global LastStudentName, LastStudentTopic, LastRawStudentName, SessionStartTime, InSession
     WriteLog("DEBUG: Manual EndSession() called")
+
+    ; Mark that we're no longer in a session
+    InSession := false
 
     ; Always show session feedback dialog when called manually
     continueResult := ShowSessionFeedbackDialog()
@@ -890,9 +907,20 @@ CleanExit() {
 ; Hotkey definitions
 ^+q::CleanExit()
 ^+h::SuspendDetection()
+; Ctrl+Shift+A: Dual functionality - start session when waiting, end session when active
 ^+a::{
+    global InSession
     WriteLog("DEBUG: Ctrl+Shift+A hotkey triggered")
-    EndSession()
+
+    if (InSession) {
+        ; Currently in session - end it
+        WriteLog("Ending current session")
+        EndSession()
+    } else {
+        ; Not in session - start manual session (user already clicked student)
+        WriteLog("Starting manual session")
+        HandleSession(0, 0, 0, 0, true)  ; isManual = true
+    }
 }
 ^+s::{
     LiveMode := false

@@ -208,11 +208,11 @@ SelectSearchArea(*) {
 
     statusText.Text := "Status: Search region selected: " . searchX1 . "," . searchY1 . " to " . searchX2 . "," . searchY2 . " (screen coords)"
 
-    ; Debug: Show what we captured
-    WriteLog("FPT Region Selection:")
-    WriteLog("  Start: " . startX . "," . startY)
-    WriteLog("  End: " . endX . "," . endY)
-    WriteLog("  Final: " . searchX1 . "," . searchY1 . " to " . searchX2 . "," . searchY2)
+    ; Log region selection to FPT log file
+    WriteLog("FPT Region Selection:", "findtext_test.log")
+    WriteLog("  Start: " . startX . "," . startY, "findtext_test.log")
+    WriteLog("  End: " . endX . "," . endY, "findtext_test.log")
+    WriteLog("  Final: " . searchX1 . "," . searchY1 . " to " . searchX2 . "," . searchY2, "findtext_test.log")
 }
 
 TestPatterns(*) {

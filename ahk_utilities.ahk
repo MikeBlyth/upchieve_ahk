@@ -1,8 +1,8 @@
-; Write message to debug log with timestamp
-WriteLog(message) {
-    logFile := "debug_log.txt"
+; Write message to log file with timestamp
+; filename parameter is optional - defaults to debug_log.txt for backward compatibility
+WriteLog(message, filename := "debug_log.txt") {
     timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss") . "." . Format("{:03d}", A_MSec)
-    FileAppend timestamp . " - " . message . "`n", logFile
+    FileAppend timestamp . " - " . message . "`n", filename
 }
 
 GetTargetWindow(message := 'Select window', confirm := true) {
