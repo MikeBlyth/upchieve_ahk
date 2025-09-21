@@ -16,6 +16,7 @@ CoordMode("Pixel", "Window")
 TargetWindow := "UPchieve"
 SoundTimerFunc := ""
 LiveMode := false
+ScanMode := false  ; If true, just scan for students and log times, do not click
 
 ; Session tracking variables (state management removed - simplified flow)
 LastStudentName := ""
@@ -76,9 +77,9 @@ SubjectTargets :=
     "|<CSA>*138$23.00000D000S000y003w006M00Qs00tk01Vk073U0C300s701kC030A0Dzw0Tzs1k0s3U1k601UQ03Us071U0700000000U" .
     "|<CSP>*143$18.000000DzUDzkC1sC0QC0QC0CC0CC0CC0QC0QC1sDzkDzUC00C00C00C00C00C00C00C00U"
 
-BlockedTargets :=
-    "|<Chukwudi>*130$161.07w0A000001k0A0000000001Uw00zy0M000003U0M00000000030k03sT0k00000700k0000000006000D0C1U00000C01U000000000A000w0C3000000Q030000000000M001k0E6DU3U30s1rk3U730707skA03000Bzk7061k7DUD0Q60C0TtUM0C000TXkC0A3UQP0S0sA0Q1sz0k0Q000w3UQ0M71kr0y1kM0s70S1U0s001k3Us0kC71i3g30k1kQ0Q301k003U71k1UQQ3A6MC1U3Us0s603U0070C3U30tk6QAsQ3071k1kA07000A0Q7061rkAsskk60C3U1UM0C000M0sC0A3zkMlVXUA0Q7030k0A000k1kQ0M7nUln3a0M0sC0C1U0Q071U3Us0kD3VXi3A0k1kQ0Q300w0C3071k3UQ3X3M6s1k3Us0s600w0s60C1kD0s767kDU3UD0s3kA00y7UA0Q3ky1k7ADUD03Vy0wTUM00zy0M0s3zg3U7MC0S07zg0zv0k00Tk0k1k1wM70CkQ0s03wM0z61U00000000000001U0000000000000000000000000300000000000000000000000000600000000000000000000000000A0000000000001" .
-    "|<Camila>*130$106.000000000000000000000000000000s60000000000000003kM00003w000000000D1U0000zw000000000s60000DVw0000000000M0001s1k0000000001U000703U00000000060000s000TU37kDU3UM0TU3U007z0BznzU61U3zUQ000wC0y7yD0M60QD1k0070Q3kDUQ3UM3UA700081kC0Q0s61U40sQ000070s1k3UM6003Vk0000Q3U70C1UM00S70001zkA0Q0s61U0zsQ000Tz0k1k3UM60DzUk003kQ3070C1UM1sC3U0MQ1kC0Q0s61UC0s703VU70k1k3UM60k3US0Q70w3070C1UM30S0y7kQ7kA0Q0s61kC3s0zw0zvks1k3UM7sTxk0z00y73070C1U7Uz70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002"
+BlockedTargets := "|<Chukwudi>**50$108.0Dw0Q000001k0000000zz0Q000001k0000001yDUQ000001k0000003k3kQ000001k0000003U1sQ000001k0000007U0UQz070C1k7b0C0Q7000Rzk70C1kD7UD0Q7000Tns70C1kS3UP0wD000T0s70C1kw3UT0sC000S0s70C1ls1kTUsC000Q0w70C1nk1kvVsC000Q0Q70C1rU1kvVkD000Q0Q70C1zk0sllk7000Q0Q70C1zk0tlnU7000Q0Q70C1Rs0tknU7U0sQ0Q70C1sw0NUvU3U1sQ0Q70S1kQ0RUv03k3kQ0Q70S1kS0TUT01yDUQ0Q7ly1kD0D0T00zz0Q0Q3zy1k70D0S00Dw0Q0Q0zC1k3UD0C0000000000000000000U"
+    . "|<Chukwudi>*150$111.0000Q000001U00000000zU3U00000A00000000Tz0Q000001U0000000DUw3U00000A00000001k3kQ000001U0000000Q0C3U00000A0000000700UQz060C1U770C0Q8s003jy0k1kA1kQ1k3V7000TXk60C1UQ3UD0M8k003k70k1kA70Q3s71C000S0s60C1Vk1UP0s9k003U30k1kAQ0C3Q61C000Q0M60C1bU1ktVk8k003U30k1kBy066AC17000Q0M60C1zk0sllU8s003U30k1kD707C6Q1700sQ0M60C1kw0NUnU8Q0C3U30s1kA3U3g7M11k3kQ0M70S1UC0D0T08DVw3U30QDkA1s1s3s00Tz0Q0M3zi1U70D0C000zU3U307tkA0Q0k1k00000000000000000000000000000000000000U"
+    . "|<Camila>*130$106.000000000000000000000000000000s60000000000000003kM00003w000000000D1U0000zw000000000s60000DVw0000000000M0001s1k0000000001U000703U00000000060000s000TU37kDU3UM0TU3U007z0BznzU61U3zUQ000wC0y7yD0M60QD1k0070Q3kDUQ3UM3UA700081kC0Q0s61U40sQ000070s1k3UM6003Vk0000Q3U70C1UM00S70001zkA0Q0s61U0zsQ000Tz0k1k3UM60DzUk003kQ3070C1UM1sC3U0MQ1kC0Q0s61UC0s703VU70k1k3UM60k3US0Q70w3070C1UM30S0y7kQ7kA0Q0s61kC3s0zw0zvks1k3UM7sTxk0z00y73070C1U7Uz70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002"
 
 ; Debug log function
 
@@ -154,6 +155,7 @@ FindHeaders() {
         if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2, 0.15, 0.10, &SearchStats)) {
             upperLeft := GetUpperLeft(result)
             studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+            WriteLog("Student header found at " . studentHeaderPos.x . "," . studentHeaderPos.y)
         }
 
         ; Define search zones for Subject Header (position relative to Student header if found)
@@ -168,6 +170,7 @@ FindHeaders() {
         if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2, 0.15, 0.10, &SearchStats)) {
             upperLeft := GetUpperLeft(result)
             subjectHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+            WriteLog("Subject header found at " . subjectHeaderPos.x . "," . subjectHeaderPos.y)
         }
 
         ; Define search zones for Wait Time Header (position relative to Student header if found)
@@ -182,6 +185,7 @@ FindHeaders() {
         if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10, &SearchStats)) {
             upperLeft := GetUpperLeft(result)
             waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
+
         }
 
         ; Check if all headers found
@@ -464,7 +468,7 @@ ExtractTopic() {
 
     ; Try secondary zone with SubjectTargets_2
     if (result := FindTextInZones(SubjectTargets_2, secondaryZone, "", 0.15, 0.10, &SearchStats)) {
-;        WriteLog("DEBUG: Secondary Subject Zone - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
+        WriteLog("DEBUG: Secondary Subject Zone - SUCCESS: found=" . result[1].id . " searchTime=" . SearchStats.searchTimeMs . "ms foundInZone=" . SearchStats.foundInZone)
         return result[1].id
     }
 
@@ -890,7 +894,11 @@ CleanExit() {
     WriteLog("DEBUG: Ctrl+Shift+A hotkey triggered")
     EndSession()
 }
-
+^+s::{
+    LiveMode := false
+    ScanMode := !ScanMode
+    modeText := ScanMode ? "SCAN" : "TESTING"    
+}
 
 ; Global variables for OCR training screenshots
 TempScreenshotPath := ""
@@ -1143,7 +1151,7 @@ StartDetector() {
         CoordMode "ToolTip", "Screen"
         ToolTip "🔍 Searching for headers...", activeX + 100, activeY + 100, 1
         FindHeaders()
-;        WriteLog("DEBUG: Headers found, starting student wait")
+        WriteLog("DEBUG: Headers found, starting student wait")
 
         ; Step 3: Calculate search zones based on header positions
         global waitTimeHeaderPos
@@ -1152,7 +1160,7 @@ StartDetector() {
         ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
         waitingZone1 := SearchZone(waitTimeHeaderPos.x - 5, waitTimeHeaderPos.y + 97, waitTimeHeaderPos.x + 50, waitTimeHeaderPos.y + 132)
 
-;        WriteLog("DEBUG: WaitingTarget search zone: " . waitingZone1.ToString())
+        WriteLog("DEBUG: WaitingTarget search zone: " . waitingZone1.ToString())
 
         ; Step 4: Wait for students (60 seconds)
         try {

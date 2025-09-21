@@ -36,11 +36,62 @@ regionSelected := false
 ; Command storage for copying
 currentCommand := ""
 
+; CSV logging file
+logFile := "findtext_test.log"
+
+; Initialize CSV log file with headers
+InitializeLogFile() {
+    global logFile
+
+    ; Check if file exists, if not create with headers
+    if (!FileExist(logFile)) {
+        headers := "timestamp,search_width,search_height,search_area,err1,err2,bind_window,find_all_matches,use_last_screenshot,pattern_length,duration_ms,matches_found,match_details`n"
+        FileAppend(headers, logFile)
+    }
+}
+
+; Log search parameters and results
+LogSearch(width, height, err1, err2, bindWindow, findAll, useLastScreenshot, patternLength, durationMs, result) {
+    global logFile
+
+    timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
+    area := width * height
+    matchCount := result ? result.Length : 0
+
+    ; Build match details string
+    matchDetails := ""
+    if (result && result.Length > 0) {
+        matchDetails := result[1].id . "@(" . result[1].x . "," . result[1].y . ")"
+        if (result.Length > 1) {
+            matchDetails .= " +" . (result.Length - 1) . " more"
+        }
+    }
+
+    ; Escape commas and quotes in match details for CSV
+    matchDetails := StrReplace(matchDetails, '"', '""')
+    if (InStr(matchDetails, ",")) {
+        matchDetails := '"' . matchDetails . '"'
+    }
+
+    logEntry := timestamp . "," . width . "," . height . "," . area . "," .
+               Format("{:.3f}", err1) . "," . Format("{:.3f}", err2) . "," .
+               (bindWindow ? "yes" : "no") . "," .
+               (findAll ? "yes" : "no") . "," .
+               (useLastScreenshot ? "yes" : "no") . "," .
+               patternLength . "," . durationMs . "," . matchCount . "," .
+               matchDetails . "`n"
+
+    FileAppend(logEntry, logFile)
+}
+
 ; Ensure clean startup - unbind any previous FindText window bindings
 FindText().BindWindow(0)
 
 ; Set coordinate mode to screen for mouse operations
 CoordMode("Mouse", "Screen")
+
+; Initialize CSV log file
+InitializeLogFile()
 
 ; Create GUI
 CreateGUI()
@@ -201,6 +252,13 @@ TestPatterns(*) {
 ;    result := FindText(,, searchX1, searchY1, searchX2, searchY2, err1, err2, patterns,1,0)
     searchTime := A_TickCount - startTime
 
+    ; Log the main search
+    searchWidth := searchX2 - searchX1
+    searchHeight := searchY2 - searchY1
+    isWindowBound := (boundWindowID != "")
+    useLastScreenshotBool := (useScreenshot == 0)
+    LogSearch(searchWidth, searchHeight, err1, err2, isWindowBound, findAll, useLastScreenshotBool, StrLen(patterns), searchTime, result)
+
     ; Log all parameters for debugging
     paramLog := "DEBUG PARAMETERS:`r`n"
     paramLog .= "  searchX1=" . searchX1 . ", searchY1=" . searchY1 . "`r`n"
@@ -332,6 +390,9 @@ TestPatterns(*) {
         startTime := A_TickCount
         result := FindText(,, searchX1, searchY1, searchX2, searchY2, testErr1, testErr2, patterns, useScreenshot, findAll)
         searchTime := A_TickCount - startTime
+
+        ; Log the tolerance variation test
+        LogSearch(searchWidth, searchHeight, testErr1, testErr2, isWindowBound, findAll, useLastScreenshotBool, StrLen(patterns), searchTime, result)
 
         output .= Format("Tolerances {:.2f},{:.2f}: ", testErr1, testErr2)
 
