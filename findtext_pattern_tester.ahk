@@ -21,6 +21,10 @@ statusText := ""
 bindingStatusText := ""
 findAllCheck := ""
 screenshotCheck := ""
+waitCheck := ""
+waitTimeEdit := ""
+waitAppearRadio := ""
+waitDisappearRadio := ""
 
 ; Window binding variables
 boundWindowID := ""
@@ -45,13 +49,13 @@ InitializeLogFile() {
 
     ; Check if file exists, if not create with headers
     if (!FileExist(logFile)) {
-        headers := "timestamp,search_width,search_height,search_area,err1,err2,bind_window,find_all_matches,use_last_screenshot,pattern_length,duration_ms,matches_found,match_details`n"
+        headers := "timestamp,search_width,search_height,search_area,err1,err2,bind_window,find_all_matches,use_last_screenshot,use_wait,wait_mode,wait_time,pattern_length,duration_ms,matches_found,match_details`n"
         FileAppend(headers, logFile)
     }
 }
 
 ; Log search parameters and results
-LogSearch(width, height, err1, err2, bindWindow, findAll, useLastScreenshot, patternLength, durationMs, result) {
+LogSearch(width, height, err1, err2, bindWindow, findAll, useLastScreenshot, useWait, waitMode, waitTime, patternLength, durationMs, result) {
     global logFile
 
     timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
@@ -78,6 +82,8 @@ LogSearch(width, height, err1, err2, bindWindow, findAll, useLastScreenshot, pat
                (bindWindow ? "yes" : "no") . "," .
                (findAll ? "yes" : "no") . "," .
                (useLastScreenshot ? "yes" : "no") . "," .
+               (useWait ? "yes" : "no") . "," .
+               waitMode . "," . waitTime . "," .
                patternLength . "," . durationMs . "," . matchCount . "," .
                matchDetails . "`n"
 
@@ -128,6 +134,14 @@ CreateGUI() {
     ; FindText options
     findAllCheck := myGui.Add("Checkbox", "x250 y170", "Find All Matches")
     screenshotCheck := myGui.Add("Checkbox", "x250 y200", "Use Last Screenshot")
+
+    ; Wait functionality
+    waitCheck := myGui.Add("Checkbox", "x400 y170", "Use Wait Mode")
+    myGui.Add("Text", "x400 y190", "Wait Time (seconds):")
+    waitTimeEdit := myGui.Add("Edit", "x400 y210 w60 h20", "10")
+    waitAppearRadio := myGui.Add("Radio", "x470 y170", "Wait Appear")
+    waitDisappearRadio := myGui.Add("Radio", "x470 y190", "Wait Disappear")
+    waitAppearRadio.Value := 1  ; Default to wait for appear
 
     ; Buttons
     selectBtn := myGui.Add("Button", "x10 y260 w150 h30", "Select Search Area")
@@ -234,6 +248,11 @@ TestPatterns(*) {
     findAll := findAllCheck.Value ? 1 : 0
     useScreenshot := screenshotCheck.Value ? 0 : 1  ; 0=use last screenshot, 1=take new
 
+    ; Wait mode settings
+    useWait := waitCheck.Value
+    waitTime := waitTimeEdit.Text
+    waitForAppear := waitAppearRadio.Value
+
     statusText.Text := "Status: Testing patterns..."
     resultsList.Text := ""
 
@@ -248,8 +267,16 @@ TestPatterns(*) {
  */
     ; Test combined patterns
     startTime := A_TickCount
-    result := FindText(,, searchX1, searchY1, searchX2, searchY2, err1, err2, patterns, useScreenshot, findAll)
-;    result := FindText(,, searchX1, searchY1, searchX2, searchY2, err1, err2, patterns,1,0)
+
+    if (useWait) {
+        ; Use wait mode with appropriate syntax
+        waitX := waitForAppear ? "wait" : "wait0"
+        result := FindText(&waitX, &waitTime, searchX1, searchY1, searchX2, searchY2, err1, err2, patterns, useScreenshot, findAll)
+    } else {
+        ; Normal search mode
+        result := FindText(,, searchX1, searchY1, searchX2, searchY2, err1, err2, patterns, useScreenshot, findAll)
+    }
+
     searchTime := A_TickCount - startTime
 
     ; Log the main search
@@ -257,7 +284,9 @@ TestPatterns(*) {
     searchHeight := searchY2 - searchY1
     isWindowBound := (boundWindowID != "")
     useLastScreenshotBool := (useScreenshot == 0)
-    LogSearch(searchWidth, searchHeight, err1, err2, isWindowBound, findAll, useLastScreenshotBool, StrLen(patterns), searchTime, result)
+    waitModeStr := useWait ? (waitForAppear ? "appear" : "disappear") : "none"
+    waitTimeVal := useWait ? waitTime : 0
+    LogSearch(searchWidth, searchHeight, err1, err2, isWindowBound, findAll, useLastScreenshotBool, useWait, waitModeStr, waitTimeVal, StrLen(patterns), searchTime, result)
 
     ; Log all parameters for debugging
     paramLog := "DEBUG PARAMETERS:`r`n"
@@ -274,7 +303,12 @@ TestPatterns(*) {
 ;    output .= paramLog . "`r`n"
     output .= "Search Region: " . searchX1 . "," . searchY1 . " to " . searchX2 . "," . searchY2 . "`r`n"
     output .= "Tolerances: " . Format("{:.2f}", err1) . ", " . Format("{:.2f}", err2) . "`r`n"
-    output .= "Options: FindAll=" . (findAll ? "Yes" : "No") . ", UseScreenshot=" . (useScreenshot ? "New" : "Last") . "`r`n"
+    output .= "Options: FindAll=" . (findAll ? "Yes" : "No") . ", UseScreenshot=" . (useScreenshot ? "New" : "Last")
+
+    if (useWait) {
+        output .= ", Wait=" . (waitForAppear ? "Appear" : "Disappear") . " (" . waitTime . "s)"
+    }
+    output .= "`r`n"
     output .= "Search Time: " . searchTime . "ms`r`n"
 
     ; Show result immediately
@@ -392,7 +426,7 @@ TestPatterns(*) {
         searchTime := A_TickCount - startTime
 
         ; Log the tolerance variation test
-        LogSearch(searchWidth, searchHeight, testErr1, testErr2, isWindowBound, findAll, useLastScreenshotBool, StrLen(patterns), searchTime, result)
+        LogSearch(searchWidth, searchHeight, testErr1, testErr2, isWindowBound, findAll, useLastScreenshotBool, useWait, waitModeStr, waitTimeVal, StrLen(patterns), searchTime, result)
 
         output .= Format("Tolerances {:.2f},{:.2f}: ", testErr1, testErr2)
 

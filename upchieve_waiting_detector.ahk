@@ -139,6 +139,11 @@ CheckUpgradePopups() {
 FindHeaders() {
     global StudentHeaderTarget, HelpHeaderTarget, WaitTimeHeaderTarget, targetWindowID
 
+    ; Track previous header positions to only log changes
+    static prevStudentPos := {x: -1, y: -1}
+    static prevSubjectPos := {x: -1, y: -1}
+    static prevWaitTimePos := {x: -1, y: -1}
+
     while (true) {
         ; Initialize header positions (will be empty if not found)
         global studentHeaderPos := {x: 0, y: 0, found: false}
@@ -152,11 +157,10 @@ FindHeaders() {
         studentZone1 := SearchZone(600, 1150, 900, 1250)
         studentZone2 := SearchZone(0, 150, 0, 2000, 1800, 0)   ; Wider fallback zone
 
-        ; Search for Student Header
-        if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2, 0.15, 0.10, &SearchStats)) {
+        ; Search for Student Header (non-verbose)
+        if (result := FindTextInZones(StudentHeaderTarget, studentZone1, studentZone2, 0.15, 0.10, &SearchStats, false)) {
             upperLeft := GetUpperLeft(result)
             studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-            WriteLog("Student header found at " . studentHeaderPos.x . "," . studentHeaderPos.y)
         }
 
         ; Define search zones for Subject Header (position relative to Student header if found)
@@ -167,11 +171,10 @@ FindHeaders() {
         }
         subjectZone2 := SearchZone(0, 150, 2000, 2000)  ; Wider fallback zone
 
-        ; Search for Subject Header (was Help Header)
-        if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2, 0.15, 0.10, &SearchStats)) {
+        ; Search for Subject Header (was Help Header) (non-verbose)
+        if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2, 0.15, 0.10, &SearchStats, false)) {
             upperLeft := GetUpperLeft(result)
             subjectHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-            WriteLog("Subject header found at " . subjectHeaderPos.x . "," . subjectHeaderPos.y)
         }
 
         ; Define search zones for Wait Time Header (position relative to Student header if found)
@@ -182,17 +185,28 @@ FindHeaders() {
         }
         waitTimeZone2 := SearchZone(100, 150, 2000, 2000)  ; Wider fallback zone
 
-        ; Search for Wait Time Header
-        if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10, &SearchStats)) {
+        ; Search for Wait Time Header (non-verbose)
+        if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10, &SearchStats, false)) {
             upperLeft := GetUpperLeft(result)
             waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-
         }
 
         ; Check if all headers found
         if (studentHeaderPos.found && subjectHeaderPos.found && waitTimeHeaderPos.found) {
+            ; Log header positions summary if any changed (consolidated reporting)
+            if ((studentHeaderPos.found && (studentHeaderPos.x != prevStudentPos.x || studentHeaderPos.y != prevStudentPos.y)) ||
+                (subjectHeaderPos.found && (subjectHeaderPos.x != prevSubjectPos.x || subjectHeaderPos.y != prevSubjectPos.y)) ||
+                (waitTimeHeaderPos.found && (waitTimeHeaderPos.x != prevWaitTimePos.x || waitTimeHeaderPos.y != prevWaitTimePos.y))) {
+                WriteLog("Headers found - Student:" . studentHeaderPos.x . "," . studentHeaderPos.y . " Subject:" . subjectHeaderPos.x . "," . subjectHeaderPos.y . " WaitTime:" . waitTimeHeaderPos.x . "," . waitTimeHeaderPos.y)
+                ; Update previous positions after logging
+                prevStudentPos.x := studentHeaderPos.x
+                prevStudentPos.y := studentHeaderPos.y
+                prevSubjectPos.x := subjectHeaderPos.x
+                prevSubjectPos.y := subjectHeaderPos.y
+                prevWaitTimePos.x := waitTimeHeaderPos.x
+                prevWaitTimePos.y := waitTimeHeaderPos.y
+            }
             ; All headers found - return successfully
-    ;        WriteLog("All 3 headers found")
             return
         } else {
             ; Missing headers - show simple message box
@@ -922,11 +936,6 @@ CleanExit() {
         HandleSession(0, 0, 0, 0, true)  ; isManual = true
     }
 }
-^+s::{
-    LiveMode := false
-    ScanMode := !ScanMode
-    modeText := ScanMode ? "SCAN" : "TESTING"    
-}
 
 ; Global variables for OCR training screenshots
 TempScreenshotPath := ""
@@ -1146,7 +1155,16 @@ StartDetector() {
     }
     
     LiveMode := (modeResult = "Yes")
-    modeText := LiveMode ? "LIVE" : "TESTING"
+
+    ; If testing mode selected, ask about scan mode
+    if (!LiveMode) {
+        scanResult := MsgBox("You selected TESTING mode.`n`nDo you want to enable SCAN mode?`n`nYes = SCAN mode (scan for students and log times, no clicking)`nNo = TESTING mode (standard testing behavior)", "Scan Mode Selection", "YN 4096")
+        ScanMode := (scanResult = "Yes")
+        modeText := ScanMode ? "SCAN" : "TESTING"
+    } else {
+        ScanMode := false  ; Live mode doesn't use scan mode
+        modeText := "LIVE"
+    }
 
     ; Get target window using utility function
     global targetWindowID := GetTargetWindow("Click on the UPchieve browser window now...", false)
@@ -1156,19 +1174,19 @@ StartDetector() {
     
 ;    WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)  ; Get window dimensions
 
-    ToolTip "Starting " . modeText . " mode detector...", 10, 50
-    Sleep 1000
-    ToolTip ""
-    
+   
     ; Wait for students loop - simplified flow
     while (true) {
         ; Step 1: Check for upgrade popups
+        ToolTip "⏳ Checking for upgrade ... (" . modeText . " mode)",,, 1
+
         if (CheckUpgradePopups()) {
             WriteLog("DEBUG: Dismissed upgrade popup")
         }
 
         ; Step 2: Find headers - required each iteration
         ; Get active window position for tooltip
+        ToolTip "⏳ Finding headers ... (" . modeText . " mode)",,, 1
         try {
             WinGetPos(&activeX, &activeY, , , "A")
         } catch {
@@ -1179,7 +1197,6 @@ StartDetector() {
         CoordMode "ToolTip", "Screen"
         ToolTip "🔍 Searching for headers...", activeX + 100, activeY + 100, 1
         FindHeaders()
-        WriteLog("DEBUG: Headers found, starting student wait")
 
         ; Step 3: Calculate search zones based on header positions
         global waitTimeHeaderPos
@@ -1187,8 +1204,6 @@ StartDetector() {
 
         ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
         waitingZone1 := SearchZone(waitTimeHeaderPos.x - 5, waitTimeHeaderPos.y + 97, waitTimeHeaderPos.x + 50, waitTimeHeaderPos.y + 132)
-
-        WriteLog("DEBUG: WaitingTarget search zone: " . waitingZone1.ToString())
 
         ; Step 4: Wait for students (60 seconds)
         try {
@@ -1204,6 +1219,7 @@ StartDetector() {
 
         ; Step 5: If student found, check if blocked and exit loop
         if (result) {
+            ToolTip "⏳ Waiting target found... (" . modeText . " mode)", activeX + 100, activeY + 100, 1
             static studentDetectionCount := 0
             studentDetectionCount++
             detectionStartTime := A_TickCount
@@ -1217,7 +1233,9 @@ StartDetector() {
             }
             if (ScanMode) {
                 finished := FindText(&waitingX:='wait0', &waitingY:=6000, waitingZone1.x1, waitingZone1.y1, waitingZone1.x2, waitingZone1.y2, 0.15, 0.05, WaitingTarget)
-                WriteLog("SCAN MODE: Student detected, duration = " . (A_TickCount - detectionStartTime) . " ms")
+                finishedTick := A_TickCount
+                ToolTip "⏳ Waiting target gone ... (" . modeText . " mode)", activeX + 100, activeY + 100, 1
+                WriteLog("SCAN MODE: Student detected, " . ExtractTopic() . ", duration = " . (finishedTick - detectionStartTime) . " ms", 'scan.log')
                 continue  ; In SCAN mode, do not click, just continue waiting
             }
 

@@ -103,8 +103,9 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, &stats :
             stats.searchTimeMs := searchTime
             stats.foundInZone := "zone1"
         }
-        ; Log all successful results
-        WriteLog("DEBUG: FindTextInZones - SUCCESS in zone1: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . searchTime . "ms")
+        ; Log successful results only if verbose
+        if (verbose)
+            WriteLog("DEBUG: FindTextInZones - SUCCESS in zone1: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . searchTime . "ms")
         return result
     }
 
@@ -116,8 +117,9 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, &stats :
                 stats.searchTimeMs := searchTime
                 stats.foundInZone := "zone2"
             }
-            ; Log all successful results
-            WriteLog("DEBUG: FindTextInZones - SUCCESS in zone2: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . searchTime . "ms")
+            ; Log successful results only if verbose
+            if (verbose)
+                WriteLog("DEBUG: FindTextInZones - SUCCESS in zone2: found=" . result[1].id . " at " . result[1].x . "," . result[1].y . " searchTime=" . searchTime . "ms")
             return result
         }
     }
