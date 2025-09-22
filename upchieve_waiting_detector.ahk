@@ -271,7 +271,7 @@ CheckBlockedNamePatterns() {
     global studentHeaderPos, targetWindowID, BlockedTargets
 
     ; Use precise header-based positioning relative to StudentHeader middle coordinates
-    blockingZone := SearchZone(studentHeaderPos.x - 5, studentHeaderPos.y + 95, 0, 0, 200, 35)
+    blockingZone := SearchZone(studentHeaderPos.x - 5, studentHeaderPos.y + 95, 0, 0, 300, 35)
 
     ; Search for blocked patterns in calculated zone
     if (result := FindTextInZones(BlockedTargets, blockingZone, "", 0.15, 0.10, &SearchStats)) {
@@ -483,7 +483,7 @@ ExtractTopic() {
     global subjectHeaderPos, SubjectTargets, SubjectTargets_2, targetWindowID
 
     ; Define primary zone: x-5, y+95, 150x30 from SubjectHeader upper-left
-    primaryZone := SearchZone(subjectHeaderPos.x - 5, subjectHeaderPos.y + 95, 0, 0, 150, 30)
+    primaryZone := SearchZone(studentHeaderPos.x + 150, studentHeaderPos.y + 95, 0, 0, 200, 30)
 
     ; Try primary zone with SubjectTargets
     if (result := FindTextInZones(SubjectTargets, primaryZone, "", 0.15, 0.10, &SearchStats)) {
@@ -1203,7 +1203,8 @@ StartDetector() {
         WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
         ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
-        waitingZone1 := SearchZone(subjectHeaderPos.x + 430, subjectHeaderPos.y + 92, subjectHeaderPos + 570, subjectHeaderPos.y + 132)
+        waitingZone1 := SearchZone(studentHeaderPos.x + 425, subjectHeaderPos.y + 92, studentHeaderPos.x +900, subjectHeaderPos.y + 132)
+WriteLog("DEBUG: Waiting zone 1: " . waitingZone1.x1 . "," . waitingZone1.y1 . " to " . waitingZone1.x2 . "," . waitingZone1.y2)
 
         ; Step 4: Wait for students (60 seconds)
         try {
