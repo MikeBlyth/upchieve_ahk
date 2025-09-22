@@ -6,3 +6,4 @@ debug*
 ahk_bug_report.md
 ocr_training/
 *.png
+*.log

@@ -1203,7 +1203,7 @@ StartDetector() {
         WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
         ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
-        waitingZone1 := SearchZone(waitTimeHeaderPos.x - 5, waitTimeHeaderPos.y + 97, waitTimeHeaderPos.x + 50, waitTimeHeaderPos.y + 132)
+        waitingZone1 := SearchZone(subjectHeaderPos.x + 430, subjectHeaderPos.y + 92, subjectHeaderPos + 570, subjectHeaderPos.y + 132)
 
         ; Step 4: Wait for students (60 seconds)
         try {
