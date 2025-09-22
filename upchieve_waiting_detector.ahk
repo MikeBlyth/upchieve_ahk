@@ -271,7 +271,16 @@ CheckBlockedNamePatterns() {
     global studentHeaderPos, targetWindowID, BlockedTargets
 
     ; Use precise header-based positioning relative to StudentHeader middle coordinates
-    blockingZone := SearchZone(studentHeaderPos.x - 5, studentHeaderPos.y + 95, 0, 0, 300, 35)
+    blockingZone := SearchZone(studentHeaderPos.x - 5, studentHeaderPos.y + 95, 0, 0, 300, 40)
+
+    ; Save the search area as blocked.bmp for debugging
+    try {
+        ; Take screenshot of the blocking zone area
+        FindText().SavePic("blocked.bmp", blockingZone.x1, blockingZone.y1, blockingZone.x2, blockingZone.y2, 0.2, 0.2)
+        WriteLog("DEBUG: Saved blocking search area to blocked.bmp (" . blockingZone.ToString() . ")")
+    } catch Error as e {
+        WriteLog("ERROR: Failed to save blocked.bmp - " . e.message)
+    }
 
     ; Search for blocked patterns in calculated zone
     if (result := FindTextInZones(BlockedTargets, blockingZone, "", 0.15, 0.10, &SearchStats)) {
@@ -286,6 +295,7 @@ CheckBlockedNamePatterns() {
     }
 
     ; No blocked patterns found
+    WriteLog("DEBUG: No blocked patterns found in zone " . blockingZone.ToString())
     return {blocked: false, name: ""}
 }
 
@@ -483,7 +493,7 @@ ExtractTopic() {
     global subjectHeaderPos, SubjectTargets, SubjectTargets_2, targetWindowID
 
     ; Define primary zone: x-5, y+95, 150x30 from SubjectHeader upper-left
-    primaryZone := SearchZone(studentHeaderPos.x + 150, studentHeaderPos.y + 95, 0, 0, 200, 30)
+    primaryZone := SearchZone(studentHeaderPos.x + 150, studentHeaderPos.y + 95, 0, 0, 200, 40)
 
     ; Try primary zone with SubjectTargets
     if (result := FindTextInZones(SubjectTargets, primaryZone, "", 0.15, 0.10, &SearchStats)) {
@@ -1204,7 +1214,7 @@ StartDetector() {
 
         ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
         waitingZone1 := SearchZone(studentHeaderPos.x + 425, subjectHeaderPos.y + 92, studentHeaderPos.x +900, subjectHeaderPos.y + 132)
-WriteLog("DEBUG: Waiting zone 1: " . waitingZone1.x1 . "," . waitingZone1.y1 . " to " . waitingZone1.x2 . "," . waitingZone1.y2)
+;WriteLog("DEBUG: Waiting zone 1: " . waitingZone1.x1 . "," . waitingZone1.y1 . " to " . waitingZone1.x2 . "," . waitingZone1.y2)
 
         ; Step 4: Wait for students (60 seconds)
         try {
