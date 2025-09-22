@@ -56,8 +56,6 @@ EndSessionTarget :="|<EndSession>*194$193.00C0000000000000000000000000000000C000
 FinishTarget :="|<Finish>*225$127.01000000000000000000001U00000000000000000001U00000000000000000000U00000000000000000000k00000000000000000000E00000000000000000000E00000000000000000000M00000000000000000000800000000000000000000400000000000000000000400000000000000000000200000000000000000000300000000000000000000100000000000T0000w0000U0000000000DU000z0000E0000000Dzz7k000TU000M00000007zzXk0007U000800000003zzk000000000400000001s00000000000200000000w00000000000100000000S00D1tz0S0zk0U0000000D007UzzkD0zy0k00000007U03kTzw7Uzz0M00000003k01sDky3ky7kA00000001zz0w7kD1sS1k600000000zzkS3s7kwDU0300000000TzsD1s3sS7y01U0000000D007Uw1wD1zs0E00000007U03kS0y7UTz0800000003k01sD0T3k1zk400000001s00w7UDVs03s200000000w00S3k7kw60w100000000S00D1s3sS7Uy0k0000000D007Uw1wD3zz0800000007U03kS0y7Uzz0400000003k01sD0T3k7y02000000000000000000001U00000000000000000000E000000000000000000008000000000000000000002000000000000000000001000000000000000000000k0000000000000000000E"
 
 StudentHeaderTarget := "|<StudentHeader>*146$71.00000000000000000000001w3z00k000003sTzUDU000007nzzkT000000Djzzky000000TTUT1w000000yy0QTznw7k3txw0EzzbsDUTvvy01zzDkT1zzrzk3zyTUy3zzjzw0y0z1wDkzDzy1w1y3sT0yDzy3s3w7ky1w3zw7k7sDVw3s0TsDUDkT3s7m0DkT0TUy7kDa0DUy0z1wDUTT0z1w1y7sTVzzzy3zlzzkzzxzzs7zXzzUzztzzU7z3zD0znkTs03w3wS0T7U00000000000000000000001"
-HelpHeaderTarget := "|<HelpHeader>*147$71.0000000000000000000z0001y0T0001y0003w0y0003w0007s1w0007s000Dk3s000Dk000TU7k000TU000z0DU3w0z1sy1y0T0Ty1y3nz3w0y1zy3w7jz7s1w7zy7sDzyDzzsTVyDkTVyTzzky1wTUy3wzzzVzzsz1w3tzzz3zzly3s7nw0y7zzXw7kDbs1wDU07sDUTDk3sT00DkT1yTU7kz1sTUz3wz0DUzzkztzzly0T0zzUznzzXw0y0zy1z7ry7s1w0Tk1yDbk000000000T00000000000y01"
-WaitTimeHeaderTarget:="|<WaitTime>*148$97.000000000000000000000000D0000000C0z0T000Dk3007zzzUTUDU007sDU03zzzkDkDk003w7k01zzzs7s7s000w3s00zzzw3y3s00001w000DUS3z1w3y0Tbzw007kDVzUy7zkDnzy003s7kzky7zw7tzz001w3sQsT3zz3wzzU00y1wSSDXsTVy3s000T0yDD7UQ7kz1w000DUDbbXk07sTUy0007k7nnns0zwDkT0003s3tkxw3zy7sDU001w0xsSw3wT3w7k000y0TwDy3sDVy3s000T0Dy7z1wDkz1y000DU7y1z0zzyTUzw007k1z0zUTzzDkTy003s0zUTk7zTbs7z001w0TkDs1y7nw0z000y000000000000000000000000000000000E"
 
 SessionEndedTarget := "<SessionEnded>*195$237.zzzzzzzzzzzzs7zzzzzzzzzzzzzzzzsDzzzzz1zzs0zzzzzzzzzz0zzzzzzzzzzzzzzzzz1zzzzzsDzw01zzzzzzzzzs7zzzzzzzzzzzzzzzzsDzzzzz1zz007zzzzzzzzzVzzzzzzzzzzzzzzzzz1zzzzzsDzk30TzzzzzzzzzzzzzzzzzzzzzzzzzzsDzzzzz1zy3y3zzzzzzzzzzzzzzzzzzzzzzzzzzz1zzzzzsDzkTszk3zk3zU7wDw0zkk7zzy0Tks7zUMDw1zw31zy3zjw07s07k0DVy01y40Tzz01y00Tk01y03y00DzkDzy00S00Q00wDU07k01zzk07k01w00DU0DU01zy07zkA3kA3UM7Vw30y0kDzy1US0EDU81s20w30Dzk03w7sC3sw7lwD0y3kD1zzUz3kD0s7kD1w70y1zz00DUz1kTjUzTVsDkS3s7zw7sC3w71y1kTksDkDzy00Q00C0Dw0TwD1z3kTUzzU01kTUsDsC0071z1zzw03U01s0Dk0TVsDsC3w7zw00C3w71z1k00sDsDzzz0Q00DU0z01wD1z1kTUzzU01kTUsDsC0071z1zzzy1Uzzz03y07VsDsS3w7zw7zy3w71z1kTzsDsDztzkA7zzzUTz0wD1y3kTUzzUzzkTUsDkC3zz1y1zy7y3UT3tz1ny3Vs7kS3w7zw3sy3w70y1sDVs7kDzU70S0UC1UQ30wDUM7kTUzzkA3kTUw10D0M7UM1zy007s03k03U07Vw00y3w7zy00S3w7U01w01w00Dzs01zU0z00y01wDk0DkTUzzs07kTUy08Dk0Tk11zzk0zy0Tw0Ts0zVzU7y3w7zzk3y3w7w31zU7zUMDzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzU" .
                       "|<SessionEnded>*194$133.zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz3zzzzzzzzzzzzzzzzy3zzz0zzzzzzzzzzzzzzzzz1zzzUTzzzzzzzzzzzzzzzzUzzzkDzzzzzzzzzzzzzzzzkTzzwDzzzzzzzzzzzzzzzzsDzzzzzzzzzzzzzzzzzzzzw7zzzzzzzzzzzzzzzzzzzzy3w0zVzU7y60zzzk3y70zw31s07kz00z20DzzU0T00Ds00s01sT00DU03zzU0DU03s00Q30wDUM7k61zzkA3k21w10C3sy7UT1s7UzzkTVs7UQ3s71yz3kTUw7kDzsDkQ7sC3w3U3zVsDsS3w7zw00C3w71z1s0Dkw7w71y3zy0071y3UzUy03sS3y3Uz1zz003Uz1kTkTk0wD1z3kTUzzUzzkTUsDsDzUS7Uz1sDkTzkTzsDkQ7s7bw73kDUw7sDzs7lw7sC1w3UM7Vw30y3w7zy1US3w7U81k03ky00T1y3zz00D1y3k00w03sTU0TUz1zzk0DUz1w0ET07wDw0zkTUzzy0TkTUzUMDzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw"
@@ -137,21 +135,14 @@ CheckUpgradePopups() {
 ; Find all header targets and store their positions for search zone calculations
 ; This function will not return until ALL headers are found or user cancels
 FindHeaders() {
-    global StudentHeaderTarget, HelpHeaderTarget, WaitTimeHeaderTarget, targetWindowID
+    global StudentHeaderTarget, targetWindowID
 
-    ; Track previous header positions to only log changes
+    ; Track previous header position to only log changes
     static prevStudentPos := {x: -1, y: -1}
-    static prevSubjectPos := {x: -1, y: -1}
-    static prevWaitTimePos := {x: -1, y: -1}
 
     while (true) {
-        ; Initialize header positions (will be empty if not found)
+        ; Initialize header position (will be empty if not found)
         global studentHeaderPos := {x: 0, y: 0, found: false}
-        global subjectHeaderPos := {x: 0, y: 0, found: false}
-        global waitTimeHeaderPos := {x: 0, y: 0, found: false}
-
-        ; Get window client area dimensions for boundary checking
-;        WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
         ; Define search zones for Student Header
         studentZone1 := SearchZone(600, 1150, 900, 1250)
@@ -163,54 +154,20 @@ FindHeaders() {
             studentHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
         }
 
-        ; Define search zones for Subject Header (position relative to Student header if found)
+        ; Check if Student header found
         if (studentHeaderPos.found) {
-            subjectZone1 := SearchZone(studentHeaderPos.x + 200, studentHeaderPos.y - 10, 0, 0, 200, 50)
-        } else {
-            subjectZone1 := SearchZone(600, 600, 1100, 1400)
-        }
-        subjectZone2 := SearchZone(0, 150, 2000, 2000)  ; Wider fallback zone
-
-        ; Search for Subject Header (was Help Header) (non-verbose)
-        if (result := FindTextInZones(HelpHeaderTarget, subjectZone1, subjectZone2, 0.15, 0.10, &SearchStats, false)) {
-            upperLeft := GetUpperLeft(result)
-            subjectHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-        }
-
-        ; Define search zones for Wait Time Header (position relative to Student header if found)
-        if (studentHeaderPos.found) {
-            waitTimeZone1 := SearchZone(studentHeaderPos.x + 500, studentHeaderPos.y - 10, 0, 0, 300, 50)
-        } else {
-            waitTimeZone1 := SearchZone(600, 600, 1100, 1400)
-        }
-        waitTimeZone2 := SearchZone(100, 150, 2000, 2000)  ; Wider fallback zone
-
-        ; Search for Wait Time Header (non-verbose)
-        if (result := FindTextInZones(WaitTimeHeaderTarget, waitTimeZone1, waitTimeZone2, 0.15, 0.10, &SearchStats, false)) {
-            upperLeft := GetUpperLeft(result)
-            waitTimeHeaderPos := {x: upperLeft.x, y: upperLeft.y, found: true}
-        }
-
-        ; Check if all headers found
-        if (studentHeaderPos.found && subjectHeaderPos.found && waitTimeHeaderPos.found) {
-            ; Log header positions summary if any changed (consolidated reporting)
-            if ((studentHeaderPos.found && (studentHeaderPos.x != prevStudentPos.x || studentHeaderPos.y != prevStudentPos.y)) ||
-                (subjectHeaderPos.found && (subjectHeaderPos.x != prevSubjectPos.x || subjectHeaderPos.y != prevSubjectPos.y)) ||
-                (waitTimeHeaderPos.found && (waitTimeHeaderPos.x != prevWaitTimePos.x || waitTimeHeaderPos.y != prevWaitTimePos.y))) {
-                WriteLog("Headers found - Student:" . studentHeaderPos.x . "," . studentHeaderPos.y . " Subject:" . subjectHeaderPos.x . "," . subjectHeaderPos.y . " WaitTime:" . waitTimeHeaderPos.x . "," . waitTimeHeaderPos.y)
-                ; Update previous positions after logging
+            ; Log header position if it changed
+            if (studentHeaderPos.x != prevStudentPos.x || studentHeaderPos.y != prevStudentPos.y) {
+                WriteLog("Student header found at " . studentHeaderPos.x . "," . studentHeaderPos.y)
+                ; Update previous position after logging
                 prevStudentPos.x := studentHeaderPos.x
                 prevStudentPos.y := studentHeaderPos.y
-                prevSubjectPos.x := subjectHeaderPos.x
-                prevSubjectPos.y := subjectHeaderPos.y
-                prevWaitTimePos.x := waitTimeHeaderPos.x
-                prevWaitTimePos.y := waitTimeHeaderPos.y
             }
-            ; All headers found - return successfully
+            ; Student header found - return successfully
             return
         } else {
-            ; Missing headers - show simple message box
-            result := MsgBox("Missing column headers. Please adjust the browser window to ensure all column headers are visible, then click OK to retry.", "Missing Column Headers", "1 4096")  ; OK/Cancel
+            ; Missing Student header - show simple message box
+            result := MsgBox("Missing Student column header. Please adjust the browser window to ensure the Student column header is visible, then click OK to retry.", "Missing Student Header", "1 4096")  ; OK/Cancel
             if (result = "Cancel") {
                 CleanExit()
             }
@@ -490,9 +447,9 @@ ApplyKnownCorrections(ocrResult) {
 ; Extract topic using header-based positioning
 ; Uses header positions with standard row offsets
 ExtractTopic() {
-    global subjectHeaderPos, SubjectTargets, SubjectTargets_2, targetWindowID
+    global studentHeaderPos, SubjectTargets, SubjectTargets_2, targetWindowID
 
-    ; Define primary zone: x-5, y+95, 150x30 from SubjectHeader upper-left
+    ; Define primary zone: x+150, y+95, 200x40 from StudentHeader upper-left
     primaryZone := SearchZone(studentHeaderPos.x + 150, studentHeaderPos.y + 95, 0, 0, 200, 40)
 
     ; Try primary zone with SubjectTargets
@@ -501,8 +458,8 @@ ExtractTopic() {
         return result[1].id
     }
 
-    ; Define secondary zone: x+65, y+95, 35x30 from SubjectHeader upper-left
-    secondaryZone := SearchZone(subjectHeaderPos.x + 65, subjectHeaderPos.y + 95, 0, 0, 35, 30)
+    ; Define secondary zone: x+215, y+95, 135x40 from StudentHeader upper-left (wider coverage)
+    secondaryZone := SearchZone(studentHeaderPos.x + 215, studentHeaderPos.y + 95, 0, 0, 135, 40)
 
     ; Try secondary zone with SubjectTargets_2
     if (result := FindTextInZones(SubjectTargets_2, secondaryZone, "", 0.15, 0.10, &SearchStats)) {
@@ -1209,11 +1166,10 @@ StartDetector() {
         FindHeaders()
 
         ; Step 3: Calculate search zones based on header positions
-        global waitTimeHeaderPos
         WinGetClientPos(, , &winWidth, &winHeight, targetWindowID)
 
-        ; Use precise header-based positioning: x-5, y+95, 175x30 from WaitTimeHeader upper-left
-        waitingZone1 := SearchZone(studentHeaderPos.x + 425, subjectHeaderPos.y + 92, studentHeaderPos.x +900, subjectHeaderPos.y + 132)
+        ; Use precise header-based positioning: x+425, y+92, 475x40 from StudentHeader upper-left
+        waitingZone1 := SearchZone(studentHeaderPos.x + 425, studentHeaderPos.y + 92, studentHeaderPos.x + 900, studentHeaderPos.y + 132)
 ;WriteLog("DEBUG: Waiting zone 1: " . waitingZone1.x1 . "," . waitingZone1.y1 . " to " . waitingZone1.x2 . "," . waitingZone1.y2)
 
         ; Step 4: Wait for students (60 seconds)
