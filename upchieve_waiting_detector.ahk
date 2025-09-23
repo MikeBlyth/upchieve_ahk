@@ -11,7 +11,7 @@ CoordMode("Mouse", "Window")
 CoordMode("Pixel", "Window")
 
 ; Upchieve Waiting Student Detector
-; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+A to start/end session, Ctrl+Shift+S to capture screenshot
+; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+A to start/end session, Ctrl+Shift+S to capture screenshot, Ctrl+Shift+M to cycle modes
 
 TargetWindow := "UPchieve"
 SoundTimerFunc := ""
@@ -80,7 +80,7 @@ SubjectTargets :=
 BlockedTargets := "|<Chukwudi>**50$108.0Dw0Q000001k0000000zz0Q000001k0000001yDUQ000001k0000003k3kQ000001k0000003U1sQ000001k0000007U0UQz070C1k7b0C0Q7000Rzk70C1kD7UD0Q7000Tns70C1kS3UP0wD000T0s70C1kw3UT0sC000S0s70C1ls1kTUsC000Q0w70C1nk1kvVsC000Q0Q70C1rU1kvVkD000Q0Q70C1zk0sllk7000Q0Q70C1zk0tlnU7000Q0Q70C1Rs0tknU7U0sQ0Q70C1sw0NUvU3U1sQ0Q70S1kQ0RUv03k3kQ0Q70S1kS0TUT01yDUQ0Q7ly1kD0D0T00zz0Q0Q3zy1k70D0S00Dw0Q0Q0zC1k3UD0C0000000000000000000U"
     . "|<Chukwudi>*150$111.0000Q000001U00000000zU3U00000A00000000Tz0Q000001U0000000DUw3U00000A00000001k3kQ000001U0000000Q0C3U00000A0000000700UQz060C1U770C0Q8s003jy0k1kA1kQ1k3V7000TXk60C1UQ3UD0M8k003k70k1kA70Q3s71C000S0s60C1Vk1UP0s9k003U30k1kAQ0C3Q61C000Q0M60C1bU1ktVk8k003U30k1kBy066AC17000Q0M60C1zk0sllU8s003U30k1kD707C6Q1700sQ0M60C1kw0NUnU8Q0C3U30s1kA3U3g7M11k3kQ0M70S1UC0D0T08DVw3U30QDkA1s1s3s00Tz0Q0M3zi1U70D0C000zU3U307tkA0Q0k1k00000000000000000000000000000000000000U"
     . "|<Camila>*130$106.000000000000000000000000000000s60000000000000003kM00003w000000000D1U0000zw000000000s60000DVw0000000000M0001s1k0000000001U000703U00000000060000s000TU37kDU3UM0TU3U007z0BznzU61U3zUQ000wC0y7yD0M60QD1k0070Q3kDUQ3UM3UA700081kC0Q0s61U40sQ000070s1k3UM6003Vk0000Q3U70C1UM00S70001zkA0Q0s61U0zsQ000Tz0k1k3UM60DzUk003kQ3070C1UM1sC3U0MQ1kC0Q0s61UC0s703VU70k1k3UM60k3US0Q70w3070C1UM30S0y7kQ7kA0Q0s61kC3s0zw0zvks1k3UM7sTxk0z00y73070C1U7Uz70000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002"
-
+    . "|<Solis>*151$81.0000000000000000000000000000000000Q1k00000000003US00000Tk0000Q3k0000DzU0003UC00003kS0000Q000000s0s0003U000007030000Q000000k0E0zU3UC0TU07000Dz0Q1kDz00s007lw3UC3kw07k00s3UQ1kQ3U0Ts0C0C3UC30800zw1k1kQ1kQ0001zkC063UC3s0000T1U0kQ1kDw0000wA063UC0Ts0003Vk0kQ1k0DU0U0QC0C3UC00C0C03Vk1kQ1k01k1s0s70Q3UC70A07kT0yDUQ1kS7U0Dzk1zs1yC1zs00Tk07w07Vk3w00000000000000000000000000004"
 ; Debug log function
 
 ; App log function for session data in CSV format
@@ -392,7 +392,7 @@ MonitorSessionEnd() {
         ; try in screenbased coords also
         sessionEndZone2 := SearchZone(winX + winWidth - 400, winY, winx + winWidth, winY + 300)  ; Full window zone
 
-        if (tempResult := FindTextInZones(SessionEndedTarget, sessionEndZone, sessionEndZone2, 0.0, 0.03, &SearchStats)) {
+        if (tempResult := FindTextInZones(SessionEndedTarget, sessionEndZone, sessionEndZone2, 0.15, 0.10, &SearchStats)) {
             WriteLog("DEBUG: SessionEndedTarget found at " . tempResult[1].x . "," . tempResult[1].y)
             break
         }
@@ -459,6 +459,42 @@ ExtractTopic() {
 }
 
 ;
+; Cycle between LIVE/TESTING/SCAN modes during runtime
+CycleModes() {
+    global LiveMode, ScanMode, modeText
+
+    ; Cycle through modes: LIVE -> TESTING -> SCAN -> LIVE
+    if (LiveMode) {
+        ; Currently LIVE -> switch to TESTING
+        LiveMode := false
+        ScanMode := false
+        modeText := "TESTING"
+    } else if (!ScanMode) {
+        ; Currently TESTING -> switch to SCAN
+        LiveMode := false
+        ScanMode := true
+        modeText := "SCAN"
+    } else {
+        ; Currently SCAN -> switch to LIVE
+        LiveMode := true
+        ScanMode := false
+        modeText := "LIVE"
+    }
+
+    ; Show brief notification of mode change
+    try {
+        WinGetPos(&activeX, &activeY, , , "A")
+    } catch {
+        activeX := 100
+        activeY := 100
+    }
+    CoordMode "ToolTip", "Screen"
+    ToolTip "🔄 Mode switched to: " . modeText, activeX + 100, activeY + 150, 2
+    SetTimer () => ToolTip("", , , 2), -3000  ; Clear mode notification after 3 seconds
+
+    WriteLog("Mode switched to: " . modeText)
+}
+
 ; Suspend detection with resume option
 SuspendDetection() {
     ; Simple pause dialog - no state management needed in simplified flow
@@ -901,6 +937,8 @@ CleanExit() {
         SetTimer () => ToolTip("", , , 1), -2000  ; Clear tooltip after 2 seconds
     }
 }
+; Ctrl+Shift+M: Cycle between LIVE/TESTING/SCAN modes
+^+m::CycleModes()
 
 ; Global variables for OCR training screenshots
 TempScreenshotPath := ""
@@ -913,12 +951,6 @@ CaptureDetectionScreenshot(waitingX := 0, waitingY := 0) {
     if (!studentHeaderPos.found) {
         WriteLog("ERROR: Cannot capture screenshot - Student header not found")
         return false
-    }
-
-    ; Use current mouse position if no waiting coordinates provided (for manual capture)
-    if (waitingX == 0 && waitingY == 0) {
-        MouseGetPos(&waitingX, &waitingY)
-        WriteLog("DEBUG: Using mouse position for manual screenshot: " . waitingX . "," . waitingY)
     }
 
     ; Calculate capture coordinates
