@@ -1156,7 +1156,7 @@ StartDetector() {
 
         ; Use precise header-based positioning: x+425, y+92, 475x40 from StudentHeader upper-left
         waitingZone1 := SearchZone(studentHeaderPos.x + 425, studentHeaderPos.y + 92, studentHeaderPos.x + 900, studentHeaderPos.y + 132)
-;WriteLog("DEBUG: Waiting zone 1: " . waitingZone1.x1 . "," . waitingZone1.y1 . " to " . waitingZone1.x2 . "," . waitingZone1.y2)
+WriteLog("DEBUG: Waiting zone 1: " . waitingZone1.x1 . "," . waitingZone1.y1 . " to " . waitingZone1.x2 . "," . waitingZone1.y2)
 
         ; Step 4: Wait for students (60 seconds)
         try {
@@ -1168,7 +1168,8 @@ StartDetector() {
         }
         CoordMode "ToolTip", "Screen"
         ToolTip "⏳ Waiting for students... (" . modeText . " mode)", activeX + 100, activeY + 100, 1
-        result := FindText(&waitingX:='wait', &waitingY:=60, waitingZone1.x1, waitingZone1.y1, waitingZone1.x2, waitingZone1.y2, 0.15, 0.05, WaitingTarget)
+        result := FindText(&waitingX:='wait', &waitingY:=60, waitingZone1.x1, waitingZone1.y1, waitingZone1.x2, waitingZone1.y2, 0.15, 0.15, WaitingTarget)
+;        result := FindText(, , 600,400,1500,1800, 0.15, 0.15, WaitingTarget)
 
         ; Step 5: If student found, check if blocked and exit loop
         if (result) {
