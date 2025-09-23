@@ -230,14 +230,6 @@ CheckBlockedNamePatterns() {
     ; Use precise header-based positioning relative to StudentHeader middle coordinates
     blockingZone := SearchZone(studentHeaderPos.x - 5, studentHeaderPos.y + 95, 0, 0, 300, 40)
 
-    ; Save the search area as blocked.bmp for debugging
-    try {
-        ; Take screenshot of the blocking zone area
-        FindText().SavePic("blocked.bmp", blockingZone.x1, blockingZone.y1, blockingZone.x2, blockingZone.y2, 0.2, 0.2)
-        WriteLog("DEBUG: Saved blocking search area to blocked.bmp (" . blockingZone.ToString() . ")")
-    } catch Error as e {
-        WriteLog("ERROR: Failed to save blocked.bmp - " . e.message)
-    }
 
     ; Search for blocked patterns in calculated zone
     if (result := FindTextInZones(BlockedTargets, blockingZone, "", 0.15, 0.10, &SearchStats)) {
@@ -273,12 +265,6 @@ HandleSession(waitingX := 0, waitingY := 0, detectionStartTime := 0, studentDete
         detectionTime := A_TickCount - detectionStartTime
         WriteLog("Blocking check + subject detection finished (" . detectionTime . "ms)")
 
-        ; Step 3: Capture student name region for training before clicking
-        global studentHeaderPos
-        if (studentHeaderPos.found) {
-            CaptureNameRegion(studentHeaderPos)
-            WriteLog("Student name region captured for training")
-        }
 
         ; Step 4: Click the student
         if (LiveMode) {
@@ -1191,6 +1177,28 @@ StartDetector() {
             studentDetectionCount++
             detectionStartTime := A_TickCount
             WriteLog("DETECTION #" . studentDetectionCount . ": WaitingTarget found at " . waitingX . "," . waitingY)
+
+            ; Capture single screenshot from StudentHeaderPos-(5,5) to waitingTarget+(10,10)
+            global studentHeaderPos, SessionCounter, TempScreenshotPath
+            if (studentHeaderPos.found) {
+                captureX1 := studentHeaderPos.x - 5
+                captureY1 := studentHeaderPos.y - 5
+                captureX2 := waitingX + 10
+                captureY2 := waitingY + 10
+
+                ; Generate temp filename
+                SessionCounter++
+                timestamp := FormatTime(A_Now, "yyyyMMdd_HHmmss")
+                tempFilename := "temp_detection_" . timestamp . "_" . Format("{:03d}", SessionCounter) . ".bmp"
+
+                try {
+                    FindText().SavePic(tempFilename, captureX1, captureY1, captureX2, captureY2, 1)
+                    TempScreenshotPath := tempFilename  ; Store for later rename
+                    WriteLog("DEBUG: Detection screenshot captured: " . tempFilename)
+                } catch Error as e {
+                    WriteLog("ERROR: Failed to save detection screenshot - " . e.message)
+                }
+            }
 
             ; Check for blocked name patterns FIRST (fast visual detection)
             blockResult := CheckBlockedNamePatterns()
