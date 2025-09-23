@@ -11,7 +11,7 @@ CoordMode("Mouse", "Window")
 CoordMode("Pixel", "Window")
 
 ; Upchieve Waiting Student Detector
-; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+A to start/end session
+; Hotkeys: Ctrl+Shift+Q to quit, Ctrl+Shift+H to pause/resume, Ctrl+Shift+A to start/end session, Ctrl+Shift+S to capture screenshot
 
 TargetWindow := "UPchieve"
 SoundTimerFunc := ""
@@ -44,8 +44,9 @@ PlayNotificationSound() {
 WaitingTarget1 := "|<Waiting>*150$65.00000000000000000s0000000003k000000000DU000000E01z0000003U0Di000000T00QQ006C07s000s00Bw0z0001k00TU7s0003U00w0y00007001k3k0000C003U600000Q0070D00000s00A0DU0001k00M07k0003U00k03s0007001U01y000C003000z000Q006000S000s00A000A001k00M0000003U00k00000000000E"
 WaitingTarget2 := "|<Waiting>*151$86.00000000000000000000600000000000003U0000000000003s0000000000U03y0000000000s01tU000000000y00QM00CTUz000z0006003jwTs00y0001U00z7i700y0000M00DUT0s1y00006003k7UC0y00001U00s1k1UC00000M00C0Q0M3k00006003U7060T00001U00s1k1U1y0000M00C0Q0M07s0006003U70600TU001U00s1k1U00y000M00C0Q0M003U006003U7060008001U00s1k1U000000M00C0Q0M00000000000000000000000000000U"
 WaitingTarget3 := "|<Waiting>*152$38.000001k00000w00000T00400Tk0700TQ07k0770Dk001kDk000QDk0007DU0001rU0000RU00007S00001ns0000QDU00070y0001k3w000Q0Dk00700w001k03000Q0000070000008"
+WaitingTarget4 := "|<Waiting1>**50$41.0000000000001k000007U00000R000k03y007U0Tw00z00Qs07s001k1z0003UDk00071y0000C7k0000QC00000sT00001kTU0003UDk000707s000C03w000Q01y000s00y001k00A003U0000070000000E"
 
-WaitingTarget := WaitingTarget3 
+WaitingTarget := WaitingTarget3 . WaitingTarget4
 
 ; Using "New" is a workaround for the first two targets not being found for unknown reasons
 UpgradeTarget := "|<Upgrade>*196$93.zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzwTwQ03zk3y03zzzzXzXU07w0Dk07zzzwTwQDUz1Uy7UTzzzXzXVz3kz3kz3zzzwTwQDwQDwS7wTzzzXzXVzVVzVkzVzzzwTwQDwATzy7wDzzzXzXVzXXzzkzXzzzwTwQDsQTzy7sTzzzXzXVy3Xzzky3zzzwTwQ00wT0C00zzzzXzXU0TXs1k0TzzzwTwQDzwTwC7XzzzzXzXVzzXzVkwDzzzwDwQDzwDwC7lzzzzVz3VzzlzVky7zzzy7sQDzy7wC7sTzzzkQ7VzzsC1kz3zzzz01wDzzU0y7wDzzzy0zVzzz0Dkzkzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzw"
@@ -889,10 +890,58 @@ CleanExit() {
         HandleSession(0, 0, 0, 0, true)  ; isManual = true
     }
 }
+; Ctrl+Shift+S: Manual screenshot capture
+^+s::{
+    WriteLog("DEBUG: Ctrl+Shift+S hotkey triggered")
+    if (CaptureDetectionScreenshot()) {
+        ToolTip "Screenshot captured successfully", 10, 10, 1
+        SetTimer () => ToolTip("", , , 1), -2000  ; Clear tooltip after 2 seconds
+    } else {
+        ToolTip "Screenshot capture failed", 10, 10, 1
+        SetTimer () => ToolTip("", , , 1), -2000  ; Clear tooltip after 2 seconds
+    }
+}
 
 ; Global variables for OCR training screenshots
 TempScreenshotPath := ""
 SessionCounter := 0
+
+; Capture detection screenshot from StudentHeaderPos-(5,5) to waitingTarget+(10,10)
+CaptureDetectionScreenshot(waitingX := 0, waitingY := 0) {
+    global studentHeaderPos, SessionCounter, TempScreenshotPath
+
+    if (!studentHeaderPos.found) {
+        WriteLog("ERROR: Cannot capture screenshot - Student header not found")
+        return false
+    }
+
+    ; Use current mouse position if no waiting coordinates provided (for manual capture)
+    if (waitingX == 0 && waitingY == 0) {
+        MouseGetPos(&waitingX, &waitingY)
+        WriteLog("DEBUG: Using mouse position for manual screenshot: " . waitingX . "," . waitingY)
+    }
+
+    ; Calculate capture coordinates
+    captureX1 := studentHeaderPos.x - 5
+    captureY1 := studentHeaderPos.y - 5
+    captureX2 := studentHeaderPos.x + 900
+    captureY2 := studentHeaderPos.y + 132
+
+    ; Generate temp filename
+    SessionCounter++
+    timestamp := FormatTime(A_Now, "yyyyMMdd_HHmmss")
+    tempFilename := "temp_detection_" . timestamp . "_" . Format("{:03d}", SessionCounter) . ".bmp"
+
+    try {
+        FindText().SavePic(tempFilename, captureX1, captureY1, captureX2, captureY2, 1)
+        TempScreenshotPath := tempFilename  ; Store for later rename
+        WriteLog("DEBUG: Detection screenshot captured: " . tempFilename)
+        return true
+    } catch Error as e {
+        WriteLog("ERROR: Failed to save detection screenshot - " . e.message)
+        return false
+    }
+}
 
 ; Capture screenshot of student name region for OCR training
 CaptureNameRegion(headerPos) {
@@ -1171,7 +1220,7 @@ WriteLog("DEBUG: Waiting zone 1: " . waitingZone1.x1 . "," . waitingZone1.y1 . "
         result := FindText(&waitingX:='wait', &waitingY:=60, waitingZone1.x1, waitingZone1.y1, waitingZone1.x2, waitingZone1.y2, 0.15, 0.15, WaitingTarget)
 ;        result := FindText(, , 600,400,1500,1800, 0.15, 0.15, WaitingTarget)
 
-        ; Step 5: If student found, check if blocked and exit loop
+        ; Step 5: If waiting student found, check if blocked and exit loop
         if (result) {
             ToolTip "⏳ Waiting target found... (" . modeText . " mode)", activeX + 100, activeY + 100, 1
             static studentDetectionCount := 0
@@ -1179,27 +1228,8 @@ WriteLog("DEBUG: Waiting zone 1: " . waitingZone1.x1 . "," . waitingZone1.y1 . "
             detectionStartTime := A_TickCount
             WriteLog("DETECTION #" . studentDetectionCount . ": WaitingTarget found at " . waitingX . "," . waitingY)
 
-            ; Capture single screenshot from StudentHeaderPos-(5,5) to waitingTarget+(10,10)
-            global studentHeaderPos, SessionCounter, TempScreenshotPath
-            if (studentHeaderPos.found) {
-                captureX1 := studentHeaderPos.x - 5
-                captureY1 := studentHeaderPos.y - 5
-                captureX2 := waitingX + 10
-                captureY2 := waitingY + 10
-
-                ; Generate temp filename
-                SessionCounter++
-                timestamp := FormatTime(A_Now, "yyyyMMdd_HHmmss")
-                tempFilename := "temp_detection_" . timestamp . "_" . Format("{:03d}", SessionCounter) . ".bmp"
-
-                try {
-                    FindText().SavePic(tempFilename, captureX1, captureY1, captureX2, captureY2, 1)
-                    TempScreenshotPath := tempFilename  ; Store for later rename
-                    WriteLog("DEBUG: Detection screenshot captured: " . tempFilename)
-                } catch Error as e {
-                    WriteLog("ERROR: Failed to save detection screenshot - " . e.message)
-                }
-            }
+            ; Capture detection screenshot
+            CaptureDetectionScreenshot(waitingX, waitingY)
 
             ; Check for blocked name patterns FIRST (fast visual detection)
             blockResult := CheckBlockedNamePatterns()
