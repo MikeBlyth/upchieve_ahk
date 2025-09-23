@@ -233,7 +233,7 @@ CheckBlockedNamePatterns() {
 
 
     ; Search for blocked patterns in calculated zone
-    if (result := FindTextInZones(BlockedTargets, blockingZone, "", 0.15, 0.10, &SearchStats)) {
+    if (result := FindTextInZones(BlockedTargets, blockingZone, "", 0.15, 0.15, &SearchStats)) {
         ; Found a blocked name pattern
         blockedName := result[1].id  ; Get the pattern name (e.g. "Chukwudi", "Camila")
         WriteLog("BLOCKED: " . blockedName)
@@ -1238,7 +1238,7 @@ WriteLog("DEBUG: Waiting zone 1: " . waitingZone1.x1 . "," . waitingZone1.y1 . "
                 continue  ; Skip this student entirely, continue waiting
             }
             if (ScanMode) {
-                finished := FindText(&waitingX:='wait0', &waitingY:=6000, waitingZone1.x1, waitingZone1.y1, waitingZone1.x2, waitingZone1.y2, 0.15, 0.05, WaitingTarget)
+                finished := FindText(&waitingX:='wait0', &waitingY:=6000, waitingZone1.x1, waitingZone1.y1, waitingZone1.x2, waitingZone1.y2, 0.15, 0.15, WaitingTarget)
                 finishedTick := A_TickCount
                 ToolTip "⏳ Waiting target gone ... (" . modeText . " mode)", activeX + 100, activeY + 100, 1
                 WriteLog("SCAN MODE: Student detected, " . ExtractTopic() . ", duration = " . (finishedTick - detectionStartTime) . " ms", 'scan.log')
