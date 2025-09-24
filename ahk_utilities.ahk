@@ -97,7 +97,7 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, &stats :
     }
 
     ; Try first zone
-    if (result := FindText(, , zone1.x1, zone1.y1, zone1.x2, zone1.y2, err1, err2, target, 0,1)) {
+    if (result := FindText(, , zone1.x1, zone1.y1, zone1.x2, zone1.y2, err1, err2, target)) {
         searchTime := A_TickCount - startTime
         if (IsObject(stats)) {
             stats.searchTimeMs := searchTime
