@@ -19,143 +19,83 @@
         }
     }
 
-    // Store original fetch function
-    const originalFetch = window.fetch;
+    // Monitor DOM for new student rows using MutationObserver
+    const domObserver = new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            // Check for new nodes added to the DOM
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === 1) { // Element node
+                    // Check if the added node is a student row
+                    if (node.classList && node.classList.contains('session-row')) {
+                        debugLog(1, '🚨 New student detected via DOM monitoring:', node);
+                        triggerStudentDetection('DOM monitoring', 'new student row added');
+                    }
 
-    // Intercept fetch requests to detect alert sound
-    window.fetch = function(...args) {
-        const url = args[0];
-
-        // Log all fetch requests at verbose level
-        debugLog(2, '🌐 Fetch request:', url);
-
-        // Check if this is an alert sound request
-        if (typeof url === 'string' && ALERT_PATTERN.test(url)) {
-            debugLog(1, '🚨 Alert detected via fetch:', url);
-            triggerStudentDetection('fetch', url);
-        }
-
-        // Call original fetch
-        return originalFetch.apply(this, args);
-    };
-
-    // Enhanced audio monitoring
-    let alertDetectionActive = true;
-
-    // Monitor all audio elements (existing and new)
-    function monitorAudioElements() {
-        // Monitor existing audio elements
-        document.querySelectorAll('audio').forEach(audio => {
-            setupAudioMonitoring(audio);
-        });
-
-        // Monitor new audio elements
-        const originalCreateElement = document.createElement;
-        document.createElement = function(tagName) {
-            const element = originalCreateElement.call(this, tagName);
-
-            if (tagName.toLowerCase() === 'audio') {
-                setupAudioMonitoring(element);
-            }
-
-            return element;
-        };
-
-        // Use MutationObserver to catch dynamically added audio elements
-        const observer = new MutationObserver(mutations => {
-            mutations.forEach(mutation => {
-                mutation.addedNodes.forEach(node => {
-                    if (node.nodeType === 1) { // Element node
-                        if (node.tagName === 'AUDIO') {
-                            setupAudioMonitoring(node);
+                    // Also check if student rows were added within this node
+                    if (node.querySelectorAll) {
+                        const newStudentRows = node.querySelectorAll('.session-row');
+                        if (newStudentRows.length > 0) {
+                            debugLog(1, `🚨 ${newStudentRows.length} new student(s) detected in added container:`, newStudentRows);
+                            triggerStudentDetection('DOM monitoring', `${newStudentRows.length} student rows in container`);
                         }
-                        // Check for audio elements within added nodes
-                        node.querySelectorAll && node.querySelectorAll('audio').forEach(audio => {
-                            setupAudioMonitoring(audio);
-                        });
                     }
-                });
+                }
             });
         });
+    });
 
-        observer.observe(document.body, { childList: true, subtree: true });
-        debugLog(1, '🎧 Audio monitoring setup complete');
-    }
+    // Start observing DOM changes on the student table area
+    function initializeDomMonitoring() {
+        // Find the student table container
+        const tableContainer = document.querySelector('.session-list tbody') ||
+                              document.querySelector('.session-list') ||
+                              document.querySelector('tbody') ||
+                              document.body;
 
-    // Setup monitoring for individual audio element
-    function setupAudioMonitoring(audioElement) {
-        debugLog(2, '🎵 Setting up monitoring for audio element:', audioElement);
-
-        // Monitor src changes
-        const originalSrcDescriptor = Object.getOwnPropertyDescriptor(HTMLAudioElement.prototype, 'src') ||
-                                    Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'src');
-
-        if (originalSrcDescriptor) {
-            Object.defineProperty(audioElement, 'src', {
-                set: function(value) {
-                    debugLog(2, '🎵 Audio src being set to:', value);
-                    if (value && ALERT_PATTERN.test(value) && alertDetectionActive) {
-                        debugLog(1, '🚨 Audio alert detected via src change:', value);
-                        triggerStudentDetection('src change', value);
-                    }
-                    originalSrcDescriptor.set.call(this, value);
-                },
-                get: function() {
-                    return originalSrcDescriptor.get.call(this);
-                },
-                configurable: true
+        if (tableContainer) {
+            domObserver.observe(tableContainer, {
+                childList: true,
+                subtree: true
+            });
+            debugLog(1, '👀 DOM monitoring initialized on:', tableContainer.tagName + (tableContainer.className ? '.' + tableContainer.className : ''));
+        } else {
+            debugLog(1, '⚠️ Could not find student table container, monitoring document body');
+            domObserver.observe(document.body, {
+                childList: true,
+                subtree: true
             });
         }
-
-        // Monitor play events
-        audioElement.addEventListener('play', function() {
-            debugLog(2, '▶️ Audio play event:', this.src || this.currentSrc);
-            const src = this.src || this.currentSrc;
-            if (src && ALERT_PATTERN.test(src) && alertDetectionActive) {
-                debugLog(1, '🚨 Audio alert detected via play event:', src);
-                triggerStudentDetection('play event', src);
-            }
-        });
-
-        // Monitor loadstart events (when audio starts loading)
-        audioElement.addEventListener('loadstart', function() {
-            debugLog(2, '⏳ Audio loadstart event:', this.src || this.currentSrc);
-            const src = this.src || this.currentSrc;
-            if (src && ALERT_PATTERN.test(src) && alertDetectionActive) {
-                debugLog(1, '🚨 Audio alert detected via loadstart:', src);
-                triggerStudentDetection('loadstart', src);
-            }
-        });
-
-        // Monitor canplay events (when audio can start playing)
-        audioElement.addEventListener('canplay', function() {
-            debugLog(2, '✅ Audio canplay event:', this.src || this.currentSrc);
-            const src = this.src || this.currentSrc;
-            if (src && ALERT_PATTERN.test(src) && alertDetectionActive) {
-                debugLog(1, '🚨 Audio alert detected via canplay:', src);
-                triggerStudentDetection('canplay', src);
-            }
-        });
     }
+
+    // Initialize DOM monitoring when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeDomMonitoring);
+    } else {
+        initializeDomMonitoring();
+    }
+
+    // Detection state management
+    let alertDetectionActive = true;
 
     // Centralized trigger function with debouncing
     let lastAlertTime = 0;
-    function triggerStudentDetection(method, url) {
+    function triggerStudentDetection(method, details) {
         const now = Date.now();
         if (now - lastAlertTime < 1000) { // Debounce multiple triggers within 1 second
-            debugLog(1, '⏸️ Alert detection debounced (too soon after last alert)');
+            debugLog(1, '⏸️ Detection debounced (too soon after last detection)');
             return;
         }
         lastAlertTime = now;
 
-        debugLog(1, `🎯 Student detection triggered by ${method}: ${url}`);
+        debugLog(1, `🎯 Student detection triggered by ${method}: ${details}`);
+        // DOM changes are immediate, no delay needed
+        const delay = method === 'DOM monitoring' ? 0 : ALERT_DELAY_MS;
         setTimeout(() => {
             extractAndDisplayStudentData();
-        }, ALERT_DELAY_MS);
+        }, delay);
     }
 
-    // Initialize audio monitoring
-    monitorAudioElements();
+    // DOM monitoring is already initialized above
 
     // Extract student data from DOM
     function extractAndDisplayStudentData() {
@@ -252,21 +192,22 @@
                 const message = `Student: ${primaryStudent.name}\nTopic: ${primaryStudent.topic}` +
                     (primaryStudent.waitTime ? `\nWait Time: ${primaryStudent.waitTime}` : '');
 
-                showNotification('Student Detected!', message);
+                // Copy to clipboard (skip notification for testing)
+                copyToClipboard(`${primaryStudent.name}|${primaryStudent.topic}`);
 
                 // Log all students for debugging
                 debugLog(1, '🎓 All students detected:', students);
 
-                // Copy to clipboard for AutoHotkey integration (optional)
-                copyToClipboard(`${primaryStudent.name}|${primaryStudent.topic}`);
+                // Skip notification for testing
+                debugLog(1, '📢 SKIPPED NOTIFICATION (testing mode):', message);
 
             } else {
-                showNotification('Alert Detected', 'Audio alert played but no student data found');
+                debugLog(1, '⚠️ DOM change detected but no student data found');
             }
 
         } catch (error) {
             console.error('Error extracting student data:', error);
-            showNotification('Extraction Error', 'Failed to extract student data: ' + error.message);
+            debugLog(1, '❌ Extraction Error: Failed to extract student data: ' + error.message);
         }
     }
 
@@ -357,80 +298,110 @@
 
     // Copy data to clipboard for AutoHotkey integration
     function copyToClipboard(text) {
-        console.log('Attempting to copy to clipboard:', text);
+        debugLog(1, 'Attempting to copy to clipboard:', text);
 
-        // Method 1: Focus document and use modern clipboard API
-        try {
-            window.focus();
-            document.body.focus();
-
-            navigator.clipboard.writeText(text).then(() => {
-                console.log('✅ Data copied to clipboard via modern API:', text);
-            }).catch(err => {
-                console.warn('Modern clipboard failed, trying fallback:', err);
-                copyToClipboardFallback(text);
-            });
-        } catch (error) {
-            console.warn('Modern clipboard API not available, using fallback:', error);
-            copyToClipboardFallback(text);
-        }
+        // Skip modern clipboard API entirely - go straight to execCommand which doesn't require user gesture
+        copyToClipboardFallback(text);
     }
 
     // Fallback clipboard methods
     function copyToClipboardFallback(text) {
-        // Method 2: execCommand (deprecated but widely supported)
+        // Method 1: Aggressive execCommand approach
         try {
+            // Create multiple elements to increase chances of success
             const textarea = document.createElement('textarea');
             textarea.value = text;
             textarea.style.position = 'fixed';
+            textarea.style.left = '-9999px';
+            textarea.style.top = '0';
             textarea.style.opacity = '0';
+            textarea.style.zIndex = '-1';
+
             document.body.appendChild(textarea);
+
+            // Force focus and selection
             textarea.focus();
             textarea.select();
+            textarea.setSelectionRange(0, textarea.value.length);
 
-            const success = document.execCommand('copy');
+            // Try multiple times
+            let success = false;
+            for (let i = 0; i < 3 && !success; i++) {
+                success = document.execCommand('copy');
+                if (!success) {
+                    // Brief delay and retry
+                    setTimeout(() => {
+                        textarea.focus();
+                        textarea.select();
+                        document.execCommand('copy');
+                    }, 10 * i);
+                }
+            }
+
             document.body.removeChild(textarea);
 
             if (success) {
-                console.log('✅ Data copied to clipboard via execCommand:', text);
+                debugLog(1, '✅ Data copied to clipboard via execCommand:', text);
                 return;
             }
         } catch (error) {
-            console.warn('execCommand clipboard failed:', error);
+            debugLog(1, 'execCommand clipboard failed:', error);
         }
 
-        // Method 3: Manual selection (user must Ctrl+C)
+        // Method 2: Visible selection method with auto-copy attempt
         try {
             const div = document.createElement('div');
             div.textContent = text;
             div.style.position = 'fixed';
             div.style.top = '10px';
             div.style.left = '10px';
-            div.style.background = 'yellow';
-            div.style.padding = '5px';
-            div.style.zIndex = '9999';
-            div.style.border = '2px solid red';
+            div.style.background = '#ffff99';
+            div.style.color = '#000';
+            div.style.padding = '10px';
+            div.style.zIndex = '999999';
+            div.style.border = '2px solid #ff6600';
+            div.style.borderRadius = '5px';
+            div.style.fontFamily = 'monospace';
+            div.style.fontSize = '14px';
+            div.style.cursor = 'pointer';
             div.id = 'clipboard-helper';
+            div.title = 'Click to select, then Ctrl+C to copy';
 
             document.body.appendChild(div);
 
-            // Select the text
+            // Auto-select the text
             const range = document.createRange();
             range.selectNodeContents(div);
             const selection = window.getSelection();
             selection.removeAllRanges();
             selection.addRange(range);
 
-            console.log('📋 Text selected (yellow box) - Press Ctrl+C to copy:', text);
+            // Try to copy the selected text
+            try {
+                document.execCommand('copy');
+                debugLog(1, '✅ Data copied to clipboard via visible selection:', text);
+            } catch (e) {
+                debugLog(1, '📋 Text selected (yellow box) - Press Ctrl+C to copy:', text);
+            }
 
-            // Auto-remove after 10 seconds
+            // Make div clickable to reselect
+            div.addEventListener('click', () => {
+                const range = document.createRange();
+                range.selectNodeContents(div);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+                document.execCommand('copy');
+            });
+
+            // Auto-remove after 15 seconds
             setTimeout(() => {
                 const helper = document.getElementById('clipboard-helper');
                 if (helper) helper.remove();
-            }, 10000);
+            }, 15000);
 
         } catch (error) {
-            console.error('All clipboard methods failed:', error);
+            debugLog(1, 'All clipboard methods failed:', error);
         }
     }
 
