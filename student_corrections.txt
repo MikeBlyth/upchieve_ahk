@@ -40,3 +40,4 @@ Araya -> Araya (Laray)
  -> 8th grade math
  -> science
  -> 8th grade math
+ -> Algebra
