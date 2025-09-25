@@ -281,7 +281,17 @@ TestPatterns(*) {
 
     ; Sort results by x position (left to right)
     if (result && result.Length > 1) {
-        result.Sort((a, b) => a.x - b.x)
+        Loop result.Length - 1 {
+            i := A_Index
+            Loop result.Length - i {
+                j := A_Index
+                if (result[j].x > result[j+1].x) {
+                    temp := result[j]
+                    result[j] := result[j+1]
+                    result[j+1] := temp
+                }
+            }
+        }
     }
 
     ; Log the main search
@@ -426,7 +436,17 @@ TestPatterns(*) {
 
         ; Sort results by x position (left to right)
         if (result && result.Length > 1) {
-            result.Sort((a, b) => a.x - b.x)
+            Loop result.Length - 1 {
+                i := A_Index
+                Loop result.Length - i {
+                    j := A_Index
+                    if (result[j].x > result[j+1].x) {
+                        temp := result[j]
+                        result[j] := result[j+1]
+                        result[j+1] := temp
+                    }
+                }
+            }
         }
 
         ; Log the tolerance variation test
