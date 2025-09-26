@@ -5,7 +5,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusText = document.getElementById('status-text');
     const toggleBtn = document.getElementById('toggle-btn');
     const testBtn = document.getElementById('test-btn');
-    const handshakeBtn = document.getElementById('handshake-btn');
 
     // Get current status from content script
     getCurrentStatus();
@@ -67,25 +66,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Handshake button click handler
-    handshakeBtn.addEventListener('click', function() {
-        chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            chrome.tabs.sendMessage(tabs[0].id, {
-                action: 'sendHandshake'
-            }, function(response) {
-                if (chrome.runtime.lastError) {
-                    showError('Unable to send handshake. Make sure you\'re on app.upchieve.org');
-                    return;
-                }
-
-                if (response && response.status === 'success') {
-                    showMessage('Window ID sent to AHK: ' + response.windowId);
-                } else {
-                    showError('Failed to send window ID');
-                }
-            });
-        });
-    });
 
     // Get current status from storage and content script
     function getCurrentStatus() {

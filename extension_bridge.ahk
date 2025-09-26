@@ -1,3 +1,4 @@
+
 ; Extension Bridge Functions for UWD Integration
 ; Handles clipboard communication between Chrome extension and AutoHotkey
 
@@ -18,55 +19,11 @@ class Student {
     }
 }
 
-; Get window ID from extension via clipboard handshake
-; Waits for extension to provide window ID in format: *upchieve_windowid|12345
-; Returns window ID as string, or empty string if timeout/cancelled
-GetWindowIdFromExtension(timeoutSeconds := 30) {
-    ; Clear clipboard to ensure fresh data
-    A_Clipboard := ""
-
-    ; Show user message
-    MsgBox("Enable the UPchieve extension and navigate to the waiting students page.`n`nThe extension will provide the window ID automatically.", "Extension Setup", "OK 4096")
-
-    startTime := A_TickCount
-    timeoutMs := timeoutSeconds * 1000
-
-    ; Poll clipboard for window ID
-    while (A_TickCount - startTime < timeoutMs) {
-        clipContent := A_Clipboard
-
-        ; Debug: Log clipboard content every 5 seconds
-        if (Mod(A_TickCount - startTime, 5000) < 100) {
-            WriteLog("DEBUG: Clipboard content: '" . SubStr(clipContent, 1, 100) . "'")
-        }
-
-        ; Check for window ID format: *upchieve_windowid|12345
-        if (InStr(clipContent, "*upchieve_windowid|") = 1) {
-            parts := StrSplit(clipContent, "|")
-            if (parts.Length >= 2) {
-                windowId := parts[2]
-
-                ; Validate window ID is numeric and window exists
-                if (IsNumber(windowId) && WinExist("ahk_id " . windowId)) {
-                    ExtensionWindowID := windowId
-                    MsgBox("Window ID " . windowId . " received from extension!", "Extension Connected", "OK 4096")
-                    return windowId
-                }
-            }
-        }
-
-        Sleep(100)
-    }
-
-    ; Timeout
-    MsgBox("Timeout waiting for extension window ID.`n`nPlease ensure the extension is enabled and active on UPchieve.", "Extension Timeout", "OK 4112")
-    return ""
-}
-
 ; Poll clipboard for student detection data
 ; Blocks until clipboard changes with student data or timeout
 ; Returns true if student data found, false if timeout
 PollClipboardForStudents(timeoutSeconds := 0) {
+    global LastClipboardContent
     startTime := A_TickCount
     timeoutMs := (timeoutSeconds > 0) ? timeoutSeconds * 1000 : 0
 
@@ -89,7 +46,7 @@ PollClipboardForStudents(timeoutSeconds := 0) {
 }
 
 ; Parse clipboard data into array of Student objects
-; Expected format: *upchieve|windowId|name1|topic1|min1|name2|topic2|min2|...
+; Expected format: *upchieve|name1|topic1|min1|name2|topic2|min2|...
 ; Returns array of Student objects, empty array if invalid format
 ParseStudentArray(clipboardData) {
     students := []
@@ -103,33 +60,15 @@ ParseStudentArray(clipboardData) {
     ; Split by pipe delimiter
     parts := StrSplit(clipboardData, "|")
 
-    ; Need at least 2 parts: *upchieve|windowId (empty list) or 5+ parts for students
-    if (parts.Length < 2) {
-        WriteLog("ERROR: Insufficient clipboard data parts: " . parts.Length . " (need at least 2)")
+    ; Need at least 4 parts for one student: *upchieve|name|topic|minutes
+    if (parts.Length < 4) {
+        WriteLog("ERROR: Insufficient clipboard data parts for a student: " . parts.Length . " (need at least 4)")
         return students
-    }
-
-    ; Handle empty student list case (*upchieve|windowId)
-    if (parts.Length == 2) {
-        WriteLog("INFO: Empty student list received from extension")
-        return students  ; Return empty array
-    }
-
-    ; Need at least 5 parts for student data: *upchieve|windowId|name|topic|minutes
-    if (parts.Length < 5) {
-        WriteLog("ERROR: Insufficient clipboard data parts for students: " . parts.Length . " (need at least 5)")
-        return students
-    }
-
-    ; Validate window ID matches expected
-    clipWindowId := parts[2]
-    if (ExtensionWindowID != "" && clipWindowId != ExtensionWindowID) {
-        WriteLog("WARNING: Window ID mismatch - expected: " . ExtensionWindowID . ", got: " . clipWindowId)
     }
 
     ; Parse students in groups of 3: name|topic|minutes
     studentCount := 0
-    i := 3  ; Start at index 3 (after *upchieve and windowId)
+    i := 2  ; Start at index 2 (after *upchieve)
     while (i <= parts.Length) {
         if (i + 2 <= parts.Length) {
             name := Trim(parts[i])
@@ -156,6 +95,7 @@ ParseStudentArray(clipboardData) {
     WriteLog("SUCCESS: Parsed " . studentCount . " students from clipboard")
     return students
 }
+
 
 ; Select student from array (currently returns first student)
 ; Future enhancement: priority logic, user selection, etc.
@@ -205,22 +145,6 @@ CheckBlockedNames(student, blockFile := "block_names.txt") {
 
     WriteLog("NOT BLOCKED: Student '" . student.name . "' is allowed")
     return false
-}
-
-; Monitor clipboard for extension handshake
-; Waits for *upchieve_windowid| format to establish connection
-; Returns true if handshake successful, false if timeout
-WaitForExtensionHandshake(timeoutSeconds := 60) {
-    WriteLog("Waiting for extension handshake...")
-
-    windowId := GetWindowIdFromExtension(timeoutSeconds)
-    if (windowId != "") {
-        WriteLog("Extension handshake successful - Window ID: " . windowId)
-        return true
-    } else {
-        WriteLog("Extension handshake failed - timeout or invalid data")
-        return false
-    }
 }
 
 ; Get current clipboard content for debugging

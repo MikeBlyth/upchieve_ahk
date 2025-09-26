@@ -30,6 +30,10 @@ global LastStudentTopic := ""
 global SessionStartTime := ""
 global SessionEndTime := ""
 
+; Window dimensions
+global winWidth := 3200
+global winHeight := 2000
+
 ; Statistics tracking
 global SearchStats := SearchStatsClass()
 global SoundTimerFunc := ""
@@ -118,9 +122,27 @@ ShowDebugInfo() {
     MsgBox(debugInfo, "Debug Information", "OK 4096")
 }
 
+
+; Find the Upchieve window by exact title
+FindUpchieveWindow() {
+    global ExtensionWindowID
+
+    WriteLog("Searching for Upchieve window...")
+    ExtensionWindowID := WinExist("Upchieve")
+
+    if (ExtensionWindowID) {
+        WriteLog("Found Upchieve window with ID: " . ExtensionWindowID)
+        return true
+    } else {
+        WriteLog("Upchieve window not found.")
+        MsgBox("Could not find the 'Upchieve' window.`n`nPlease ensure the UPchieve page is open in your browser and the window title is exactly 'Upchieve'.", "Window Not Found", "OK 4112")
+        return false
+    }
+}
+
 ; Main application entry point
 Main() {
-    WriteLog("=== UPchieve Integrated Detector Started ===")
+    WriteLog("`n=== UPchieve Integrated Detector Started ===")
 
     ; Show startup dialog for mode selection
     if (!ShowStartupDialog()) {
@@ -128,21 +150,13 @@ Main() {
         CleanExit()
     }
 
-    ; Initialize extension communication
-    WriteLog("Initializing extension communication...")
-    AppState := "STARTING"
-    ToolTip "🔗 Waiting for extension connection...", 10, 10, 1
-
-    if (!WaitForExtensionHandshake(120)) {
-        WriteLog("Extension handshake failed - exiting")
-        MsgBox("Failed to connect to extension.`n`nPlease ensure:`n• Extension is installed and enabled`n• You're on the UPchieve waiting students page`n• Extension icon is green (active)", "Extension Connection Failed", "OK 4112")
+    ; Find the Upchieve window
+    if (!FindUpchieveWindow()) {
         CleanExit()
     }
 
-    ; Initialize header management with the window ID from extension
-    WriteLog("Initializing header management with window ID: " . ExtensionWindowID)
-
-    ; Bind FindText to the extension window
+    ; Bind FindText to the Upchieve window
+    WriteLog("Binding FindText to window ID: " . ExtensionWindowID)
     FindText().BindWindow(ExtensionWindowID, 4)
 
     ; Initialize header manager

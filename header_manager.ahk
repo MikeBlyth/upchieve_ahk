@@ -31,12 +31,11 @@ InitializeHeaderManager(targetWindowID) {
 
     ; Set up 1-minute timer for periodic refresh
     StartHeaderRefreshTimer()
-    WriteLog("Header refresh timer started - updates every 60 seconds")
 }
 
 ; Start header refresh timer
 StartHeaderRefreshTimer() {
-    SetTimer(RefreshHeaderPositions, 60000)  ; 60 seconds = 60000ms
+    SetTimer(RefreshHeaderPositions, 15000)  ; 60 seconds = 60000ms
 }
 
 ; Stop header management system
@@ -50,11 +49,13 @@ StopHeaderRefreshTimer() {
     WriteLog("Header refresh timer stopped")
 }
 
+
 ; Find and cache student header position
 ; Only needs Student header for click coordinate calculation
 RefreshHeaderPositions() {
     global StudentHeaderTarget
     global ExtensionWindowID, studentHeaderPos, HeadersFound
+    static lastStudentHeaderPos := "" ; Persists between calls
 
     WriteLog("Refreshing header positions...")
 
@@ -65,29 +66,49 @@ RefreshHeaderPositions() {
         return false
     }
 
-    ; Get window dimensions for search area
-    WinGetClientPos(, , &winWidth, &winHeight, ExtensionWindowID)
+    ; 1. Try narrow search around last known position
+    if (IsObject(lastStudentHeaderPos)) {
+        narrowX1 := lastStudentHeaderPos.x - 50
+        narrowY1 := lastStudentHeaderPos.y - 50
+        narrowX2 := lastStudentHeaderPos.x + 200 ; Approx width of header (71px) + 50px buffer either side
+        narrowY2 := lastStudentHeaderPos.y + 100 ; Approx height of header (25px) + 50px buffer either side
+        WriteLog("Searching in narrow zone first: " . narrowX1 . "," . narrowY1 . " to " . narrowX2 . "," . narrowY2)
 
-    ; Define search area for headers (top portion of window)
-    headerSearchX1 := 700
-    headerSearchY1 := 300
-    headerSearchX2 := winWidth - 100
-    headerSearchY2 := 500
+        studentResult := FindText(, , narrowX1, narrowY1, narrowX2, narrowY2, 0.1, 0.1, StudentHeaderTarget)
+        if (studentResult) {
+            studentHeaderPos := GetUpperLeft(studentResult)
+            lastStudentHeaderPos := studentHeaderPos ; Update last known position
+            HeadersFound := true
+;            WriteLog("SUCCESS: Student header found in narrow zone at: " . studentHeaderPos.x . "," . studentHeaderPos.y)
+            return true
+        }
+    }
 
-    WriteLog("Searching for Student header in window area: " . headerSearchX1 . "," . headerSearchY1 . " to " . headerSearchX2 . "," . headerSearchY2)
+    ; 2. Perform wide search if not found in narrow zone
+    WriteLog("Searching for Student header in wide area (full window)...")
 
-    ; Find Student header only
-    studentResult := FindText(, , headerSearchX1, headerSearchY1, headerSearchX2, headerSearchY2, 0.1, 0.1, StudentHeaderTarget)
+    studentResult := FindText(, , 0, 0, 3000,2000, 0.1, 0.1, StudentHeaderTarget)
     if (!studentResult) {
-        WriteLog("ERROR: Student header not found")
+        WriteLog("ERROR: Student header not found in wide search either.")
+        
+        ; Capture a debug screenshot
+        debugFile := A_ScriptDir . "\debug_header_search.png"
+        try {
+            FindText().SavePic(debugFile, 0, 0, 3000,2000, 1)
+            WriteLog("DEBUG: Saved screenshot of window for debugging to: " . debugFile)
+        } catch as e {
+            WriteLog("ERROR: Failed to save debug screenshot: " . e.Message)
+        }
+
         HeadersFound := false
         return false
     }
+    
+    ; If found in wide search, update positions for next time
     studentHeaderPos := GetUpperLeft(studentResult)
-    WriteLog("Student header found at: " . studentHeaderPos.x . "," . studentHeaderPos.y)
-
+    lastStudentHeaderPos := studentHeaderPos ; Store for next time
     HeadersFound := true
-    WriteLog("SUCCESS: Student header found and cached")
+    WriteLog("SUCCESS: Student header found in wide search at: " . studentHeaderPos.x . "," . studentHeaderPos.y)
     return true
 }
 

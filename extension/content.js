@@ -1,3 +1,4 @@
+
 // UPchieve Student Detector - Content Script
 // Runs automatically on UPchieve pages with full extension permissions
 
@@ -15,27 +16,11 @@ function debugLog(level, message, ...args) {
     }
 }
 
-// Get current window ID for AHK integration
-let currentWindowId = null;
-
-// Get window ID when content script loads
-chrome.runtime.sendMessage({action: 'getWindowId'}, (response) => {
-    if (response && response.windowId) {
-        currentWindowId = response.windowId;
-        debugLog(1, '🪟 Window ID obtained:', currentWindowId);
-
-        // Always send handshake when window ID is available (for AHK integration)
-        sendWindowIdHandshake();
-    }
-});
-
 // Check if detector should be enabled (from storage)
 chrome.storage.sync.get(['detectorEnabled'], function(result) {
     detectorEnabled = result.detectorEnabled || false;
     if (detectorEnabled) {
         initializeDetector();
-        // Send window ID handshake when detector is enabled
-        sendWindowIdHandshake();
     }
 
     // Update icon on load
@@ -54,8 +39,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         if (detectorEnabled) {
             initializeDetector();
-            // Send window ID handshake when detector is enabled
-            sendWindowIdHandshake();
             debugLog(1, '✅ Detector enabled via popup');
         } else {
             disableDetector();
@@ -66,15 +49,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
     else if (message.action === 'getStatus') {
         sendResponse({ enabled: detectorEnabled });
-    }
-    else if (message.action === 'sendHandshake') {
-        // Manual handshake request from popup
-        if (currentWindowId) {
-            sendWindowIdHandshake();
-            sendResponse({ status: 'success', windowId: currentWindowId });
-        } else {
-            sendResponse({ status: 'error', message: 'Window ID not available' });
-        }
     }
 });
 
@@ -192,27 +166,10 @@ function triggerStudentDetection(method, details) {
     extractAndDisplayStudentData();
 }
 
-// Send window ID handshake to AutoHotkey
-function sendWindowIdHandshake() {
-    if (!currentWindowId) {
-        debugLog(1, '❌ Cannot send handshake - window ID not available');
-        return;
-    }
-
-    const handshakeData = `*upchieve_windowid|${currentWindowId}`;
-    copyToClipboard(handshakeData);
-    debugLog(1, '🤝 Window ID handshake sent:', handshakeData);
-}
-
 // Format all students for clipboard in AHK-compatible format
-function formatStudentDataForClipboard(students, waitMinutes) {
-    if (!currentWindowId) {
-        debugLog(1, '❌ Cannot format clipboard data - window ID not available');
-        return `*upchieve|unknown|${students[0].name}|${students[0].topic}|${waitMinutes}`;
-    }
-
-    // Start with identifier and window ID
-    let clipboardData = `*upchieve|${currentWindowId}`;
+function formatStudentDataForClipboard(students) {
+    // Start with the identifier
+    let clipboardData = `*upchieve`;
 
     // Add each student's data
     students.forEach((student, index) => {
@@ -258,7 +215,7 @@ function extractAndDisplayStudentData() {
             debugLog(1, '❌ No session rows found - student list is empty');
 
             // Send empty student list to clipboard to clear stale data
-            const emptyClipboardData = `*upchieve|${currentWindowId || 'unknown'}`;
+            const emptyClipboardData = `*upchieve`;
             copyToClipboard(emptyClipboardData);
             debugLog(1, '📋 Sent empty student list to clipboard:', emptyClipboardData);
 
@@ -346,12 +303,9 @@ function extractAndDisplayStudentData() {
             const message = `Student: ${primaryStudent.name}\nTopic: ${primaryStudent.topic}` +
                 (primaryStudent.waitTime ? `\nWait Time: ${primaryStudent.waitTime}` : '');
 
-            // Extract wait time in minutes for AHK parsing
-            const waitMinutes = extractWaitMinutes(primaryStudent.waitTime);
-
             // Copy to clipboard using extension API (no focus issues!)
-            // Format: *upchieve|windowId|name1|topic1|minutes1|name2|topic2|minutes2|...
-            const clipboardData = formatStudentDataForClipboard(students, waitMinutes);
+            // Format: *upchieve|name1|topic1|minutes1|name2|topic2|minutes2|...
+            const clipboardData = formatStudentDataForClipboard(students);
             copyToClipboard(clipboardData);
 
             // Log all students for debugging
@@ -460,4 +414,5 @@ window.setExtensionDebugLevel = function(level) {
 debugLog(1, '🎉 UPchieve Student Detector Extension ready!');
 debugLog(1, '📋 Available commands:');
 debugLog(1, '  • testExtensionDetection(): Manual test');
+
 debugLog(1, '  • setExtensionDebugLevel(0-2): Set debug verbosity');
