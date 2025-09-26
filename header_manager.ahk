@@ -57,8 +57,6 @@ RefreshHeaderPositions() {
     global ExtensionWindowID, studentHeaderPos, HeadersFound
     static lastStudentHeaderPos := "" ; Persists between calls
 
-    WriteLog("Refreshing header positions...")
-
     ; Validate window ID
     if (!WinExist("ahk_id " . ExtensionWindowID)) {
         WriteLog("ERROR: Target window no longer exists - ID: " . ExtensionWindowID)
@@ -72,7 +70,6 @@ RefreshHeaderPositions() {
         narrowY1 := lastStudentHeaderPos.y - 50
         narrowX2 := lastStudentHeaderPos.x + 200 ; Approx width of header (71px) + 50px buffer either side
         narrowY2 := lastStudentHeaderPos.y + 100 ; Approx height of header (25px) + 50px buffer either side
-        WriteLog("Searching in narrow zone first: " . narrowX1 . "," . narrowY1 . " to " . narrowX2 . "," . narrowY2)
 
         studentResult := FindText(, , narrowX1, narrowY1, narrowX2, narrowY2, 0.1, 0.1, StudentHeaderTarget)
         if (studentResult) {

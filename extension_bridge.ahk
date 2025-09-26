@@ -19,30 +19,19 @@ class Student {
     }
 }
 
-; Poll clipboard for student detection data
-; Blocks until clipboard changes with student data or timeout
-; Returns true if student data found, false if timeout
-PollClipboardForStudents(timeoutSeconds := 0) {
+; Check clipboard for student detection data (non-blocking)
+; Returns true if new student data found, false otherwise
+CheckClipboardForStudents() {
     global LastClipboardContent
-    startTime := A_TickCount
-    timeoutMs := (timeoutSeconds > 0) ? timeoutSeconds * 1000 : 0
+    clipContent := A_Clipboard
 
-    while (true) {
-        clipContent := A_Clipboard
-
-        ; Check if clipboard has changed and contains student data
-        if (clipContent != LastClipboardContent && InStr(clipContent, "*upchieve|") = 1) {
-            LastClipboardContent := clipContent
-            return true
-        }
-
-        ; Check timeout
-        if (timeoutMs > 0 && A_TickCount - startTime > timeoutMs) {
-            return false
-        }
-
-        Sleep(100)  ; Poll every 100ms
+    ; Check if clipboard has changed and contains student data
+    if (clipContent != LastClipboardContent && InStr(clipContent, "*upchieve|") = 1) {
+        LastClipboardContent := clipContent
+        return true
     }
+
+    return false
 }
 
 ; Parse clipboard data into array of Student objects

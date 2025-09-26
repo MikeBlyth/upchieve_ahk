@@ -41,7 +41,7 @@ global SoundTimerFunc := ""
 ; Hotkey handlers
 ^+q::CleanExit()  ; Ctrl+Shift+Q to quit
 ^+h::TogglePause()  ; Ctrl+Shift+H to pause/resume
-^+a::ManualEndSession()  ; Ctrl+Shift+A to manually end session
+^+a::HandleManualSessionToggle()  ; Ctrl+Shift+A to manually start/end session
 ^+d::ShowDebugInfo()  ; Ctrl+Shift+D for debug information
 
 ; Function to play notification sound
@@ -65,9 +65,6 @@ WriteAppLog(message) {
 ; Clean exit function
 CleanExit() {
     WriteLog("Application exit requested")
-
-    ; Stop header manager timer
-    StopHeaderManager()
 
     ; Clear tooltips
     ToolTip ""
@@ -94,17 +91,18 @@ TogglePause() {
     }
 }
 
-; Manual session end
-ManualEndSession() {
-    global InSession, AppState
+; Manually start or end a session via hotkey
+HandleManualSessionToggle() {
+    global InSession
 
     if (InSession) {
-        WriteLog("Manual session end requested")
+        WriteLog("Manual session end requested via hotkey")
         EndCurrentSession()
     } else {
-        WriteLog("Manual session end ignored - no active session")
-        ToolTip "No active session to end", 10, 50, 2
-        SetTimer(() => ToolTip("", , , 2), -3000)
+        WriteLog("Manual session start requested via hotkey")
+        ; Start a session with an empty student object;
+        ; the user will fill in the details in the dialog.
+        StartSession(Student("", "", 0))
     }
 }
 
@@ -140,6 +138,114 @@ FindUpchieveWindow() {
     }
 }
 
+
+; Summarize student based on upchieve_app.log
+SummarizeStudent(name) {
+    logFile := "upchieve_app.log"
+    
+    ; Check if log file exists
+    if (!FileExist(logFile) || name == "") {
+        return "No previous session history."
+    }
+    
+    try {
+        fileContent := FileRead(logFile)
+        lines := StrSplit(fileContent, "`n", "`r")
+        
+        studentEntries := []
+        
+        ; Parse CSV lines (skip header and non-CSV lines)
+        for index, line in lines {
+            if (index == 1 || InStr(line, "Upchieve Detector") || Trim(line) == "") {
+                continue  ; Skip header and log messages
+            }
+            
+            ; Split CSV line
+            fields := StrSplit(line, ",")
+            if (fields.Length < 21) {
+                continue  ; Skip malformed lines
+            }
+            
+            ; Extract relevant fields (1-indexed CSV columns)
+            studentName := Trim(fields[7])   ; Column 7: Name
+            date := Trim(fields[2])          ; Column 2: RTime (date)
+            subject := Trim(fields[11])      ; Column 11: Subject
+            topic := Trim(fields[12])        ; Column 12: Topic
+            duration := Trim(fields[14])     ; Column 14: Duration
+            goodProgress := Trim(fields[19]) ; Column 19: Good progress
+            comments := Trim(fields[21])     ; Column 21: Comments
+            
+            ; Check if this entry matches the student name (case-insensitive)
+            if (StrLower(studentName) == StrLower(name) && studentName != "") {
+                studentEntries.Push({
+                    date: date,
+                    subject: subject,
+                    topic: topic,
+                    duration: duration,
+                    goodProgress: goodProgress,
+                    comments: comments
+                })
+            }
+        }
+        
+        ; Sort entries by date in reverse chronological order
+        if (studentEntries.Length > 1) {
+            studentEntries.Sort(CompareDates)
+        }
+        
+        ; Build summary (up to 5 most recent visits)
+        summary := ""
+        maxEntries := Min(5, studentEntries.Length)
+        
+        for i, entry in studentEntries {
+            if (i > maxEntries) {
+                break
+            }
+            
+            ; Format: {date}\t{subject}: {topic} ({goodProgress}, {duration} min). {comments}
+            line := entry.date . "`t"
+            if (entry.subject != "") {
+                line .= entry.subject
+            }
+            if (entry.topic != "") {
+                line .= ": " . entry.topic
+            }
+            line .= " (" . entry.goodProgress . ", " . entry.duration . " min)"
+            if (entry.comments != "") {
+                line .= ". " . entry.comments
+            }
+            summary .= line . "`n"
+        }
+        
+        return (studentEntries.Length > 0) ? summary : name . "`nNo sessions found."
+        
+    } catch Error as e {
+        return name . "`nError reading log file: " . e.Message
+    }
+}
+
+; Helper function to compare dates for sorting
+; Returns: >0 if date1 < date2, <0 if date1 > date2, 0 if equal (for reverse chronological sort)
+CompareDates(entryA, entryB) {
+    ; Convert MM/d/yy to comparable format YYYYMMDD
+    ConvertDate(dateStr) {
+        if (RegExMatch(dateStr, "(\d{1,2})/(\d{1,2})/(\d{2})", &match)) {
+            month := Format("{:02d}", Integer(match[1]))
+            day := Format("{:02d}", Integer(match[2]))
+            year := "20" . match[3]  ; Assume 20xx
+            return year . month . day
+        }
+        return "00000000"  ; Invalid date sorts to beginning
+    }
+    
+    numA := Integer(ConvertDate(entryA.date))
+    numB := Integer(ConvertDate(entryB.date))
+    
+    ; Return negative if A should come after B (reverse order)
+    return numB - numA
+}
+
+
 ; Main application entry point
 Main() {
     WriteLog("`n=== UPchieve Integrated Detector Started ===")
@@ -159,11 +265,8 @@ Main() {
     WriteLog("Binding FindText to window ID: " . ExtensionWindowID)
     FindText().BindWindow(ExtensionWindowID, 4)
 
-    ; Initialize header manager
-    InitializeHeaderManager(ExtensionWindowID)
-
-    ; Verify initial header detection
-    if (!HeadersFound) {
+    ; Perform initial header detection
+    if (!RefreshHeaderPositions()) {
         WriteLog("Initial header detection failed - exiting")
         MsgBox("Failed to detect page headers.`n`nPlease ensure you're on the UPchieve 'Waiting Students' page with the table visible.", "Header Detection Failed", "OK 4112")
         CleanExit()
@@ -176,9 +279,11 @@ Main() {
     MainDetectionLoop()
 }
 
-; Main detection loop - monitors clipboard for student data
+; Main detection loop - non-blocking poll for clipboard and periodic header refresh
 MainDetectionLoop() {
     global AppState, LiveMode, modeText
+    lastHeaderCheckTime := A_TickCount
+    headerCheckInterval := 60 * 1000  ; 60 seconds
 
     WriteLog("Starting main detection loop in " . modeText . " mode")
 
@@ -203,16 +308,22 @@ MainDetectionLoop() {
             AppState := "WAITING_FOR_STUDENTS"
         }
 
-        ; Main detection state - wait for students
         ToolTip "⏳ Waiting for students... (" . modeText . " mode)", 10, 10, 1
 
-        ; Poll clipboard for student data (blocks until data received or timeout)
-        if (PollClipboardForStudents(60)) {  ; 60 second timeout
-            ProcessClipboardStudentData()
-        } else {
-            ; Timeout - continue loop (allows for pause checks, etc.)
-            WriteLog("Clipboard polling timeout - continuing main loop")
+        ; 1. Check for headers periodically
+        if (A_TickCount - lastHeaderCheckTime > headerCheckInterval) {
+            WriteLog("Periodic header refresh triggered.")
+            RefreshHeaderPositions()
+            lastHeaderCheckTime := A_TickCount
         }
+
+        ; 2. Check for students on the clipboard
+        if (CheckClipboardForStudents()) {
+            ProcessClipboardStudentData()
+        }
+
+        ; Sleep to keep the loop efficient
+        Sleep(250)
     }
 }
 
@@ -282,7 +393,7 @@ StartSession(student) {
 
     WriteLog("Starting session with: " . student.ToString())
 
-    ; Update session variables
+    ; Update session variables from extension data first
     InSession := true
     AppState := "IN_SESSION"
     LastStudentName := student.name
@@ -292,38 +403,48 @@ StartSession(student) {
     ; Maximize window for session
     WinMaximize("ahk_id " . ExtensionWindowID)
 
-    ; Show session notification
-    sessionMsg := "📚 Session started with " . student.name
-    if (student.topic != "") {
-        sessionMsg .= " (" . student.topic . ")"
-    }
-    ToolTip sessionMsg, 10, 10, 1
+    ; Get student summary and pass it to the dialog via static var
+    ShowSessionStartDialog.lastSessionInfo := SummarizeStudent(student.name)
 
-    ; Start notification sound timer (every 2 seconds)
+    ; Start repeating notification sound
+    PlayNotificationSound() ; Play once immediately
     SoundTimerFunc := () => PlayNotificationSound()
     SetTimer(SoundTimerFunc, 2000)
 
-    WriteLog("Session started - monitoring for session end")
+    ; Show session start dialog for confirmation/correction
+    ShowSessionStartDialog()
+    ; The dialog will update LastStudentName and LastStudentTopic if the user changes them
+
+    ; Stop the notification sound now that the dialog is closed
+    if (SoundTimerFunc) {
+        SetTimer(SoundTimerFunc, 0)
+        SoundTimerFunc := ""
+    }
+
+    ; Show session notification with potentially updated info
+    sessionMsg := "📚 Session started with " . LastStudentName
+    if (LastStudentTopic != "") {
+        sessionMsg .= " (" . LastStudentTopic . ")"
+    }
+    ToolTip sessionMsg, 10, 10, 1
+
+    WriteLog("Session started - monitoring for session end. Final student: " . LastStudentName)
 }
 
-; Monitor for session end in a dedicated loop
+; Monitor for session end by searching the entire window for the target
 MonitorSessionEnd() {
-    global targetWindowID, InSession, SessionEndedTarget
+    global ExtensionWindowID, InSession, SessionEndedTarget
 
-    ; Monitor for session end
-    WriteLog("DEBUG: Starting session end monitoring")
+    WriteLog("Monitoring for session end...")
 
-    while (InSession) {  ; Check InSession instead of infinite loop
-        sessionEndZone := SearchZone(3000-822, 320, 3000, 485)
-        
-        if (tempResult := FindTextInZones(SessionEndedTarget, sessionEndZone,, 0.15, 0.10, &SearchStats)) {
-            WriteLog("DEBUG: SessionEndedTarget found at " . tempResult[1].x . "," . tempResult[1].y)
-            break
-        }
-
-        Sleep 1000  ; Check every 2 seconds
+    ; Get window dimensions for search area
+    WinGetClientPos(, , &winWidth, &winHeight, ExtensionWindowID)
+    
+    ; Search the entire window for the session ended target
+    if (FindText(, , 0, 0, winWidth, winHeight, 0.1, 0.1, SessionEndedTarget)) {
+        WriteLog("SessionEndedTarget found. Ending session.")
+        EndCurrentSession()
     }
-    WriteLog("DEBUG: Session end monitoring stopped")
 }
 
 ; End the current session
@@ -426,6 +547,81 @@ ShowStartupDialog() {
 
     WriteLog("Startup dialog result: " . result . " (Mode: " . modeText . ")")
     return (result == "Continue")
+}
+
+
+; Session start dialog for name and subject entry
+ShowSessionStartDialog() {
+    global LastStudentName, LastStudentTopic, SessionStartTime
+
+    ; Create session start GUI
+    startGui := Gui("+AlwaysOnTop", "Session Started - Enter Information")
+
+    ; Pre-fill start time
+    startTimeFormatted := FormatTime(SessionStartTime, "h:mm tt")
+
+    ; Student name (manual entry)
+    startGui.AddText("xm y+10", "Student name:")
+    nameEdit := startGui.AddEdit("xm y+5 w200")
+    nameEdit.Text := (LastStudentName ? LastStudentName : "")
+    ; Set focus to name field for immediate typing
+    nameEdit.Focus()
+
+    ; Subject field (pre-filled from extension)
+    startGui.AddText("xm y+15", "Subject:")
+    subjectEdit := startGui.AddEdit("xm y+5 w200")
+    subjectEdit.Text := (LastStudentTopic ? LastStudentTopic : "")
+
+    ; Start time (read-only, pre-filled)
+    startGui.AddText("xm y+15", "Start time:")
+    startTimeEdit := startGui.AddEdit("xm y+5 w200 ReadOnly")
+    startTimeEdit.Text := startTimeFormatted
+
+    ; Previous session info section (if available)
+    static lastSessionInfo := ""
+    if (lastSessionInfo != "") {
+        startGui.AddText("xm y+20", "Previous session info:")
+        startGui.AddText("xm y+5 w350", lastSessionInfo)
+    }
+
+    ; Buttons
+    continueBtn := startGui.AddButton("xm y+20 w100 h30", "Continue")
+    pauseBtn := startGui.AddButton("x+10 yp w100 h30", "Pause")
+
+    ; Button event handlers
+    result := ""
+
+    ContinueHandler(*) {
+        UpdateSessionInfo()  ; Capture values before destruction
+        result := "Continue"
+        startGui.Destroy()
+    }
+
+    PauseHandler(*) {
+        UpdateSessionInfo()  ; Capture values before destruction
+        result := "Pause"
+        startGui.Destroy()
+    }
+
+    continueBtn.OnEvent("Click", ContinueHandler)
+    pauseBtn.OnEvent("Click", PauseHandler)
+
+    ; Update global variables from user input
+    UpdateSessionInfo() {
+        global LastStudentName, LastStudentTopic
+        LastStudentName := Trim(nameEdit.Text)
+        LastStudentTopic := Trim(subjectEdit.Text)
+    }
+
+    ; Show dialog and wait for user input
+    startGui.Show()
+
+    ; Wait for user to close dialog
+    while (!result) {
+        Sleep 100
+    }
+
+    return result
 }
 
 ; Show session feedback dialog and return continue choice (copied from original)
@@ -583,6 +779,7 @@ ShowSessionFeedbackDialog() {
 
     return result
 }
+
 
 ; Entry point - start the application
 Main()
