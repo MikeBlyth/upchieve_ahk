@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "UPchieve Student Detector",
+  "version": "1.0",
+  "description": "Automatically detect waiting students and copy their information for AutoHotkey integration",
+
+  "permissions": [
+    "activeTab",
+    "clipboardWrite",
+    "storage"
+  ],
+
+  "host_permissions": [
+    "https://app.upchieve.org/*"
+  ],
+
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "UPchieve Student Detector"
+  },
+
+  "content_scripts": [{
+    "matches": ["https://app.upchieve.org/*"],
+    "js": ["content.js"],
+    "run_at": "document_end"
+  }]
+}

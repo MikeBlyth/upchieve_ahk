@@ -296,114 +296,83 @@
         }, 10000);
     }
 
-    // Copy data to clipboard for AutoHotkey integration
+    // Copy data to clipboard for AutoHotkey integration - MUST be automatic for AHK
     function copyToClipboard(text) {
-        debugLog(1, 'Attempting to copy to clipboard:', text);
+        debugLog(1, 'Attempting immediate clipboard copy:', text);
 
-        // Skip modern clipboard API entirely - go straight to execCommand which doesn't require user gesture
-        copyToClipboardFallback(text);
-    }
-
-    // Fallback clipboard methods
-    function copyToClipboardFallback(text) {
-        // Method 1: Aggressive execCommand approach
+        // Force immediate execCommand copy - no user interaction required
         try {
-            // Create multiple elements to increase chances of success
+            // Create invisible, focused textarea
             const textarea = document.createElement('textarea');
             textarea.value = text;
-            textarea.style.position = 'fixed';
+            textarea.style.position = 'absolute';
             textarea.style.left = '-9999px';
-            textarea.style.top = '0';
+            textarea.style.top = '0px';
             textarea.style.opacity = '0';
-            textarea.style.zIndex = '-1';
+            textarea.style.pointerEvents = 'none';
+            textarea.readOnly = false;
+            textarea.contentEditable = true;
 
+            // Add to DOM
             document.body.appendChild(textarea);
 
-            // Force focus and selection
+            // Force focus and select
             textarea.focus();
             textarea.select();
-            textarea.setSelectionRange(0, textarea.value.length);
+            textarea.setSelectionRange(0, text.length);
 
-            // Try multiple times
-            let success = false;
-            for (let i = 0; i < 3 && !success; i++) {
-                success = document.execCommand('copy');
-                if (!success) {
-                    // Brief delay and retry
-                    setTimeout(() => {
-                        textarea.focus();
-                        textarea.select();
-                        document.execCommand('copy');
-                    }, 10 * i);
-                }
-            }
+            // Execute copy command immediately
+            const success = document.execCommand('copy');
 
+            // Clean up
             document.body.removeChild(textarea);
 
             if (success) {
-                debugLog(1, '✅ Data copied to clipboard via execCommand:', text);
-                return;
-            }
-        } catch (error) {
-            debugLog(1, 'execCommand clipboard failed:', error);
-        }
-
-        // Method 2: Visible selection method with auto-copy attempt
-        try {
-            const div = document.createElement('div');
-            div.textContent = text;
-            div.style.position = 'fixed';
-            div.style.top = '10px';
-            div.style.left = '10px';
-            div.style.background = '#ffff99';
-            div.style.color = '#000';
-            div.style.padding = '10px';
-            div.style.zIndex = '999999';
-            div.style.border = '2px solid #ff6600';
-            div.style.borderRadius = '5px';
-            div.style.fontFamily = 'monospace';
-            div.style.fontSize = '14px';
-            div.style.cursor = 'pointer';
-            div.id = 'clipboard-helper';
-            div.title = 'Click to select, then Ctrl+C to copy';
-
-            document.body.appendChild(div);
-
-            // Auto-select the text
-            const range = document.createRange();
-            range.selectNodeContents(div);
-            const selection = window.getSelection();
-            selection.removeAllRanges();
-            selection.addRange(range);
-
-            // Try to copy the selected text
-            try {
-                document.execCommand('copy');
-                debugLog(1, '✅ Data copied to clipboard via visible selection:', text);
-            } catch (e) {
-                debugLog(1, '📋 Text selected (yellow box) - Press Ctrl+C to copy:', text);
+                debugLog(1, '✅ IMMEDIATE clipboard copy successful:', text);
+                return true;
+            } else {
+                debugLog(1, '❌ execCommand copy failed, trying alternative method');
+                return attemptAlternativeCopy(text);
             }
 
-            // Make div clickable to reselect
-            div.addEventListener('click', () => {
-                const range = document.createRange();
-                range.selectNodeContents(div);
-                const selection = window.getSelection();
-                selection.removeAllRanges();
-                selection.addRange(range);
-                document.execCommand('copy');
-            });
-
-            // Auto-remove after 15 seconds
-            setTimeout(() => {
-                const helper = document.getElementById('clipboard-helper');
-                if (helper) helper.remove();
-            }, 15000);
-
         } catch (error) {
-            debugLog(1, 'All clipboard methods failed:', error);
+            debugLog(1, '❌ execCommand error:', error);
+            return attemptAlternativeCopy(text);
         }
     }
+
+    // Alternative immediate copy method
+    function attemptAlternativeCopy(text) {
+        try {
+            // Method 2: Use input element instead of textarea
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = text;
+            input.style.position = 'absolute';
+            input.style.left = '-9999px';
+            input.style.opacity = '0';
+
+            document.body.appendChild(input);
+            input.focus();
+            input.select();
+
+            const success = document.execCommand('copy');
+            document.body.removeChild(input);
+
+            if (success) {
+                debugLog(1, '✅ Alternative copy method successful:', text);
+                return true;
+            }
+
+            debugLog(1, '❌ All automatic copy methods failed - AHK integration will not work');
+            return false;
+
+        } catch (error) {
+            debugLog(1, '❌ Alternative copy failed:', error);
+            return false;
+        }
+    }
+
 
     // Debug and control functions
     window.testStudentExtraction = function() {
