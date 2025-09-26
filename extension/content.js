@@ -21,6 +21,13 @@ chrome.storage.sync.get(['detectorEnabled'], function(result) {
     if (detectorEnabled) {
         initializeDetector();
     }
+
+    // Update icon on load
+    chrome.runtime.sendMessage({
+        action: 'updateIcon',
+        enabled: detectorEnabled
+    });
+
     debugLog(1, '📊 Detector status:', detectorEnabled ? 'ENABLED' : 'DISABLED');
 });
 
@@ -124,6 +131,26 @@ function triggerStudentDetection(method, details) {
     extractAndDisplayStudentData();
 }
 
+// Extract wait time in minutes as integer
+function extractWaitMinutes(waitTimeText) {
+    if (!waitTimeText) return 0;
+
+    const text = waitTimeText.trim();
+
+    // Handle "< 1" -> return 0
+    if (text.includes('< 1')) {
+        return 0;
+    }
+
+    // Extract number from "x min" format
+    const match = text.match(/(\d+)/);
+    if (match) {
+        return parseInt(match[1], 10);
+    }
+
+    return 0;
+}
+
 // Extract student data from DOM
 function extractAndDisplayStudentData() {
     debugLog(1, '📊 Extracting student data...');
@@ -219,11 +246,16 @@ function extractAndDisplayStudentData() {
             const message = `Student: ${primaryStudent.name}\nTopic: ${primaryStudent.topic}` +
                 (primaryStudent.waitTime ? `\nWait Time: ${primaryStudent.waitTime}` : '');
 
+            // Extract wait time in minutes for AHK parsing
+            const waitMinutes = extractWaitMinutes(primaryStudent.waitTime);
+
             // Copy to clipboard using extension API (no focus issues!)
-            copyToClipboard(`${primaryStudent.name}|${primaryStudent.topic}`);
+            // Format: *upchieve|name|topic|minutes
+            copyToClipboard(`*upchieve|${primaryStudent.name}|${primaryStudent.topic}|${waitMinutes}`);
 
             // Log all students for debugging
             debugLog(1, '🎓 All students detected:', students);
+            debugLog(1, '📋 Clipboard format:', `*upchieve|${primaryStudent.name}|${primaryStudent.topic}|${waitMinutes}`);
 
             // Show notification via extension
             showExtensionNotification('Student Detected!', message);
@@ -240,16 +272,10 @@ function extractAndDisplayStudentData() {
 
 // Copy to clipboard using extension permissions (no focus issues!)
 function copyToClipboard(text) {
-    debugLog(1, '📋 Copying to clipboard via extension API:', text);
+    debugLog(1, '📋 Copying to clipboard via execCommand (skip modern API):', text);
 
-    // Use the extension clipboard API - this has special permissions
-    navigator.clipboard.writeText(text).then(() => {
-        debugLog(1, '✅ Extension clipboard copy successful:', text);
-    }).catch(err => {
-        debugLog(1, '❌ Extension clipboard failed:', err);
-        // Fallback to old method if needed
-        fallbackCopy(text);
-    });
+    // Skip modern clipboard API entirely - go straight to execCommand
+    fallbackCopy(text);
 }
 
 // Fallback clipboard method

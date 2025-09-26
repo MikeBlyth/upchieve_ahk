@@ -33,6 +33,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     chrome.storage.sync.set({
                         detectorEnabled: response.enabled
                     });
+
+                    // Update extension icon via background script
+                    chrome.runtime.sendMessage({
+                        action: 'updateIcon',
+                        enabled: response.enabled
+                    });
                 }
             });
         });
