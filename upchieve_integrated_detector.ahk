@@ -62,6 +62,12 @@ WriteAppLog(message) {
     FileAppend(message . "`n", logFile)
 }
 
+
+; App log function for scan data
+WriteScanLog(message) {
+    FileAppend(message . "`n", "scan.log")
+}
+
 ; Clean exit function
 CleanExit() {
     WriteLog("Application exit requested")
@@ -76,19 +82,9 @@ CleanExit() {
 
 ; Toggle pause/resume functionality
 TogglePause() {
-    global AppState
-
-    if (AppState == "PAUSED") {
-        AppState := "WAITING_FOR_STUDENTS"
-        WriteLog("Application RESUMED - returning to student monitoring")
-        ToolTip "▶️ RESUMED - Monitoring for students", 10, 10, 1
-    } else if (AppState == "WAITING_FOR_STUDENTS") {
-        AppState := "PAUSED"
-        WriteLog("Application PAUSED - student monitoring stopped")
-        ToolTip "⏸️ PAUSED - Press Ctrl+Shift+H to resume", 10, 10, 1
-    } else {
-        WriteLog("Pause toggle ignored - current state: " . AppState)
-    }
+    WriteLog("Application paused via hotkey.")
+    MsgBox("UPchieve Detector Paused`n`nPress OK to resume.", "Detection Paused", "OK 4096")
+    WriteLog("Application resumed.")
 }
 
 ; Manually start or end a session via hotkey
@@ -245,9 +241,14 @@ CompareDates(entryA, entryB) {
     return numB - numA
 }
 
+SoundMuted() {
+    global winWidth, winHeight
+    return FindText(,, winWidth-700, winHeight-100, winWidth, winHeight, 0.1, 0.1, MutedTarget)
+}
 
 ; Main application entry point
 Main() {
+    global LiveMode
     WriteLog("`n=== UPchieve Integrated Detector Started ===")
 
     ; Show startup dialog for mode selection
@@ -261,6 +262,12 @@ Main() {
         CleanExit()
     }
 
+    if (LiveMode) {
+        while SoundMuted() {
+            MsgBox("The Upchieve window appears to be muted. Please unmute the tab in your browser and click OK to continue.", "Tab Muted", "OK 4112")
+            WriteLog("Waiting for user to unmute the Upchieve tab...")
+        }
+    }
     ; Bind FindText to the Upchieve window
     WriteLog("Binding FindText to window ID: " . ExtensionWindowID)
     FindText().BindWindow(ExtensionWindowID, 4)
@@ -342,6 +349,19 @@ ProcessClipboardStudentData() {
         return
     }
 
+    ; Handle Scan Mode separately
+    if (ScanMode) {
+        timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
+        for index, student in students {
+            logMessage := timestamp . " | SCAN: " . student.name . " (" . student.topic . ")"
+            WriteScanLog(logMessage)
+        }
+        ToolTip "📈 SCAN: Logged " . students.Length . " students to scan.log", 10, 50, 2
+        SetTimer(() => ToolTip("", , , 2), -5000)
+        ClearClipboard() ; Clear clipboard after processing
+        return ; Exit function after logging
+    }
+
     ; Select first student (future: implement selection logic)
     selectedStudent := SelectFirstStudent(students)
     if (selectedStudent.name == "") {
@@ -385,6 +405,9 @@ ProcessClipboardStudentData() {
         ToolTip "🧪 Testing: Found " . selectedStudent.name . " (" . selectedStudent.topic . ")", 10, 50, 2
         SetTimer(() => ToolTip("", , , 2), -5000)
     }
+
+    ; Clear the clipboard now that it has been processed
+    ClearClipboard()
 }
 
 ; Start a session with the selected student
