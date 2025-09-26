@@ -23,6 +23,9 @@ chrome.runtime.sendMessage({action: 'getWindowId'}, (response) => {
     if (response && response.windowId) {
         currentWindowId = response.windowId;
         debugLog(1, '🪟 Window ID obtained:', currentWindowId);
+
+        // Always send handshake when window ID is available (for AHK integration)
+        sendWindowIdHandshake();
     }
 });
 
@@ -64,6 +67,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.action === 'getStatus') {
         sendResponse({ enabled: detectorEnabled });
     }
+    else if (message.action === 'sendHandshake') {
+        // Manual handshake request from popup
+        if (currentWindowId) {
+            sendWindowIdHandshake();
+            sendResponse({ status: 'success', windowId: currentWindowId });
+        } else {
+            sendResponse({ status: 'error', message: 'Window ID not available' });
+        }
+    }
 });
 
 // DOM monitoring variables
@@ -75,30 +87,64 @@ function initializeDetector() {
 
     debugLog(1, '🎯 Initializing DOM monitoring...');
 
-    // Create DOM observer for new student rows
+    // Create DOM observer for student row changes (additions and removals)
     domObserver = new MutationObserver(mutations => {
         if (!detectorEnabled) return;
 
+        let studentListChanged = false;
+        let changeDetails = [];
+
         mutations.forEach(mutation => {
+            // Check for added student rows
             mutation.addedNodes.forEach(node => {
                 if (node.nodeType === 1) { // Element node
                     // Check if the added node is a student row
                     if (node.classList && node.classList.contains('session-row')) {
-                        debugLog(1, '🚨 New student detected via DOM monitoring:', node);
-                        triggerStudentDetection('DOM monitoring', 'new student row added');
+                        debugLog(1, '🚨 New student added via DOM monitoring:', node);
+                        studentListChanged = true;
+                        changeDetails.push('student row added');
                     }
 
                     // Also check if student rows were added within this node
                     if (node.querySelectorAll) {
                         const newStudentRows = node.querySelectorAll('.session-row');
                         if (newStudentRows.length > 0) {
-                            debugLog(1, `🚨 ${newStudentRows.length} new student(s) detected in added container:`, newStudentRows);
-                            triggerStudentDetection('DOM monitoring', `${newStudentRows.length} student rows in container`);
+                            debugLog(1, `🚨 ${newStudentRows.length} new student(s) added in container:`, newStudentRows);
+                            studentListChanged = true;
+                            changeDetails.push(`${newStudentRows.length} students added in container`);
+                        }
+                    }
+                }
+            });
+
+            // Check for removed student rows
+            mutation.removedNodes.forEach(node => {
+                if (node.nodeType === 1) { // Element node
+                    // Check if the removed node is a student row
+                    if (node.classList && node.classList.contains('session-row')) {
+                        debugLog(1, '📤 Student removed via DOM monitoring:', node);
+                        studentListChanged = true;
+                        changeDetails.push('student row removed');
+                    }
+
+                    // Also check if student rows were removed within this node
+                    if (node.querySelectorAll) {
+                        const removedStudentRows = node.querySelectorAll('.session-row');
+                        if (removedStudentRows.length > 0) {
+                            debugLog(1, `📤 ${removedStudentRows.length} student(s) removed in container:`, removedStudentRows);
+                            studentListChanged = true;
+                            changeDetails.push(`${removedStudentRows.length} students removed in container`);
                         }
                     }
                 }
             });
         });
+
+        // If student list changed, trigger detection to update clipboard
+        if (studentListChanged) {
+            debugLog(1, '🔄 Student list changed:', changeDetails.join(', '));
+            triggerStudentDetection('DOM monitoring', changeDetails.join(', '));
+        }
     });
 
     // Start observing DOM changes
@@ -209,11 +255,16 @@ function extractAndDisplayStudentData() {
         const sessionRows = document.querySelectorAll('.session-row');
 
         if (sessionRows.length === 0) {
-            debugLog(1, '❌ No session rows found');
-            // Try alternative selectors
-            const altRows = document.querySelectorAll('tr, [class*="row"], [class*="student"], [class*="session"]');
-            debugLog(2, `🔍 Alternative rows found: ${altRows.length}`, altRows);
-            debugLog(1, '⚠️ DOM change detected but no student data found');
+            debugLog(1, '❌ No session rows found - student list is empty');
+
+            // Send empty student list to clipboard to clear stale data
+            const emptyClipboardData = `*upchieve|${currentWindowId || 'unknown'}`;
+            copyToClipboard(emptyClipboardData);
+            debugLog(1, '📋 Sent empty student list to clipboard:', emptyClipboardData);
+
+            // Show notification that student list is empty
+            showExtensionNotification('Student List Empty', 'No students currently waiting');
+
             return;
         }
 

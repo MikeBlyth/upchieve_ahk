@@ -2,6 +2,8 @@
 #Include extension_bridge.ahk
 #Include header_manager.ahk
 #Include ahk_utilities.ahk
+#include search_targets.ahk
+
 
 ; Test script for integrated UWD system
 ; Tests extension communication and core functions
@@ -16,8 +18,8 @@ students1 := ParseStudentArray(testClipboard1)
 
 WriteLog("Test 1 - Input: " . testClipboard1)
 WriteLog("Test 1 - Parsed " . students1.Length . " students")
-for i, student in students1 {
-    WriteLog("  Student " . i . ": " . student.ToString())
+for i, studentObj in students1 {
+    WriteLog("  Student " . i . ": " . studentObj.ToString())
 }
 
 ; Test 2: Student selection
@@ -30,7 +32,9 @@ WriteLog("`nTEST 3: Student blocking")
 
 ; Create test block file
 testBlockContent := "John Smith`nTestStudent`n; Comment line`n"
-FileDelete("test_block_names.txt")
+if (FileExist("test_block_names.txt")) {
+    FileDelete("test_block_names.txt")
+}
 FileAppend(testBlockContent, "test_block_names.txt")
 
 blocked1 := CheckBlockedNames(selected1, "test_block_names.txt")
@@ -69,7 +73,9 @@ WriteLog("'15' → " . extractWaitMinutes("15") . " minutes")
 WriteLog("'' → " . extractWaitMinutes("") . " minutes")
 
 ; Cleanup
-FileDelete("test_block_names.txt")
+if (FileExist("test_block_names.txt")) {
+    FileDelete("test_block_names.txt")
+}
 
 WriteLog("`n=== Integration System Tests Complete ===")
 WriteLog("Review debug_log.txt for detailed results")
@@ -78,7 +84,8 @@ MsgBox("Integration system tests complete!`n`nCheck debug_log.txt for detailed r
 
 ; Wait time extraction function (copied from extension for testing)
 extractWaitMinutes(waitTimeText) {
-    if (!waitTimeText) return 0
+    if (!waitTimeText)
+        return 0
 
     text := Trim(waitTimeText)
 

@@ -35,6 +35,11 @@ GetWindowIdFromExtension(timeoutSeconds := 30) {
     while (A_TickCount - startTime < timeoutMs) {
         clipContent := A_Clipboard
 
+        ; Debug: Log clipboard content every 5 seconds
+        if (Mod(A_TickCount - startTime, 5000) < 100) {
+            WriteLog("DEBUG: Clipboard content: '" . SubStr(clipContent, 1, 100) . "'")
+        }
+
         ; Check for window ID format: *upchieve_windowid|12345
         if (InStr(clipContent, "*upchieve_windowid|") = 1) {
             parts := StrSplit(clipContent, "|")
@@ -98,9 +103,21 @@ ParseStudentArray(clipboardData) {
     ; Split by pipe delimiter
     parts := StrSplit(clipboardData, "|")
 
-    ; Need at least 5 parts: *upchieve|windowId|name|topic|minutes
+    ; Need at least 2 parts: *upchieve|windowId (empty list) or 5+ parts for students
+    if (parts.Length < 2) {
+        WriteLog("ERROR: Insufficient clipboard data parts: " . parts.Length . " (need at least 2)")
+        return students
+    }
+
+    ; Handle empty student list case (*upchieve|windowId)
+    if (parts.Length == 2) {
+        WriteLog("INFO: Empty student list received from extension")
+        return students  ; Return empty array
+    }
+
+    ; Need at least 5 parts for student data: *upchieve|windowId|name|topic|minutes
     if (parts.Length < 5) {
-        WriteLog("ERROR: Insufficient clipboard data parts: " . parts.Length . " (need at least 5)")
+        WriteLog("ERROR: Insufficient clipboard data parts for students: " . parts.Length . " (need at least 5)")
         return students
     }
 
@@ -112,7 +129,8 @@ ParseStudentArray(clipboardData) {
 
     ; Parse students in groups of 3: name|topic|minutes
     studentCount := 0
-    for i in Range(3, parts.Length, 3) {  ; Start at index 3, step by 3
+    i := 3  ; Start at index 3 (after *upchieve and windowId)
+    while (i <= parts.Length) {
         if (i + 2 <= parts.Length) {
             name := Trim(parts[i])
             topic := Trim(parts[i + 1])
@@ -123,15 +141,16 @@ ParseStudentArray(clipboardData) {
                 ; Convert minutes to number
                 minutesNum := IsNumber(minutes) ? Number(minutes) : 0
 
-                student := Student(name, topic, minutesNum)
-                students.Push(student)
+                studentObj := Student(name, topic, minutesNum)
+                students.Push(studentObj)
                 studentCount++
 
-                WriteLog("PARSED: Student " . studentCount . " - " . student.ToString())
+                WriteLog("PARSED: Student " . studentCount . " - " . studentObj.ToString())
             } else {
                 WriteLog("WARNING: Skipping invalid student data at index " . i . ": name='" . name . "', topic='" . topic . "'")
             }
         }
+        i += 3  ; Move to next student (step by 3)
     }
 
     WriteLog("SUCCESS: Parsed " . studentCount . " students from clipboard")

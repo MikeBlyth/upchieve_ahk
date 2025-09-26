@@ -808,3 +808,49 @@ if (result) {
 - **State Management**: Wait operations only run during WAITING_FOR_STUDENT state
 - **Upgrade Handling**: Timeout cycles provide opportunity to dismiss upgrade popups via main loop
 - **Performance**: Replaces 50ms polling loop that consumed significant CPU resources
+
+## AutoHotkey v2 Syntax Reminders
+
+Common syntax errors to avoid when coding in AutoHotkey v2:
+
+### Functions and Control Flow
+- **No Range function**: Use `while` loops instead of `for i in Range(start, end, step)`
+- **Single-line if statements**: Must be on separate lines from action
+  ```autohotkey
+  ; WRONG:
+  if (condition) return value
+
+  ; CORRECT:
+  if (condition)
+      return value
+  ```
+- **Loop variable names**: Avoid reserved words like `student` in `for i, student in array`
+  ```autohotkey
+  ; WRONG:
+  for i, student in students
+
+  ; CORRECT:
+  for i, studentObj in students
+  ```
+
+### Data Types and Operations
+- **No sort function**: Use loops or alternative sorting methods
+- **String functions**: Use `InStr()`, `SubStr()`, `StrReplace()` instead of v1 equivalents
+- **Array access**: Use `array[index]` not `array.%index%`
+
+### Variable Declarations
+- **Reserved words**: Cannot use `return`, `if`, `for`, etc. as variable names
+- **Global declarations**: Use `global varName := value` syntax
+
+### File Operations
+- **FileDelete safety**: Always check `FileExist()` before `FileDelete()` to avoid system errors
+
+### Function Parameters
+- **Parameter skipping**: Empty parameters with commas `FindText(, , x1, y1, ...)` IS valid in AutoHotkey v2
+- **Variable references**: Use `&varName` for output parameters in function calls
+- **Function warnings**: Some functions may show warnings about unassigned variables even when syntax is correct
+- **Event handlers**: Use separate functions instead of inline lambdas: `OnEvent("Click", HandlerFunc)` not `OnEvent("Click", (*) => {...})`
+
+### Include Dependencies
+- **Missing includes**: Functions like `FindText` require `#Include FindTextv2.ahk` at the top of each file that uses them
+- **Include order**: Include dependencies before using any functions from those files

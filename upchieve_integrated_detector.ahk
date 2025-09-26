@@ -20,6 +20,9 @@ global ScanMode := false
 global modeText := "TESTING"
 global AppState := "STARTING"  ; STARTING, WAITING_FOR_STUDENTS, IN_SESSION, PAUSED
 
+; Header manager variables (from included file)
+global HeaderRefreshTimer := 0
+
 ; Session tracking variables
 global InSession := false
 global LastStudentName := ""
@@ -40,6 +43,19 @@ global SoundTimerFunc := ""
 ; Function to play notification sound
 PlayNotificationSound() {
     SoundBeep(800, 500)  ; 800Hz beep for 500ms
+}
+
+; App log function for session data in CSV format
+WriteAppLog(message) {
+    logFile := "upchieve_app.log"
+
+    ; Create header if file doesn't exist
+    if (!FileExist(logFile)) {
+        header := "Seq,,RTime,Time,Until,W,Name,Grd,Fav,Assgn,Subject,Topic,Math,Duration,Initial response,Serious question,Left abruptly,Stopped resp,Good progress,Last msg,Comments" . "`n"
+        FileAppend(header, logFile)
+    }
+
+    FileAppend(message . "`n", logFile)
 }
 
 ; Clean exit function
@@ -117,7 +133,7 @@ Main() {
     AppState := "STARTING"
     ToolTip "🔗 Waiting for extension connection...", 10, 10, 1
 
-    if (!WaitForExtensionHandshake(60)) {
+    if (!WaitForExtensionHandshake(120)) {
         WriteLog("Extension handshake failed - exiting")
         MsgBox("Failed to connect to extension.`n`nPlease ensure:`n• Extension is installed and enabled`n• You're on the UPchieve waiting students page`n• Extension icon is green (active)", "Extension Connection Failed", "OK 4112")
         CleanExit()
@@ -276,18 +292,24 @@ StartSession(student) {
     WriteLog("Session started - monitoring for session end")
 }
 
-; Monitor for session end
+; Monitor for session end in a dedicated loop
 MonitorSessionEnd() {
-    global PageTarget, ExtensionWindowID
+    global targetWindowID, InSession, SessionEndedTarget
 
-    ; Check if we're back on the waiting students page
-    WinGetClientPos(, , &winWidth, &winHeight, ExtensionWindowID)
-    pageResult := FindText(, , 850, 300, 1400, 1100, 0.15, 0.10, PageTarget)
+    ; Monitor for session end
+    WriteLog("DEBUG: Starting session end monitoring")
 
-    if (pageResult) {
-        WriteLog("Session end detected - back on waiting students page")
-        EndCurrentSession()
+    while (InSession) {  ; Check InSession instead of infinite loop
+        sessionEndZone := SearchZone(3000-822, 320, 3000, 485)
+        
+        if (tempResult := FindTextInZones(SessionEndedTarget, sessionEndZone,, 0.15, 0.10, &SearchStats)) {
+            WriteLog("DEBUG: SessionEndedTarget found at " . tempResult[1].x . "," . tempResult[1].y)
+            break
+        }
+
+        Sleep 1000  ; Check every 2 seconds
     }
+    WriteLog("DEBUG: Session end monitoring stopped")
 }
 
 ; End the current session
@@ -305,15 +327,15 @@ EndCurrentSession() {
     ; Show session feedback dialog
     feedbackResult := ShowSessionFeedbackDialog()
 
-    ; Handle feedback result
-    if (feedbackResult == "Continue") {
-        ; Reset to waiting state
+    ; Handle feedback result (modified to not restart script)
+    if (feedbackResult == "Restart" || feedbackResult == "Continue") {
+        ; Reset to waiting state (no script restart needed)
         InSession := false
         AppState := "WAITING_FOR_STUDENTS"
         ToolTip "⏳ Session ended - waiting for next student", 10, 10, 1
         WriteLog("Session ended - continuing monitoring")
 
-    } else if (feedbackResult == "Pause") {
+    } else if (feedbackResult == "Cancel") {
         ; Pause the application
         InSession := false
         AppState := "PAUSED"
@@ -353,7 +375,7 @@ ShowStartupDialog() {
     ; Button handlers
     result := ""
 
-    continueBtn.OnEvent("Click", (*) => {
+    ContinueHandler(*) {
         ; Determine mode based on radio selection
         if (liveRadio.Value) {
             LiveMode := true
@@ -371,12 +393,15 @@ ShowStartupDialog() {
 
         result := "Continue"
         startupGui.Destroy()
-    })
+    }
 
-    exitBtn.OnEvent("Click", (*) => {
+    ExitHandler(*) {
         result := "Exit"
         startupGui.Destroy()
-    })
+    }
+
+    continueBtn.OnEvent("Click", ContinueHandler)
+    exitBtn.OnEvent("Click", ExitHandler)
 
     ; Show dialog and wait for result
     startupGui.Show()
@@ -387,6 +412,162 @@ ShowStartupDialog() {
 
     WriteLog("Startup dialog result: " . result . " (Mode: " . modeText . ")")
     return (result == "Continue")
+}
+
+; Show session feedback dialog and return continue choice (copied from original)
+ShowSessionFeedbackDialog() {
+    global LastStudentName, LastStudentTopic, SessionStartTime, SessionEndTime
+
+    ; Set session end time
+    SessionEndTime := A_Now
+
+    ; Create session feedback GUI
+    feedbackGui := Gui("+AlwaysOnTop", "Session Complete - Feedback")
+
+    ; Student name (manual entry required)
+    feedbackGui.AddText("xm y+10", "Student name (enter manually):")
+    nameEdit := feedbackGui.AddEdit("xm y+5 w200")
+    nameEdit.Text := (LastStudentName ? LastStudentName : "")
+    ; Set focus to name field for immediate typing
+    nameEdit.Focus()
+
+    ; Additional fields
+    feedbackGui.AddText("xm y+15", "Grade:")
+    gradeEdit := feedbackGui.AddEdit("xm y+5 w50")
+
+    feedbackGui.AddText("x+20 yp", "Subject:")
+    subjectEdit := feedbackGui.AddEdit("x+5 yp w150")
+    subjectEdit.Text := (LastStudentTopic ? LastStudentTopic : "")
+
+    feedbackGui.AddText("xm y+15", "Topic:")
+    topicEdit := feedbackGui.AddEdit("xm y+5 w350")
+
+    ; Math checkbox - auto-check if subject is math-related
+    isMathSubject := false
+    if (LastStudentTopic != "") {
+        subjectLower := StrLower(LastStudentTopic)
+        isMathSubject := (InStr(subjectLower, "math") > 0 ||
+                         subjectLower == "pre-algebra" ||
+                         subjectLower == "algebra" ||
+                         subjectLower == "statistics")
+    }
+    mathCheck := feedbackGui.AddCheckbox("xm y+15" . (isMathSubject ? " Checked" : ""), "Math subject")
+
+    ; Session characteristic checkboxes
+    feedbackGui.AddText("xm y+15", "Session characteristics:")
+    initialCheck := feedbackGui.AddCheckbox("xm y+5 Checked", "Initial response")
+    seriousCheck := feedbackGui.AddCheckbox("x+120 yp Checked", "Serious question")
+    leftCheck := feedbackGui.AddCheckbox("xm", "Left abruptly")
+    stoppedCheck := feedbackGui.AddCheckbox("x+120 yp", "Stopped responding")
+    feedbackGui.AddText("xm y+5", "Good progress (0-1):")
+    progressEdit := feedbackGui.AddEdit("x+10 yp w60")
+    progressEdit.Text := "1.0"
+
+    ; Last response time
+    feedbackGui.AddText("xm y+15", "Last message time (HH:MM):")
+    lastMsgEdit := feedbackGui.AddEdit("xm y+5 w100")
+
+    ; Comments
+    feedbackGui.AddText("xm y+15", "Comments:")
+    commentsEdit := feedbackGui.AddEdit("xm y+5 w350")
+
+    ; Buttons
+    feedbackGui.AddText("xm y+15", "Continue looking for students?")
+    yesBtn := feedbackGui.AddButton("xm y+5 w80 h30", "Yes")
+    noBtn := feedbackGui.AddButton("x+10 yp w80 h30", "No")
+    pauseBtn := feedbackGui.AddButton("x+10 yp w80 h30", "Pause")
+    skipBtn := feedbackGui.AddButton("x+10 yp w80 h30", "Skip")
+
+    ; Button event handlers - use separate functions instead of lambdas
+    result := ""
+
+    YesHandler(*) {
+        LogSessionFeedbackCSV()
+        result := "Restart"
+        feedbackGui.Destroy()
+    }
+
+    NoHandler(*) {
+        LogSessionFeedbackCSV()
+        result := "No"
+        feedbackGui.Destroy()
+    }
+
+    PauseHandler(*) {
+        LogSessionFeedbackCSV()
+        result := "Cancel"
+        feedbackGui.Destroy()
+    }
+
+    SkipHandler(*) {
+        SaveCorrectionsOnly()
+        result := "Restart"
+        feedbackGui.Destroy()
+    }
+
+    yesBtn.OnEvent("Click", YesHandler)
+    noBtn.OnEvent("Click", NoHandler)
+    pauseBtn.OnEvent("Click", PauseHandler)
+    skipBtn.OnEvent("Click", SkipHandler)
+
+    ; Function to save corrections only (for Skip button)
+    SaveCorrectionsOnly() {
+        ; Note: Simplified for integrated system - no OCR corrections needed
+        WriteLog("Session skipped - no CSV log entry created")
+    }
+
+    ; Function to log session feedback in CSV format
+    LogSessionFeedbackCSV() {
+        ; Calculate session duration in minutes
+        duration := ""
+        if (SessionStartTime != "" && SessionEndTime != "") {
+            startSecs := DateDiff(SessionStartTime, "19700101000000", "Seconds")
+            endSecs := DateDiff(SessionEndTime, "19700101000000", "Seconds")
+            duration := Round((endSecs - startSecs) / 60)
+        }
+
+        ; Format times
+        rtime := FormatTime(SessionStartTime, "M/d/yy")
+        startTime := FormatTime(SessionStartTime, "H:mm")
+        endTime := FormatTime(SessionEndTime, "H:mm")
+
+        ; Build CSV row following exact column specification
+        csvRow := ""
+        csvRow .= "," ; Column 1: blank
+        csvRow .= rtime . "," ; Column 2: date
+        csvRow .= startTime . "," ; Column 3: starting time
+        csvRow .= startTime . "," ; Column 4: starting time (same as column 3)
+        csvRow .= endTime . "," ; Column 5: ending time
+        csvRow .= "," ; Column 6: blank
+        csvRow .= StrReplace(StrReplace(nameEdit.Text, "`n", " "), "`r", "") . "," ; Column 7: name
+        csvRow .= gradeEdit.Text . "," ; Column 8: grade
+        csvRow .= "," ; Column 9: blank
+        csvRow .= "," ; Column 10: blank
+        csvRow .= StrReplace(StrReplace(subjectEdit.Text, "`n", " "), "`r", "") . "," ; Column 11: subject
+        csvRow .= StrReplace(StrReplace(topicEdit.Text, "`n", " "), "`r", "") . "," ; Column 12: Topic
+        csvRow .= (mathCheck.Value ? "1" : "0") . "," ; Column 13: Math
+        csvRow .= duration . "," ; Column 14: duration
+        csvRow .= (initialCheck.Value ? "1" : "0") . "," ; Column 15: Initial response
+        csvRow .= (seriousCheck.Value ? "1" : "0") . "," ; Column 16: Serious question
+        csvRow .= (leftCheck.Value ? "1" : "0") . "," ; Column 17: Left abruptly
+        csvRow .= (stoppedCheck.Value ? "1" : "0") . "," ; Column 18: Stopped resp
+        csvRow .= progressEdit.Text . "," ; Column 19: Good progress (float 0-1)
+        csvRow .= lastMsgEdit.Text . "," ; Column 20: last response
+        csvRow .= StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "") ; Column 21: comments (no trailing comma)
+
+        WriteAppLog(csvRow)
+        WriteLog("Session feedback logged to CSV")
+    }
+
+    ; Show dialog and wait for result
+    feedbackGui.Show("x400 w370 h550")
+
+    ; Wait for user action
+    while (result == "") {
+        Sleep(50)
+    }
+
+    return result
 }
 
 ; Entry point - start the application
