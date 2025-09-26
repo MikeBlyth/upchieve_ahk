@@ -15,11 +15,24 @@ function debugLog(level, message, ...args) {
     }
 }
 
+// Get current window ID for AHK integration
+let currentWindowId = null;
+
+// Get window ID when content script loads
+chrome.runtime.sendMessage({action: 'getWindowId'}, (response) => {
+    if (response && response.windowId) {
+        currentWindowId = response.windowId;
+        debugLog(1, '🪟 Window ID obtained:', currentWindowId);
+    }
+});
+
 // Check if detector should be enabled (from storage)
 chrome.storage.sync.get(['detectorEnabled'], function(result) {
     detectorEnabled = result.detectorEnabled || false;
     if (detectorEnabled) {
         initializeDetector();
+        // Send window ID handshake when detector is enabled
+        sendWindowIdHandshake();
     }
 
     // Update icon on load
@@ -38,6 +51,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         if (detectorEnabled) {
             initializeDetector();
+            // Send window ID handshake when detector is enabled
+            sendWindowIdHandshake();
             debugLog(1, '✅ Detector enabled via popup');
         } else {
             disableDetector();
@@ -129,6 +144,40 @@ function triggerStudentDetection(method, details) {
     debugLog(1, `🎯 Student detection triggered by ${method}: ${details}`);
     // DOM changes are immediate, no delay needed
     extractAndDisplayStudentData();
+}
+
+// Send window ID handshake to AutoHotkey
+function sendWindowIdHandshake() {
+    if (!currentWindowId) {
+        debugLog(1, '❌ Cannot send handshake - window ID not available');
+        return;
+    }
+
+    const handshakeData = `*upchieve_windowid|${currentWindowId}`;
+    copyToClipboard(handshakeData);
+    debugLog(1, '🤝 Window ID handshake sent:', handshakeData);
+}
+
+// Format all students for clipboard in AHK-compatible format
+function formatStudentDataForClipboard(students, waitMinutes) {
+    if (!currentWindowId) {
+        debugLog(1, '❌ Cannot format clipboard data - window ID not available');
+        return `*upchieve|unknown|${students[0].name}|${students[0].topic}|${waitMinutes}`;
+    }
+
+    // Start with identifier and window ID
+    let clipboardData = `*upchieve|${currentWindowId}`;
+
+    // Add each student's data
+    students.forEach((student, index) => {
+        const studentWaitMinutes = extractWaitMinutes(student.waitTime);
+        clipboardData += `|${student.name}|${student.topic}|${studentWaitMinutes}`;
+
+        debugLog(2, `📝 Added student ${index + 1}: ${student.name} (${student.topic}, ${studentWaitMinutes}min)`);
+    });
+
+    debugLog(1, '📋 Formatted clipboard data:', clipboardData);
+    return clipboardData;
 }
 
 // Extract wait time in minutes as integer
@@ -250,12 +299,13 @@ function extractAndDisplayStudentData() {
             const waitMinutes = extractWaitMinutes(primaryStudent.waitTime);
 
             // Copy to clipboard using extension API (no focus issues!)
-            // Format: *upchieve|name|topic|minutes
-            copyToClipboard(`*upchieve|${primaryStudent.name}|${primaryStudent.topic}|${waitMinutes}`);
+            // Format: *upchieve|windowId|name1|topic1|minutes1|name2|topic2|minutes2|...
+            const clipboardData = formatStudentDataForClipboard(students, waitMinutes);
+            copyToClipboard(clipboardData);
 
             // Log all students for debugging
             debugLog(1, '🎓 All students detected:', students);
-            debugLog(1, '📋 Clipboard format:', `*upchieve|${primaryStudent.name}|${primaryStudent.topic}|${waitMinutes}`);
+            debugLog(1, '📋 Multi-student clipboard format sent to AHK');
 
             // Show notification via extension
             showExtensionNotification('Student Detected!', message);

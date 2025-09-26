@@ -16,6 +16,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         updateIcon(message.enabled);
         sendResponse({ status: 'success' });
     }
+    else if (message.action === 'getWindowId') {
+        // Get window ID from the sender tab
+        if (sender.tab && sender.tab.windowId) {
+            sendResponse({ windowId: sender.tab.windowId });
+        } else {
+            sendResponse({ windowId: null });
+        }
+    }
 });
 
 // Update extension icon based on detector state

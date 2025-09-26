@@ -1,18 +1,8 @@
 # Upchieve Waiting Student Detector
 
-This system provides automated student detection for UPchieve using both a browser extension and AutoHotkey script, with personalized student name extraction and session management.
+This AutoHotkey script automatically detects and clicks on waiting students in Upchieve, with personalized student name extraction.
 
-## System Components
-
-### Browser Extension (New - 2025)
-- `extension/manifest.json` - Chrome extension manifest (Manifest v3)
-- `extension/content.js` - DOM monitoring and student data extraction
-- `extension/background.js` - Icon management and extension state handling
-- `extension/popup.html` - Extension popup interface
-- `extension/popup.js` - Popup functionality and detector controls
-- `extension/README.md` - Extension installation and usage guide
-
-### AutoHotkey Detection System (Legacy)
+## Files Created
 - `upchieve_waiting_detector.ahk` - Main script file with optimized performance and state management
 - `alphabet.ahk` - Character patterns for name recognition (array format with multiple patterns per character)
 - `ocr_functions.ahk` - Shared OCR functions with pair-based prioritization and configurable tolerances
@@ -26,49 +16,7 @@ This system provides automated student detection for UPchieve using both a brows
 - `block_names.txt` - Optional list of student names to skip (one per line)
 - `test_whitespace_fix.ahk` - Testing utility for whitespace handling validation
 
-## Browser Extension Features (Recommended)
-
-### Core Functionality
-- **DOM Monitoring** - Real-time detection of new student rows via MutationObserver
-- **Accurate Data Extraction** - Direct DOM access eliminates OCR recognition errors
-- **Clipboard Integration** - Copies student data in AHK-friendly format: `*upchieve|name|topic|minutes`
-- **Visual Status Indicator** - Green icon when active, gray when inactive
-- **Native Notifications** - Browser notifications with auto-dismiss
-- **Debounced Detection** - Prevents duplicate triggers within 1-second window
-
-### Data Format
-- **Structured Output**: `*upchieve|StudentName|HelpTopic|WaitMinutes`
-- **Wait Time Parsing**: "< 1" becomes `0`, "3 min" becomes `3`
-- **Easy AHK Integration**: Simple pipe-delimited format for AutoHotkey parsing
-
-### Installation & Usage
-1. **Load Extension**:
-   - Open Chrome → Extensions → Developer Mode → Load Unpacked
-   - Select the `extension/` folder
-   - Extension icon appears in toolbar
-
-2. **Activate Detection**:
-   - Navigate to `https://app.upchieve.org/`
-   - Click extension icon (shows current status)
-   - Click "Enable Detector" button
-   - Icon turns green when active
-
-3. **Monitor Operation**:
-   - Extension automatically detects new student arrivals
-   - Shows brief notification with student info
-   - Copies data to clipboard for potential AHK integration
-   - Console shows detailed debug information
-
-### Browser Extension Advantages
-- **100% Accuracy**: Direct DOM access vs OCR pattern matching
-- **Real-Time Detection**: Instant response vs periodic image scanning
-- **Platform Independent**: Works on any browser/OS vs Windows-only AHK
-- **No Pattern Maintenance**: No need to maintain FindText character patterns
-- **Network Efficient**: Single DOM event vs continuous screen capture
-
-## AutoHotkey Features (Legacy System)
-
-### OCR-Based Detection
+## Features
 - Uses FindTextv2 library for fast image recognition with continuous wait functionality
 - **Mandatory header detection** - App requires all 3 column headers before starting
 - **SearchZone architecture** - Precise header-based positioning for all operations
@@ -76,8 +24,6 @@ This system provides automated student detection for UPchieve using both a brows
 - Real-time monitoring for "< 1 minute" waiting indicators
 - **Student name extraction** from detected waiting entries
 - **Personalized notifications** (e.g. "Session with Camila has opened!")
-
-### Session Management
 - **Student blocking system** - Skip action for names listed in block_names.txt
 - Auto-click functionality when waiting students are detected
 - LIVE/TESTING mode selection with pause/resume capability
@@ -85,22 +31,7 @@ This system provides automated student detection for UPchieve using both a brows
 - **Session feedback system** - CSV logging with comprehensive session data
 - **Enhanced end-session dialog** - Captures detailed session information for analysis
 
-## System Integration Status
-
-⚠️ **Current Status**: The browser extension and AutoHotkey system are **NOT YET INTEGRATED**. They operate as separate, independent detection systems.
-
-### Browser Extension (Standalone)
-- ✅ **Fully Functional**: Detects students and copies data to clipboard
-- ✅ **AHK-Ready Format**: Uses `*upchieve|name|topic|minutes` format
-- ❌ **No AHK Integration**: Does not automatically trigger AutoHotkey actions
-- ❌ **No Session Management**: No clicking or session state tracking
-
-### Future Integration Plans
-- **Clipboard Polling**: AutoHotkey could monitor clipboard for `*upchieve` prefix
-- **File Communication**: Extension could write to shared file for AHK monitoring
-- **Hybrid Workflow**: Extension for detection, AHK for clicking and session management
-
-## AutoHotkey Usage (Legacy System)
+## Usage
 1. Run `upchieve_waiting_detector.ahk`
 2. Navigate to the Upchieve "Waiting Students" page
 3. Script auto-starts and prompts for LIVE or TESTING mode
@@ -423,111 +354,74 @@ Upper-left y-coordinate: OutputVar.1.y - OutputVar.1.h / 2
 - **AutoHotkey**: UI automation (clicking, window management, session dialogs)
 - **Communication**: Clipboard-based data transfer between JavaScript and AutoHotkey
 
-## Browser Extension Implementation (2025)
+## JavaScript Detection Implementation (2025)
 
-### Chrome Extension Architecture
-A complete Chrome extension has been developed to replace both the manual JavaScript console approach and FindText OCR detection, providing the most reliable and user-friendly solution.
+### New Approach: Pure JavaScript Detection
+A complete JavaScript-based student detection system has been developed as an alternative to the FindText OCR approach, offering more reliable and accurate detection.
 
-### Extension Components
-- **`extension/manifest.json`**: Chrome Extension Manifest v3 configuration
-- **`extension/content.js`**: DOM monitoring and student data extraction (auto-injected)
-- **`extension/background.js`**: Service worker for icon management and state persistence
-- **`extension/popup.html`**: User interface for extension controls
-- **`extension/popup.js`**: Popup functionality and detector toggle controls
+### Implementation Files
+- **`upchieve_js_detector.js`**: Complete detection script for manual console loading
+- **`upchieve_tampermonkey.js`**: Auto-loading userscript version with Tampermonkey headers
 
-### Installation Process
+### Core Features
+**Alert Detection:**
+- **Audio Monitoring**: Comprehensive monitoring of `alert-*.mp3` sound files via multiple methods
+- **Fetch Interception**: Intercepts all fetch requests to detect audio alert URLs
+- **Audio Element Monitoring**: Monitors both existing and dynamically created `<audio>` elements
+- **Event Coverage**: Tracks `src` changes, `play`, `loadstart`, and `canplay` events
+- **Debouncing**: 1-second debounce to prevent duplicate triggers from multiple detection methods
 
-#### Step 1: Enable Developer Mode
-1. Open Chrome and navigate to `chrome://extensions/`
-2. Toggle "Developer mode" ON (top right corner)
-3. You'll see new buttons: "Load unpacked", "Pack extension", "Update"
-
-#### Step 2: Load Extension
-1. Click "Load unpacked" button
-2. Navigate to your project folder and select the `extension/` directory
-3. Extension should appear in the list with:
-   - **Name**: "UPchieve Student Detector"
-   - **ID**: Chrome-generated unique identifier
-   - **Version**: 1.0
-
-#### Step 3: Pin Extension (Optional)
-1. Click the puzzle piece icon in Chrome toolbar (Extensions menu)
-2. Find "UPchieve Student Detector" and click the pin icon
-3. Extension icon will appear directly in the toolbar for easy access
-
-#### Step 4: Grant Permissions
-- Extension automatically requests minimal permissions:
-  - `activeTab`: Access to current UPchieve tab only
-  - `clipboardWrite`: Copy student data to clipboard
-  - `storage`: Save detector enable/disable state
-
-### Legacy Implementation Files (Deprecated)
-- **`upchieve_js_detector.js`**: Manual console loading script (replaced by extension)
-- **`upchieve_tampermonkey.js`**: Userscript version (replaced by extension)
-
-### Extension Core Features
-
-**DOM-Based Detection:**
-- **MutationObserver Monitoring**: Real-time detection when new student rows are added to DOM
-- **Direct Element Access**: Extracts data directly from `.session-row` table elements
-- **Debounced Processing**: 1-second debounce prevents duplicate triggers from rapid DOM changes
-- **Automatic Activation**: Starts monitoring immediately when enabled on UPchieve pages
-
-**Data Extraction & Processing:**
+**DOM Extraction:**
+- **Student Row Detection**: Uses `.session-row` selector to find student entries
+- **Fallback Selectors**: Multiple fallback selectors for table rows and student data
 - **Multi-Column Parsing**: Extracts student name, help topic, and wait time from table columns
-- **Wait Time Conversion**: Converts "< 1" to `0`, "3 min" to `3` for AHK parsing
-- **Structured Output Format**: `*upchieve|StudentName|HelpTopic|WaitMinutes`
-- **Fallback Selectors**: Multiple selector strategies for robust element detection
+- **Alternative Selectors**: Comprehensive fallback using class-based and data-attribute selectors
 
-**User Interface:**
-- **Dynamic Icon States**: Green icon when active, gray when inactive
-- **Badge Indicators**: Visual dot indicator for active status
-- **Popup Controls**: Enable/disable toggle with current status display
-- **Visual Notifications**: Non-blocking overlay notifications with student information
+**User Experience:**
+- **Non-Blocking Notifications**: Visual overlay notifications with Close/Disable buttons
+- **Browser Notifications**: Native browser notifications with auto-close after 5 seconds
+- **Visual Feedback**: Green overlay notifications positioned in top-right corner
+- **Auto-Dismiss**: Notifications auto-remove after 10 seconds
 
-**Clipboard & Communication:**
-- **Reliable Clipboard Copy**: Uses execCommand for maximum compatibility
-- **AHK-Ready Format**: Pipe-delimited format optimized for AutoHotkey parsing
-- **State Persistence**: Remembers enabled/disabled state across browser sessions
-- **Debug Console Logging**: Comprehensive logging for troubleshooting
+**Clipboard Integration:**
+- **Multi-Method Copy**: Modern clipboard API → execCommand fallback → manual selection
+- **Document Focus**: Automatically focuses document before clipboard operations
+- **AutoHotkey Communication**: Copies data in `name|topic` format for AutoHotkey integration
+- **Manual Fallback**: Yellow selection box for manual Ctrl+C copying when all methods fail
 
-**Extension Management:**
-- **Storage Synchronization**: Settings sync across Chrome profile
-- **Background Service Worker**: Manages icon state and cross-tab communication
-- **Permission Minimal**: Only requests necessary permissions (activeTab, clipboardWrite, storage)
-- **Auto-Injection**: Content script automatically loads on UPchieve pages
+**Debugging & Control:**
+- **Comprehensive Logging**: Timestamped debug messages with emoji indicators
+- **Verbosity Levels**: Configurable debug levels (0=off, 1=basic, 2=verbose)
+- **Status Monitoring**: Real-time status reporting and detector state information
+- **Manual Controls**: Functions to enable/disable detection and test extraction
 
-### Extension Detection Flow
-1. **DOM Change Detection**: MutationObserver detects new `.session-row` elements added to DOM
-2. **Debounced Processing**: 1-second delay prevents multiple rapid triggers
-3. **Data Extraction**: Directly reads student name, help topic, and wait time from table cells
-4. **Format Processing**: Converts wait time to integer minutes (`< 1` → `0`, `3 min` → `3`)
-5. **Clipboard Copy**: Copies structured data as `*upchieve|name|topic|minutes`
-6. **User Notification**: Shows brief overlay notification with student information
-7. **Debug Logging**: Records detection event and extracted data to browser console
+### Detection Flow
+1. **Audio Alert**: `app.upchieve.org/assets/alert-*.mp3` request detected
+2. **50ms Delay**: Waits exactly 50ms for DOM to update
+3. **DOM Extraction**: Searches for `.session-row` elements in student table
+4. **Data Processing**: Extracts student name, help topic, and wait time
+5. **Notification**: Shows visual notification with student information
+6. **Clipboard Copy**: Copies `name|topic` to clipboard for AutoHotkey integration
 
-### Extension Usage & Testing
+### Usage Methods
 
-**Normal Operation:**
-1. Load extension via Chrome Developer Mode
-2. Navigate to `https://app.upchieve.org/`
-3. Click extension icon and enable detector (icon turns green)
-4. Extension automatically detects new students and copies data to clipboard
-
-**Testing & Debug Commands:**
-Open browser console (`F12` → Console) and use these commands:
+**Tampermonkey (Recommended):**
 ```javascript
-testExtensionDetection()    // Manual test of current page data
-setExtensionDebugLevel(2)   // Enable verbose logging (0=off, 1=basic, 2=verbose)
+// Auto-loads on all UPchieve pages
+// @match https://app.upchieve.org/*
+// Install Tampermonkey extension and create new userscript
 ```
 
-**Console Output Example:**
-```
-🚀 UPchieve Student Detector Extension loaded
-📊 Detector status: ENABLED
-🚨 New student detected via DOM monitoring
-✅ Found 1 session row(s)
-📋 Clipboard format: *upchieve|John Smith|8th Grade Math|0
+**Manual Console:**
+```javascript
+// Paste upchieve_js_detector.js contents in browser console
+// Press Enter to activate
+// Available commands:
+testStudentExtraction()      // Manual test
+setDebugLevel(2)            // Enable verbose logging
+showDetectorStatus()        // Show current state
+disableDetector()           // Disable detection
+enableDetector()            // Re-enable detection
 ```
 
 ### Advantages Over OCR Approach
