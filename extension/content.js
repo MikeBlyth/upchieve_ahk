@@ -50,9 +50,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.action === 'getStatus') {
         sendResponse({ enabled: detectorEnabled });
     }
-    else if (message.action === 'ping') {
-        sendResponse({ status: 'pong', loaded: true });
-    }
 });
 
 // DOM monitoring variables
@@ -188,21 +185,31 @@ function formatStudentDataForClipboard(students) {
 
 // Extract wait time in minutes as integer
 function extractWaitMinutes(waitTimeText) {
-    if (!waitTimeText) return 0;
+    debugLog(2, `🕐 extractWaitMinutes called with: "${waitTimeText}"`);
+
+    if (!waitTimeText) {
+        debugLog(2, `❌ No wait time text provided, returning 0`);
+        return 0;
+    }
 
     const text = waitTimeText.trim();
+    debugLog(2, `🕐 Trimmed text: "${text}"`);
 
     // Handle "< 1" -> return 0
     if (text.includes('< 1')) {
+        debugLog(2, `🕐 Found "< 1" pattern, returning 0`);
         return 0;
     }
 
     // Extract number from "x min" format
     const match = text.match(/(\d+)/);
     if (match) {
-        return parseInt(match[1], 10);
+        const minutes = parseInt(match[1], 10);
+        debugLog(2, `🕐 Extracted ${minutes} minutes from "${text}"`);
+        return minutes;
     }
 
+    debugLog(2, `❌ No number found in "${text}", returning 0`);
     return 0;
 }
 
@@ -217,10 +224,10 @@ function extractAndDisplayStudentData() {
         if (sessionRows.length === 0) {
             debugLog(1, '❌ No session rows found - student list is empty');
 
-            // Send empty student list to file to clear stale data
+            // Send empty student list to clipboard to clear stale data
             const emptyClipboardData = `*upchieve`;
-            writeToFile(emptyClipboardData);
-            debugLog(1, '📋 Sent empty student list to file:', emptyClipboardData);
+            copyToClipboard(emptyClipboardData);
+            debugLog(1, '📋 Sent empty student list to clipboard:', emptyClipboardData);
 
             // Show notification that student list is empty
             showExtensionNotification('Student List Empty', 'No students currently waiting');
@@ -266,9 +273,11 @@ function extractAndDisplayStudentData() {
 
                 for (const element of waitElements) {
                     const text = element.textContent.trim();
-                    if (text.includes('minute') || text.includes('<') || text.includes('sec')) {
+                    debugLog(2, `🔍 Checking wait element text: "${text}"`);
+                    if (text.includes('min') || text.includes('<') || text.includes('sec')) {
                         hasWaitTime = true;
                         waitTime = text;
+                        debugLog(2, `✅ Found wait time: "${waitTime}"`);
                         break;
                     }
                 }
@@ -306,14 +315,14 @@ function extractAndDisplayStudentData() {
             const message = `Student: ${primaryStudent.name}\nTopic: ${primaryStudent.topic}` +
                 (primaryStudent.waitTime ? `\nWait Time: ${primaryStudent.waitTime}` : '');
 
-            // Write to file using the new file system API method
+            // Copy to clipboard using extension API (no focus issues!)
             // Format: *upchieve|name1|topic1|minutes1|name2|topic2|minutes2|...
-            const fileData = formatStudentDataForClipboard(students);
-            writeToFile(fileData);
+            const clipboardData = formatStudentDataForClipboard(students);
+            copyToClipboard(clipboardData);
 
             // Log all students for debugging
             debugLog(1, '🎓 All students detected:', students);
-            debugLog(1, '📋 Multi-student data sent to file for AHK');
+            debugLog(1, '📋 Multi-student clipboard format sent to AHK');
 
             // Show notification via extension
             showExtensionNotification('Student Detected!', message);
@@ -328,54 +337,40 @@ function extractAndDisplayStudentData() {
     }
 }
 
-// Write data to the communication file
-async function writeToFile(text) {
-    try {
-        debugLog(1, '📁 Writing to communication file...');
+// Copy to clipboard using extension permissions (no focus issues!)
+function copyToClipboard(text) {
+    debugLog(1, '📋 Copying to clipboard via execCommand (skip modern API):', text);
 
-        // Use the fallback method directly since it creates a predictable download
-        writeFallbackMethod(text);
-
-    } catch (error) {
-        console.error('Error in writeToFile:', error);
-        debugLog(1, '❌ File Write Error: ' + error.message);
-        showExtensionNotification('Error', 'Failed to write communication file');
-    }
+    // Skip modern clipboard API entirely - go straight to execCommand
+    fallbackCopy(text);
 }
 
-// Create communication file via download
-function writeFallbackMethod(text) {
+// Fallback clipboard method
+function fallbackCopy(text) {
     try {
-        debugLog(1, '📁 Creating communication file via download...');
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'absolute';
+        textarea.style.left = '-9999px';
+        textarea.style.opacity = '0';
 
-        // Create a downloadable link with consistent filename
-        const blob = new Blob([text], { type: 'text/plain' });
-        const url = URL.createObjectURL(blob);
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
 
-        // Create a temporary download link
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'ext_to_ahk_communication_file.txt';
-        a.style.display = 'none';
+        const success = document.execCommand('copy');
+        document.body.removeChild(textarea);
 
-        // Add to page, click, then remove
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-
-        // Clean up blob URL immediately after click
-        URL.revokeObjectURL(url);
-
-        debugLog(1, '✅ Communication file download triggered');
-        showExtensionNotification('Success', 'Communication file saved to Downloads');
+        if (success) {
+            debugLog(1, '✅ Fallback clipboard copy successful:', text);
+        } else {
+            debugLog(1, '❌ All clipboard methods failed');
+        }
 
     } catch (error) {
-        console.error('Communication file creation failed:', error);
-        debugLog(1, '❌ File creation failed: ' + error.message);
-        showExtensionNotification('Error', 'Could not create communication file');
+        debugLog(1, '❌ Fallback copy error:', error);
     }
 }
-
 
 // Show notification via extension (could use chrome.notifications API)
 function showExtensionNotification(title, message) {
@@ -417,7 +412,7 @@ function showExtensionNotification(title, message) {
     }, 5000);
 }
 
-// Test student data
+// Test student data for injection
 const testStudentData = [
     { name: 'Alex Test', subject: '8th Grade Math', waitTime: '< 1 min' },
     { name: 'Jordan Demo', subject: 'Algebra', waitTime: '2 min' },
@@ -529,22 +524,33 @@ window.clearTestStudents = function() {
 
     injectedTestStudents = [];
     debugLog(1, '✅ All test students cleared');
+
     return 'Test students cleared';
 };
 
-// Debug functions for testing
+// Manual test function for current page data
 window.testExtensionDetection = function() {
-    debugLog(1, '🧪 Extension test triggered');
-    extractAndDisplayStudentData();
+    debugLog(1, '🧪 Manual test: Extracting current page data...');
+
+    try {
+        extractAndDisplayStudentData();
+        return 'Manual test completed - check console for results';
+    } catch (error) {
+        console.error('Manual test error:', error);
+        return 'Manual test failed: ' + error.message;
+    }
 };
 
+// Set debug level
 window.setExtensionDebugLevel = function(level) {
-    debugLevel = level;
-    debugLog(1, `🐛 Extension debug level set to: ${level}`);
+    debugLevel = parseInt(level) || 0;
+    debugLog(1, `🔧 Debug level set to: ${debugLevel}`);
+    return `Debug level set to ${debugLevel}`;
 };
 
+// Extension debugging info
 debugLog(1, '🎉 UPchieve Student Detector Extension ready!');
-debugLog(1, '📋 Available commands:');
+debugLog(1, '🔧 UPchieve Extension Functions Available:');
 debugLog(1, '  • injectTestStudent(): Inject fake student data for testing');
 debugLog(1, '  • clearTestStudents(): Remove all test students');
 debugLog(1, '  • testExtensionDetection(): Manual test of current page data');

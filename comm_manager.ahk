@@ -1,43 +1,47 @@
 ; Communication Manager for UWD Integration
-; Handles file-based communication between Chrome extension and AutoHotkey
+; Handles clipboard-based communication between Chrome extension and AutoHotkey
 
 ; Global variables for communication
-global CommFilePath := "upchieve_students.txt"
-global LastFileContent := ""
+global LastClipboardContent := ""
 
-; Check for student detection data in the file (non-blocking)
+; Check for student detection data in the clipboard (non-blocking)
 ; Returns true if new student data found, false otherwise
 CheckForStudents() {
-    global LastFileContent, CommFilePath
+    global LastClipboardContent
 
-    if (!FileExist(CommFilePath)) {
+    ; Get current clipboard content
+    clipboardContent := ""
+    try {
+        clipboardContent := A_Clipboard
+    } catch Error as e {
+        ; Clipboard access failed - ignore and continue
         return false
     }
 
-    fileContent := FileRead(CommFilePath)
-
-    ; Check if file has changed and contains student data
-    if (fileContent != LastFileContent && InStr(fileContent, "*upchieve") = 1) {
-        LastFileContent := fileContent
+    ; Check if clipboard has changed and contains student data
+    if (clipboardContent != LastClipboardContent && InStr(clipboardContent, "*upchieve") = 1) {
+        LastClipboardContent := clipboardContent
+        WriteLog("New student data detected in clipboard: " . SubStr(clipboardContent, 1, 100) . "...")
         return true
     }
 
     return false
 }
 
-; Get current communication file content
+; Get current communication content (from clipboard)
 GetCommContent() {
-    global LastFileContent
-    return LastFileContent
+    global LastClipboardContent
+    return LastClipboardContent
 }
 
-; Clear communication file content
+; Clear communication content (clear clipboard)
 ClearComm() {
-    global CommFilePath, LastFileContent
+    global LastClipboardContent
     try {
-        FileDelete(CommFilePath)
+        A_Clipboard := ""
+        WriteLog("Clipboard cleared")
     } catch Error as e {
-        WriteLog("ERROR: Failed to delete communication file: " . e.Message)
+        WriteLog("ERROR: Failed to clear clipboard: " . e.Message)
     }
-    LastFileContent := ""
+    LastClipboardContent := ""
 }

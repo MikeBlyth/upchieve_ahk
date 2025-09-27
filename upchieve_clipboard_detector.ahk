@@ -144,16 +144,9 @@ ParseStudentArray(data) {
     ; Split by pipe delimiter
     parts := StrSplit(data, "|")
 
-    ; Handle empty student list case: just "*upchieve"
-    if (parts.Length == 1 && parts[1] == "*upchieve") {
-        WriteLog("Empty student list detected - no students waiting")
-        return students  ; Return empty array
-    }
-
     ; Need at least 4 parts for one student: *upchieve|name|topic|minutes
     if (parts.Length < 4) {
-        WriteLog("ERROR: Insufficient data parts for a student: " .
-    parts.Length . " (need at least 4)")
+        WriteLog("ERROR: Insufficient data parts for a student: " . parts.Length . " (need at least 4)")
         return students
     }
 
