@@ -433,16 +433,17 @@ StartSession(student) {
     PlayNotificationSound() ; Play once immediately
     SoundTimerFunc := () => PlayNotificationSound()
     SetTimer(SoundTimerFunc, 2000)
+    ; Keep sounding alert until user clicks OK on msgbox
+    MsgBox("Session started with " . student.name . "(" . student.topic . ") \nClick to confirm", "Session Started", "OK 4096")
 
-    ; Show session start dialog for confirmation/correction
-    ShowSessionStartDialog()
-    ; The dialog will update LastStudentName and LastStudentTopic if the user changes them
-
-    ; Stop the notification sound now that the dialog is closed
+    ; Stop the notification
     if (SoundTimerFunc) {
         SetTimer(SoundTimerFunc, 0)
         SoundTimerFunc := ""
     }
+
+    ; Show session start dialog for confirmation/correction
+    ShowSessionStartDialog()
 
     ; Show session notification with potentially updated info
     sessionMsg := "📚 Session started with " . LastStudentName
