@@ -5,9 +5,38 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusText = document.getElementById('status-text');
     const toggleBtn = document.getElementById('toggle-btn');
     const testBtn = document.getElementById('test-btn');
+    const selectFileBtn = document.getElementById('select-file-btn');
+    const fileInfo = document.getElementById('file-info');
+    const filePath = document.getElementById('file-path');
 
     // Get current status from content script
     getCurrentStatus();
+    displayFileInfo();
+
+    // Select file button click handler
+    selectFileBtn.addEventListener('click', () => {
+        console.log("'Set Communication File' button clicked.");
+        (async () => {
+            try {
+                console.log('Calling window.showSaveFilePicker()...');
+                const handle = await window.showSaveFilePicker({
+                    suggestedName: 'upchieve_students.txt',
+                    types: [{
+                        description: 'Text Files',
+                        accept: {
+                            'text/plain': ['.txt'],
+                        },
+                    }],
+                });
+                await chrome.storage.local.set({ fileHandle: handle });
+                showMessage('File selected successfully!');
+                displayFileInfo();
+            } catch (err) {
+                console.error('File selection error:', err);
+                showError('File selection cancelled or failed.');
+            }
+        })();
+    });
 
     // Toggle button click handler
     toggleBtn.addEventListener('click', function() {
@@ -16,53 +45,57 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Send message to content script
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            chrome.tabs.sendMessage(tabs[0].id, {
-                action: 'toggleDetector',
-                enabled: newState
-            }, function(response) {
-                if (chrome.runtime.lastError) {
-                    console.error('Extension communication error:', chrome.runtime.lastError);
-                    showError('Unable to communicate with UPchieve page. Make sure you\'re on app.upchieve.org');
-                    return;
-                }
+            if (tabs && tabs[0]) {
+                chrome.tabs.sendMessage(tabs[0].id, {
+                    action: 'toggleDetector',
+                    enabled: newState
+                }, function(response) {
+                    if (chrome.runtime.lastError) {
+                        console.error('Extension communication error:', chrome.runtime.lastError);
+                        showError('Unable to communicate with UPchieve page. Make sure you\'re on app.upchieve.org');
+                        return;
+                    }
 
-                if (response && response.status === 'success') {
-                    updateUI(response.enabled);
+                    if (response && response.status === 'success') {
+                        updateUI(response.enabled);
 
-                    // Save state to storage
-                    chrome.storage.sync.set({
-                        detectorEnabled: response.enabled
-                    });
+                        // Save state to storage
+                        chrome.storage.sync.set({
+                            detectorEnabled: response.enabled
+                        });
 
-                    // Update extension icon via background script
-                    chrome.runtime.sendMessage({
-                        action: 'updateIcon',
-                        enabled: response.enabled
-                    });
-                }
-            });
+                        // Update extension icon via background script
+                        chrome.runtime.sendMessage({
+                            action: 'updateIcon',
+                            enabled: response.enabled
+                        });
+                    }
+                });
+            }
         });
     });
 
     // Test button click handler
     testBtn.addEventListener('click', function() {
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            // Execute test function on the page
-            chrome.scripting.executeScript({
-                target: { tabId: tabs[0].id },
-                function: function() {
-                    if (typeof window.testExtensionDetection === 'function') {
-                        window.testExtensionDetection();
-                        return 'Test executed - check console for results';
-                    } else {
-                        return 'Extension not loaded on this page';
+            if (tabs && tabs[0]) {
+                // Execute test function on the page
+                chrome.scripting.executeScript({
+                    target: { tabId: tabs[0].id },
+                    func: function() {
+                        if (typeof window.testExtensionDetection === 'function') {
+                            window.testExtensionDetection();
+                            return 'Test executed - check console for results';
+                        } else {
+                            return 'Extension not loaded on this page';
+                        }
                     }
-                }
-            }, function(results) {
-                if (results && results[0]) {
-                    showMessage(results[0].result);
-                }
-            });
+                }, function(results) {
+                    if (results && results[0]) {
+                        showMessage(results[0].result);
+                    }
+                });
+            }
         });
     });
 
@@ -76,7 +109,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Also check with content script
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            if (tabs[0].url && tabs[0].url.includes('app.upchieve.org')) {
+            if (tabs && tabs[0] && tabs[0].url && tabs[0].url.includes('app.upchieve.org')) {
                 chrome.tabs.sendMessage(tabs[0].id, {
                     action: 'getStatus'
                 }, function(response) {
@@ -129,12 +162,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }, 2000);
     }
 
-    // Check if we're on the right page
+    // Check if we're on the right page and set button states
     chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-        if (!tabs[0].url || !tabs[0].url.includes('app.upchieve.org')) {
-            showError('Navigate to app.upchieve.org to use this extension');
+        if (tabs && tabs[0] && tabs[0].url && tabs[0].url.includes('app.upchieve.org')) {
+            toggleBtn.disabled = false;
+            testBtn.disabled = false;
+        } else {
             toggleBtn.disabled = true;
             testBtn.disabled = true;
         }
     });
+
+    // Display selected file info
+    async function displayFileInfo() {
+        const { fileHandle } = await chrome.storage.local.get('fileHandle');
+        if (fileHandle) {
+            filePath.textContent = fileHandle.name;
+            fileInfo.style.display = 'block';
+        } else {
+            fileInfo.style.display = 'none';
+        }
+    }
 });

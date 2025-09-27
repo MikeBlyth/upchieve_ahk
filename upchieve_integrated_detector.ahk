@@ -3,7 +3,7 @@
 #Include student_database.ahk
 #Include ahk_utilities.ahk
 #include search_targets.ahk
-#Include extension_bridge.ahk
+#Include comm_manager.ahk
 #Include header_manager.ahk
 
 ; Set coordinate mode to window coordinates for unified coordinate system
@@ -111,9 +111,124 @@ ShowDebugInfo() {
     debugInfo .= "Window ID: " . (ExtensionWindowID ? ExtensionWindowID : "Not Set") . "`n`n"
 
     debugInfo .= GetHeaderStatus()
-    debugInfo .= "`nClipboard: " . SubStr(GetClipboardContent(), 1, 100) . "..."
+    debugInfo .= "`nComm File Content: " . SubStr(GetCommContent(), 1, 100) . "..."
 
     MsgBox(debugInfo, "Debug Information", "OK 4096")
+}
+
+; Student object structure
+class Student {
+    __New(name, topic, minutes) {
+        this.name := name
+        this.topic := topic
+        this.minutes := minutes
+    }
+
+    ToString() {
+        return this.name . " (" . this.topic . ", " . this.minutes . " min)"
+    }
+}
+
+; Parse data into array of Student objects
+; Expected format: *upchieve|name1|topic1|min1|name2|topic2|min2|...
+; Returns array of Student objects, empty array if invalid format
+ParseStudentArray(data) {
+    students := []
+
+    ; Validate format
+    if (InStr(data, "*upchieve") != 1) {
+        WriteLog("ERROR: Invalid data format - missing *upchieve prefix: " . data)
+        return students
+    }
+
+    ; Split by pipe delimiter
+    parts := StrSplit(data, "|")
+
+    ; Need at least 4 parts for one student: *upchieve|name|topic|minutes
+    if (parts.Length < 4) {
+        WriteLog("ERROR: Insufficient data parts for a student: " . parts.Length . " (need at least 4)")
+        return students
+    }
+
+    ; Parse students in groups of 3: name|topic|minutes
+    studentCount := 0
+    i := 2  ; Start at index 2 (after *upchieve)
+    while (i <= parts.Length) {
+        if (i + 2 <= parts.Length) {
+            name := Trim(parts[i])
+            topic := Trim(parts[i + 1])
+            minutes := Trim(parts[i + 2])
+
+            ; Validate data
+            if (name != "" && topic != "") {
+                ; Convert minutes to number
+                minutesNum := IsNumber(minutes) ? Number(minutes) : 0
+
+                studentObj := Student(name, topic, minutesNum)
+                students.Push(studentObj)
+                studentCount++
+
+                WriteLog("PARSED: Student " . studentCount . " - " . studentObj.ToString())
+            } else {
+                WriteLog("WARNING: Skipping invalid student data at index " . i . ": name='" . name . "', topic='" . topic . "'")
+            }
+        }
+        i += 3  ; Move to next student (step by 3)
+    }
+
+    WriteLog("SUCCESS: Parsed " . studentCount . " students from data")
+    return students
+}
+
+
+; Select student from array (currently returns first student)
+; Future enhancement: priority logic, user selection, etc.
+; Returns Student object or empty object if no students
+SelectFirstStudent(studentArray) {
+    if (studentArray.Length > 0) {
+        selectedStudent := studentArray[1]
+        WriteLog("SELECTED: " . selectedStudent.ToString())
+        return selectedStudent
+    } else {
+        WriteLog("ERROR: No students to select from array")
+        return Student("", "", 0)
+    }
+}
+
+; Check if student is blocked via block_names.txt
+; Returns true if student should be blocked, false otherwise
+CheckBlockedNames(student, blockFile := "block_names.txt") {
+    ; Return false if no block file exists
+    if (!FileExist(blockFile)) {
+        return false
+    }
+
+    ; Read block file and check each line
+    try {
+        blockContent := FileRead(blockFile)
+        blockLines := StrSplit(blockContent, "`n")
+
+        for lineNum, line in blockLines {
+            line := Trim(line)
+
+            ; Skip empty lines and comments
+            if (line = "" || InStr(line, ";") = 1) {
+                continue
+            }
+
+            ; Case-insensitive name matching
+            if (InStr(StrLower(student.name), StrLower(line)) > 0) {
+                WriteLog("BLOCKED: Student '" . student.name . "' matches blocked pattern '" . line . "'")
+                return true
+            }
+        }
+    } catch Error as e {
+        WriteLog("ERROR: Failed to read block file " . blockFile . ": " . e.Message)
+        return false
+    }
+
+    WriteLog("NOT BLOCKED: Student '" . student.name . "' is allowed")
+    return false
 }
 
 
@@ -324,9 +439,9 @@ MainDetectionLoop() {
             lastHeaderCheckTime := A_TickCount
         }
 
-        ; 2. Check for students on the clipboard
-        if (CheckClipboardForStudents()) {
-            ProcessClipboardStudentData()
+        ; 2. Check for students from the communication file
+        if (CheckForStudents()) {
+            ProcessStudentData()
         }
 
         ; Sleep to keep the loop efficient
@@ -334,18 +449,18 @@ MainDetectionLoop() {
     }
 }
 
-; Process student data from clipboard
-ProcessClipboardStudentData() {
+; Process student data from the communication file
+ProcessStudentData() {
     global AppState, LiveMode, InSession, LastStudentName, LastStudentTopic, SessionStartTime
 
-    WriteLog("Processing clipboard student data...")
+    WriteLog("Processing student data from communication file...")
 
-    ; Get clipboard content and parse students
-    clipData := GetClipboardContent()
-    students := ParseStudentArray(clipData)
+    ; Get content from communication file and parse students
+    commData := GetCommContent()
+    students := ParseStudentArray(commData)
 
     if (students.Length == 0) {
-        WriteLog("No valid students found in clipboard data")
+        WriteLog("No valid students found in communication file data")
         return
     }
 
@@ -358,7 +473,7 @@ ProcessClipboardStudentData() {
         }
         ToolTip "📈 SCAN: Logged " . students.Length . " students to scan.log", 10, 50, 2
         SetTimer(() => ToolTip("", , , 2), -5000)
-        ClearClipboard() ; Clear clipboard after processing
+        ClearComm() ; Clear communication file after processing
         return ; Exit function after logging
     }
 
@@ -406,8 +521,8 @@ ProcessClipboardStudentData() {
         SetTimer(() => ToolTip("", , , 2), -5000)
     }
 
-    ; Clear the clipboard now that it has been processed
-    ClearClipboard()
+    ; Clear the communication file now that it has been processed
+    ClearComm()
 }
 
 ; Start a session with the selected student

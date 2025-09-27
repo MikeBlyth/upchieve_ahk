@@ -214,10 +214,10 @@ function extractAndDisplayStudentData() {
         if (sessionRows.length === 0) {
             debugLog(1, '❌ No session rows found - student list is empty');
 
-            // Send empty student list to clipboard to clear stale data
+            // Send empty student list to file to clear stale data
             const emptyClipboardData = `*upchieve`;
-            copyToClipboard(emptyClipboardData);
-            debugLog(1, '📋 Sent empty student list to clipboard:', emptyClipboardData);
+            writeToFile(emptyClipboardData);
+            debugLog(1, '📋 Sent empty student list to file:', emptyClipboardData);
 
             // Show notification that student list is empty
             showExtensionNotification('Student List Empty', 'No students currently waiting');
@@ -303,14 +303,14 @@ function extractAndDisplayStudentData() {
             const message = `Student: ${primaryStudent.name}\nTopic: ${primaryStudent.topic}` +
                 (primaryStudent.waitTime ? `\nWait Time: ${primaryStudent.waitTime}` : '');
 
-            // Copy to clipboard using extension API (no focus issues!)
+            // Write to file using the new file system API method
             // Format: *upchieve|name1|topic1|minutes1|name2|topic2|minutes2|...
-            const clipboardData = formatStudentDataForClipboard(students);
-            copyToClipboard(clipboardData);
+            const fileData = formatStudentDataForClipboard(students);
+            writeToFile(fileData);
 
             // Log all students for debugging
             debugLog(1, '🎓 All students detected:', students);
-            debugLog(1, '📋 Multi-student clipboard format sent to AHK');
+            debugLog(1, '📋 Multi-student data sent to file for AHK');
 
             // Show notification via extension
             showExtensionNotification('Student Detected!', message);
@@ -325,38 +325,36 @@ function extractAndDisplayStudentData() {
     }
 }
 
-// Copy to clipboard using extension permissions (no focus issues!)
-function copyToClipboard(text) {
-    debugLog(1, '📋 Copying to clipboard via execCommand (skip modern API):', text);
+// Write data to the selected file
+async function writeToFile(text) {
+    const { fileHandle } = await chrome.storage.local.get('fileHandle');
+    if (!fileHandle) {
+        debugLog(1, '❌ No file selected. Cannot write data.');
+        showExtensionNotification('Error', 'No communication file selected in extension popup.');
+        return;
+    }
 
-    // Skip modern clipboard API entirely - go straight to execCommand
-    fallbackCopy(text);
-}
-
-// Fallback clipboard method
-function fallbackCopy(text) {
     try {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'absolute';
-        textarea.style.left = '-9999px';
-        textarea.style.opacity = '0';
-
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-
-        const success = document.execCommand('copy');
-        document.body.removeChild(textarea);
-
-        if (success) {
-            debugLog(1, '✅ Fallback clipboard copy successful:', text);
-        } else {
-            debugLog(1, '❌ All clipboard methods failed');
+        // Check for permission first
+        if (await fileHandle.queryPermission({ mode: 'readwrite' }) !== 'granted') {
+            // Request permission again if not granted
+            if (await fileHandle.requestPermission({ mode: 'readwrite' }) !== 'granted') {
+                debugLog(1, '❌ File write permission not granted.');
+                showExtensionNotification('Error', 'File write permission denied.');
+                return;
+            }
         }
 
+        const writable = await fileHandle.createWritable();
+        await writable.write(text);
+        await writable.close();
+        debugLog(1, '✅ Successfully wrote to file:', text);
     } catch (error) {
-        debugLog(1, '❌ Fallback copy error:', error);
+        console.error('Error writing to file:', error);
+        debugLog(1, '❌ File Write Error: ' + error.message);
+        showExtensionNotification('Error', 'Failed to write to file. Select file again.');
+        // Clear the handle if it's invalid
+        await chrome.storage.local.remove('fileHandle');
     }
 }
 
