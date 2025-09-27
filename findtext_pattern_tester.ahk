@@ -279,6 +279,21 @@ TestPatterns(*) {
 
     searchTime := A_TickCount - startTime
 
+    ; Sort results by x position (left to right)
+    if (result && result.Length > 1) {
+        Loop result.Length - 1 {
+            i := A_Index
+            Loop result.Length - i {
+                j := A_Index
+                if (result[j].x > result[j+1].x) {
+                    temp := result[j]
+                    result[j] := result[j+1]
+                    result[j+1] := temp
+                }
+            }
+        }
+    }
+
     ; Log the main search
     searchWidth := searchX2 - searchX1
     searchHeight := searchY2 - searchY1
@@ -390,12 +405,6 @@ TestPatterns(*) {
     }
     output .= "  exact pattern: [" . patternDisplay . "]`r`n"
 
-    ; Also show alternative wait syntax
-    output .= "`r`n=== WAIT SYNTAX ALTERNATIVES ===`r`n"
-    output .= "Wait 10 seconds: FindText(&x:='wait', &y:=10, " . searchX1 . ", " . searchY1 . ", " . searchX2 . ", " . searchY2 . ", " . Format("{:.3f}", err1) . ", " . Format("{:.3f}", err2) . ", patterns)`r`n"
-    output .= "Wait infinite: FindText(&x:='wait', &y:=-1, " . searchX1 . ", " . searchY1 . ", " . searchX2 . ", " . searchY2 . ", " . Format("{:.3f}", err1) . ", " . Format("{:.3f}", err2) . ", patterns)`r`n"
-    output .= "Wait disappear: FindText(&x:='wait0', &y:=5, " . searchX1 . ", " . searchY1 . ", " . searchX2 . ", " . searchY2 . ", " . Format("{:.3f}", err1) . ", " . Format("{:.3f}", err2) . ", patterns)`r`n"
-
     if (result && result.Length > 0) {
         output .= "FOUND " . result.Length . " match(es):`r`n"
 
@@ -425,6 +434,21 @@ TestPatterns(*) {
         result := FindText(,, searchX1, searchY1, searchX2, searchY2, testErr1, testErr2, patterns, useScreenshot, findAll)
         searchTime := A_TickCount - startTime
 
+        ; Sort results by x position (left to right)
+        if (result && result.Length > 1) {
+            Loop result.Length - 1 {
+                i := A_Index
+                Loop result.Length - i {
+                    j := A_Index
+                    if (result[j].x > result[j+1].x) {
+                        temp := result[j]
+                        result[j] := result[j+1]
+                        result[j+1] := temp
+                    }
+                }
+            }
+        }
+
         ; Log the tolerance variation test
         LogSearch(searchWidth, searchHeight, testErr1, testErr2, isWindowBound, findAll, useLastScreenshotBool, useWait, waitModeStr, waitTimeVal, StrLen(patterns), searchTime, result)
 
@@ -440,6 +464,12 @@ TestPatterns(*) {
         }
         output .= " (" . searchTime . "ms)`r`n"
     }
+
+    ; Show alternative wait syntax at the bottom
+    output .= "`r`n=== WAIT SYNTAX ALTERNATIVES ===`r`n"
+    output .= "Wait 10 seconds: FindText(&x:='wait', &y:=10, " . searchX1 . ", " . searchY1 . ", " . searchX2 . ", " . searchY2 . ", " . Format("{:.3f}", err1) . ", " . Format("{:.3f}", err2) . ", patterns)`r`n"
+    output .= "Wait infinite: FindText(&x:='wait', &y:=-1, " . searchX1 . ", " . searchY1 . ", " . searchX2 . ", " . searchY2 . ", " . Format("{:.3f}", err1) . ", " . Format("{:.3f}", err2) . ", patterns)`r`n"
+    output .= "Wait disappear: FindText(&x:='wait0', &y:=5, " . searchX1 . ", " . searchY1 . ", " . searchX2 . ", " . searchY2 . ", " . Format("{:.3f}", err1) . ", " . Format("{:.3f}", err2) . ", patterns)`r`n"
 
     resultsList.Text := output
     statusText.Text := "Status: Pattern testing complete!"
