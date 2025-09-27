@@ -24,7 +24,96 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendResponse({ windowId: null });
         }
     }
+    else if (message.action === 'writeToFile') {
+        // Handle file writing from content script
+        handleFileWrite(message.data, sendResponse);
+        return true; // Keep the message channel open for async response
+    }
 });
+
+// Handle writing to the communication file
+async function handleFileWrite(data, sendResponse) {
+    console.log('🚀 Background: handleFileWrite called');
+    console.log('📝 Background: Data received:', data);
+
+    try {
+        console.log('📁 Background: Starting file write process...');
+
+        // Convert data to base64 data URL since URL.createObjectURL isn't available in service workers
+        console.log('🔧 Background: Converting to base64...');
+        const base64Data = btoa(unescape(encodeURIComponent(data)));
+        const dataUrl = `data:text/plain;base64,${base64Data}`;
+        console.log('✅ Background: Base64 conversion complete');
+
+        // Use downloads API to save to a fixed location
+        console.log('📥 Background: Calling chrome.downloads.download...');
+
+        // Use a fixed filename that AHK can monitor
+        // Since Chrome sometimes defaults to download.txt, let's try a different approach
+        const downloadOptions = {
+            url: dataUrl,
+            filename: 'ext_to_ahk_communication_file.txt',
+            conflictAction: 'overwrite',
+            saveAs: false
+        };
+        console.log('⚙️ Background: Download options:', downloadOptions);
+
+        const downloadId = await chrome.downloads.download(downloadOptions);
+
+        console.log('✅ Background: Download initiated with ID:', downloadId);
+
+        // Get download info to see where it was saved
+        if (downloadId) {
+            console.log('🔍 Background: Searching for download details...');
+
+            // Wait a moment for download to process, then check details
+            setTimeout(() => {
+                chrome.downloads.search({ id: downloadId }, (downloads) => {
+                    console.log('📊 Background: Download search results:', downloads);
+                    if (downloads && downloads[0]) {
+                        const download = downloads[0];
+                        console.log('📁 Background: Filename:', download.filename);
+                        console.log('📂 Background: Full path (if available):', download.filename);
+                        console.log('📊 Background: State:', download.state);
+                        console.log('💾 Background: Bytes received:', download.bytesReceived);
+                        console.log('📍 Background: URL:', download.url);
+                        console.log('🔍 Background: Full download object:', download);
+
+                        // Also try to get the default download directory
+                        chrome.downloads.search({ limit: 1, orderBy: ['-startTime'] }, (recentDownloads) => {
+                            if (recentDownloads && recentDownloads[0]) {
+                                console.log('📥 Background: Most recent download path example:', recentDownloads[0].filename);
+                            }
+                        });
+                    } else {
+                        console.log('⚠️ Background: No download details found');
+                    }
+                });
+            }, 1000);
+        } else {
+            console.log('❌ Background: No download ID returned');
+        }
+
+        console.log('📤 Background: Sending success response...');
+        sendResponse({
+            success: true,
+            message: 'Data written to ext_to_ahk_communication_file.txt in Downloads folder'
+        });
+
+    } catch (error) {
+        console.error('❌ Background: Error in handleFileWrite:', error);
+        console.log('❌ Background: Error details:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+        });
+
+        sendResponse({
+            success: false,
+            error: 'Failed to write file: ' + error.message
+        });
+    }
+}
 
 // Update extension icon based on detector state
 function updateIcon(enabled) {

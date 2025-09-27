@@ -7,7 +7,9 @@
   "permissions": [
     "activeTab",
     "clipboardWrite",
-    "storage"
+    "storage",
+    "scripting",
+    "downloads"
   ],
 
   "host_permissions": [

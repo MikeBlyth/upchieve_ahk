@@ -50,6 +50,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     else if (message.action === 'getStatus') {
         sendResponse({ enabled: detectorEnabled });
     }
+    else if (message.action === 'ping') {
+        sendResponse({ status: 'pong', loaded: true });
+    }
 });
 
 // DOM monitoring variables
@@ -325,38 +328,54 @@ function extractAndDisplayStudentData() {
     }
 }
 
-// Write data to the selected file
+// Write data to the communication file
 async function writeToFile(text) {
-    const { fileHandle } = await chrome.storage.local.get('fileHandle');
-    if (!fileHandle) {
-        debugLog(1, '❌ No file selected. Cannot write data.');
-        showExtensionNotification('Error', 'No communication file selected in extension popup.');
-        return;
-    }
-
     try {
-        // Check for permission first
-        if (await fileHandle.queryPermission({ mode: 'readwrite' }) !== 'granted') {
-            // Request permission again if not granted
-            if (await fileHandle.requestPermission({ mode: 'readwrite' }) !== 'granted') {
-                debugLog(1, '❌ File write permission not granted.');
-                showExtensionNotification('Error', 'File write permission denied.');
-                return;
-            }
-        }
+        debugLog(1, '📁 Writing to communication file...');
 
-        const writable = await fileHandle.createWritable();
-        await writable.write(text);
-        await writable.close();
-        debugLog(1, '✅ Successfully wrote to file:', text);
+        // Use the fallback method directly since it creates a predictable download
+        writeFallbackMethod(text);
+
     } catch (error) {
-        console.error('Error writing to file:', error);
+        console.error('Error in writeToFile:', error);
         debugLog(1, '❌ File Write Error: ' + error.message);
-        showExtensionNotification('Error', 'Failed to write to file. Select file again.');
-        // Clear the handle if it's invalid
-        await chrome.storage.local.remove('fileHandle');
+        showExtensionNotification('Error', 'Failed to write communication file');
     }
 }
+
+// Create communication file via download
+function writeFallbackMethod(text) {
+    try {
+        debugLog(1, '📁 Creating communication file via download...');
+
+        // Create a downloadable link with consistent filename
+        const blob = new Blob([text], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+
+        // Create a temporary download link
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'ext_to_ahk_communication_file.txt';
+        a.style.display = 'none';
+
+        // Add to page, click, then remove
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // Clean up blob URL immediately after click
+        URL.revokeObjectURL(url);
+
+        debugLog(1, '✅ Communication file download triggered');
+        showExtensionNotification('Success', 'Communication file saved to Downloads');
+
+    } catch (error) {
+        console.error('Communication file creation failed:', error);
+        debugLog(1, '❌ File creation failed: ' + error.message);
+        showExtensionNotification('Error', 'Could not create communication file');
+    }
+}
+
 
 // Show notification via extension (could use chrome.notifications API)
 function showExtensionNotification(title, message) {
@@ -398,6 +417,121 @@ function showExtensionNotification(title, message) {
     }, 5000);
 }
 
+// Test student data
+const testStudentData = [
+    { name: 'Alex Test', subject: '8th Grade Math', waitTime: '< 1 min' },
+    { name: 'Jordan Demo', subject: 'Algebra', waitTime: '2 min' },
+    { name: 'Sam Practice', subject: 'Pre-algebra', waitTime: '5 min' },
+    { name: 'Casey Trial', subject: 'Statistics', waitTime: '3 min' },
+    { name: 'Riley Mock', subject: 'Computer Science A', waitTime: '< 1 min' },
+    { name: 'Taylor Fake', subject: '7th Grade Math', waitTime: '1 min' }
+];
+
+// Track injected test students
+let injectedTestStudents = [];
+
+// Inject test student into the page
+window.injectTestStudent = function() {
+    console.log('🧪 injectTestStudent function called');
+    debugLog(1, '🧪 Injecting test student data...');
+
+    try {
+        // Find the student table tbody
+        const tbody = document.querySelector('.session-list tbody') ||
+                     document.querySelector('tbody') ||
+                     document.querySelector('.session-list table tbody');
+
+        if (!tbody) {
+            debugLog(1, '❌ Could not find student table tbody');
+            return 'Error: Student table not found';
+        }
+
+        // Check if we already have test students - if so, clear them first
+        if (injectedTestStudents.length > 0) {
+            clearTestStudents();
+        }
+
+        // Randomly select 1-2 test students
+        const numStudents = Math.random() > 0.7 ? 2 : 1;
+        const selectedStudents = [];
+
+        for (let i = 0; i < numStudents; i++) {
+            const randomIndex = Math.floor(Math.random() * testStudentData.length);
+            const student = testStudentData[randomIndex];
+
+            // Avoid duplicates
+            if (!selectedStudents.find(s => s.name === student.name)) {
+                selectedStudents.push(student);
+            }
+        }
+
+        // Inject each selected student
+        selectedStudents.forEach(student => {
+            const testId = 'test-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+            const row = document.createElement('tr');
+            row.className = 'session-row';
+            row.id = testId;
+            row.setAttribute('data-testid', `session-row-${student.name.replace(' ', '')}`);
+            row.setAttribute('data-test-student', 'true'); // Mark as test student
+
+            row.innerHTML = `
+                <td>${student.name}</td>
+                <td>${student.subject}</td>
+                <td>${student.waitTime}</td>
+            `;
+
+            // Insert at the beginning of the table
+            tbody.insertBefore(row, tbody.firstChild);
+
+            // Track for cleanup
+            injectedTestStudents.push({
+                element: row,
+                id: testId,
+                name: student.name,
+                subject: student.subject,
+                waitTime: student.waitTime
+            });
+
+            debugLog(1, `✅ Injected test student: ${student.name} (${student.subject})`);
+        });
+
+        // Auto-cleanup after 30 seconds
+        setTimeout(() => {
+            if (injectedTestStudents.length > 0) {
+                debugLog(1, '🧹 Auto-cleanup: Removing test students after 30 seconds');
+                clearTestStudents();
+            }
+        }, 30000);
+
+        const message = `Injected ${selectedStudents.length} test student(s): ${selectedStudents.map(s => s.name).join(', ')}`;
+        debugLog(1, '🎯 Test injection complete:', message);
+
+        return message;
+
+    } catch (error) {
+        console.error('Error injecting test student:', error);
+        debugLog(1, '❌ Test injection failed:', error.message);
+        return 'Error: Failed to inject test student';
+    }
+};
+
+// Clear all injected test students
+window.clearTestStudents = function() {
+    debugLog(1, '🧹 Clearing test students...');
+
+    injectedTestStudents.forEach(student => {
+        if (student.element && student.element.parentNode) {
+            student.element.remove();
+            debugLog(1, `🗑️ Removed test student: ${student.name}`);
+        }
+    });
+
+    injectedTestStudents = [];
+    debugLog(1, '✅ All test students cleared');
+    return 'Test students cleared';
+};
+
 // Debug functions for testing
 window.testExtensionDetection = function() {
     debugLog(1, '🧪 Extension test triggered');
@@ -411,6 +545,15 @@ window.setExtensionDebugLevel = function(level) {
 
 debugLog(1, '🎉 UPchieve Student Detector Extension ready!');
 debugLog(1, '📋 Available commands:');
-debugLog(1, '  • testExtensionDetection(): Manual test');
-
+debugLog(1, '  • injectTestStudent(): Inject fake student data for testing');
+debugLog(1, '  • clearTestStudents(): Remove all test students');
+debugLog(1, '  • testExtensionDetection(): Manual test of current page data');
 debugLog(1, '  • setExtensionDebugLevel(0-2): Set debug verbosity');
+
+// Confirm functions are available
+console.log('🔧 Extension functions registered:', {
+    injectTestStudent: typeof window.injectTestStudent,
+    clearTestStudents: typeof window.clearTestStudents,
+    testExtensionDetection: typeof window.testExtensionDetection,
+    setExtensionDebugLevel: typeof window.setExtensionDebugLevel
+});

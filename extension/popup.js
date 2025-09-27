@@ -5,38 +5,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const statusText = document.getElementById('status-text');
     const toggleBtn = document.getElementById('toggle-btn');
     const testBtn = document.getElementById('test-btn');
-    const selectFileBtn = document.getElementById('select-file-btn');
-    const fileInfo = document.getElementById('file-info');
-    const filePath = document.getElementById('file-path');
-
     // Get current status from content script
     getCurrentStatus();
-    displayFileInfo();
-
-    // Select file button click handler
-    selectFileBtn.addEventListener('click', () => {
-        console.log("'Set Communication File' button clicked.");
-        (async () => {
-            try {
-                console.log('Calling window.showSaveFilePicker()...');
-                const handle = await window.showSaveFilePicker({
-                    suggestedName: 'upchieve_students.txt',
-                    types: [{
-                        description: 'Text Files',
-                        accept: {
-                            'text/plain': ['.txt'],
-                        },
-                    }],
-                });
-                await chrome.storage.local.set({ fileHandle: handle });
-                showMessage('File selected successfully!');
-                displayFileInfo();
-            } catch (err) {
-                console.error('File selection error:', err);
-                showError('File selection cancelled or failed.');
-            }
-        })();
-    });
 
     // Toggle button click handler
     toggleBtn.addEventListener('click', function() {
@@ -77,27 +47,101 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Test button click handler
     testBtn.addEventListener('click', function() {
+        console.log('🧪 Test button clicked');
+
+        // Check if chrome.scripting is available
+        if (!chrome.scripting) {
+            console.error('❌ chrome.scripting not available');
+            showError('Scripting API not available - check manifest permissions');
+            return;
+        }
+
         chrome.tabs.query({active: true, currentWindow: true}, function(tabs) {
-            if (tabs && tabs[0]) {
-                // Execute test function on the page
-                chrome.scripting.executeScript({
-                    target: { tabId: tabs[0].id },
-                    func: function() {
-                        if (typeof window.testExtensionDetection === 'function') {
-                            window.testExtensionDetection();
-                            return 'Test executed - check console for results';
-                        } else {
-                            return 'Extension not loaded on this page';
-                        }
-                    }
-                }, function(results) {
-                    if (results && results[0]) {
-                        showMessage(results[0].result);
-                    }
-                });
+            console.log('📋 Current tabs:', tabs);
+
+            if (!tabs || !tabs[0]) {
+                console.log('❌ No active tab found');
+                showError('No active tab found');
+                return;
             }
+
+            const tab = tabs[0];
+            console.log('🎯 Target tab:', tab.url);
+
+            // Check if we're on the right domain
+            if (!tab.url || !tab.url.includes('upchieve.org')) {
+                console.log('⚠️ Not on UPchieve domain');
+                showError('Please navigate to app.upchieve.org first');
+                return;
+            }
+
+            // Simple test injection without complex content script dependency
+            console.log('🚀 Attempting simple script injection...');
+
+            chrome.scripting.executeScript({
+                target: { tabId: tab.id },
+                func: function() {
+                    // Check if the content script injection function is available
+                    if (typeof window.injectTestStudent === 'function') {
+                        console.log('✅ Using content script injectTestStudent function');
+                        return window.injectTestStudent();
+                    } else {
+                        console.log('⚠️ Content script not available, using simple fallback');
+
+                        // Fallback: simple test injection
+                        const tbody = document.querySelector('.session-list tbody') ||
+                                     document.querySelector('tbody') ||
+                                     document.querySelector('table tbody');
+
+                        if (!tbody) {
+                            return 'Error: Could not find student table. Make sure you are on the student waiting list page.';
+                        }
+
+                        // Create a simple test student with proper name
+                        const row = document.createElement('tr');
+                        row.className = 'session-row';
+                        row.setAttribute('data-testid', 'session-row-TestStudent');
+                        row.style.backgroundColor = '#fffacd'; // Light yellow background
+                        row.innerHTML = `
+                            <td>Alex Test</td>
+                            <td>8th Grade Math</td>
+                            <td>&lt; 1 min</td>
+                        `;
+
+                        console.log('📝 Creating simple test row:', row);
+                        tbody.insertBefore(row, tbody.firstChild);
+
+                        // Auto-remove after 15 seconds
+                        setTimeout(() => {
+                            if (row.parentNode) {
+                                row.remove();
+                                console.log('🧹 Test student removed');
+                            }
+                        }, 15000);
+
+                        return 'Simple test student injected (refresh page to use full content script features)';
+                    }
+                }
+            }, function(results) {
+                console.log('📤 Script execution completed, results:', results);
+
+                if (chrome.runtime.lastError) {
+                    console.error('❌ Script execution error:', chrome.runtime.lastError);
+                    showError('Script error: ' + chrome.runtime.lastError.message);
+                    return;
+                }
+
+                if (results && results[0] && results[0].result) {
+                    console.log('✅ Success:', results[0].result);
+                    showMessage(results[0].result);
+                } else {
+                    console.log('⚠️ No result returned');
+                    showError('Script executed but no result returned');
+                }
+            });
         });
     });
+
 
 
     // Get current status from storage and content script
@@ -173,14 +217,4 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Display selected file info
-    async function displayFileInfo() {
-        const { fileHandle } = await chrome.storage.local.get('fileHandle');
-        if (fileHandle) {
-            filePath.textContent = fileHandle.name;
-            fileInfo.style.display = 'block';
-        } else {
-            fileInfo.style.display = 'none';
-        }
-    }
 });
