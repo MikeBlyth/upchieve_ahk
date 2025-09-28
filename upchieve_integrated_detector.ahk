@@ -20,6 +20,12 @@ global ScanMode := false
 global modeText := "TESTING"
 global AppState := "STARTING"  ; STARTING, WAITING_FOR_STUDENTS, IN_SESSION, PAUSED
 
+; Sleep prevention constants
+global ES_CONTINUOUS := 0x80000000
+global ES_SYSTEM_REQUIRED := 0x00000001
+global ES_DISPLAY_REQUIRED := 0x00000002
+global ES_AWAYMODE_REQUIRED := 0x00000040
+
 ; Header manager variables (from included file)
 global HeaderRefreshTimer := 0
 
@@ -29,6 +35,9 @@ global LastStudentName := ""
 global LastStudentTopic := ""
 global SessionStartTime := ""
 global SessionEndTime := ""
+
+; Waiting notification variables
+global WaitingTimerFunc := ""
 
 ; Window dimensions
 global winWidth := 3200
@@ -47,6 +56,86 @@ global SoundTimerFunc := ""
 ; Function to play notification sound
 PlayNotificationSound() {
     SoundBeep(800, 500)  ; 800Hz beep for 500ms
+}
+
+; Prevent system sleep/hibernation during operation (allows display to turn off)
+PreventSleep() {
+    ; Prevent system sleep but allow display to turn off
+    flags := ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+    result := DllCall("kernel32.dll\SetThreadExecutionState", "UInt", flags, "UInt")
+
+    if (result) {
+        WriteLog("Sleep prevention enabled - system stays awake, display can turn off")
+    } else {
+        WriteLog("WARNING: Failed to enable sleep prevention")
+    }
+
+    return result
+}
+
+; Allow system sleep/hibernation (restore normal power management)
+AllowSleep() {
+    result := DllCall("kernel32.dll\SetThreadExecutionState", "UInt", ES_CONTINUOUS, "UInt")
+
+    if (result) {
+        WriteLog("Sleep prevention disabled - normal power management restored")
+    } else {
+        WriteLog("WARNING: Failed to restore normal power management")
+    }
+
+    return result
+}
+
+; Start waiting notification timer (15 minutes)
+StartWaitingTimer() {
+    global WaitingTimerFunc
+
+    ; Stop any existing timer first
+    StopWaitingTimer()
+    if (!LiveMode) {
+        return  ; Don't start timer in testing mode
+    }
+
+    ; Create timer function and start 15-minute timer
+    WaitingTimerFunc := () => ShowWaitingNotification()
+    SetTimer(WaitingTimerFunc, 15 * 60 * 1000)  ; 15 minutes
+    WriteLog("Waiting timer started - notification in 15 minutes")
+}
+
+; Stop waiting notification timer
+StopWaitingTimer() {
+    global WaitingTimerFunc
+
+    if (WaitingTimerFunc) {
+        SetTimer(WaitingTimerFunc, 0)  ; Stop the timer
+        WaitingTimerFunc := ""
+        WriteLog("Waiting timer stopped")
+    }
+}
+
+; Show "Still waiting?" notification
+ShowWaitingNotification() {
+    global AppState
+
+    ; Only show if still in waiting state
+    if (AppState != "WAITING_FOR_STUDENTS") {
+        StopWaitingTimer()
+        return
+    }
+
+    WriteLog("Showing 15-minute waiting notification")
+
+    result := MsgBox("Still waiting for students to appear?`n`nClick OK to continue waiting or Cancel to pause.",
+                     "Still Waiting?", "OK Cancel 4096")
+
+    if (result == "OK") {
+        WriteLog("User chose to continue waiting - restarting timer")
+        StartWaitingTimer()  ; Restart the 15-minute timer
+    } else {
+        WriteLog("User chose to pause - stopping waiting timer")
+        StopWaitingTimer()
+        AppState := "PAUSED"
+    }
 }
 
 ; App log function for session data in CSV format
@@ -72,6 +161,9 @@ WriteScanLog(message) {
 CleanExit() {
     WriteLog("Application exit requested")
 
+    ; Restore normal power management before exit
+    AllowSleep()
+
     ; Clear tooltips
     ToolTip ""
 
@@ -82,9 +174,25 @@ CleanExit() {
 
 ; Toggle pause/resume functionality
 TogglePause() {
-    WriteLog("Application paused via hotkey.")
-    MsgBox("UPchieve Detector Paused`n`nPress OK to resume.", "Detection Paused", "OK 4096")
-    WriteLog("Application resumed.")
+    global AppState
+
+    if (AppState == "PAUSED") {
+        ; Resume from pause
+        AppState := "WAITING_FOR_STUDENTS"
+        StartWaitingTimer()  ; Restart waiting timer when resuming
+        WriteLog("Application resumed via hotkey - waiting timer restarted")
+    } else {
+        ; Pause the application
+        WriteLog("Application paused via hotkey.")
+        StopWaitingTimer()  ; Stop waiting timer when pausing
+        AppState := "PAUSED"
+        MsgBox("UPchieve Detector Paused`n`nPress OK to resume.", "Detection Paused", "OK 4096")
+
+        ; Resume after user clicks OK
+        AppState := "WAITING_FOR_STUDENTS"
+        StartWaitingTimer()  ; Restart waiting timer when resuming
+        WriteLog("Application resumed.")
+    }
 }
 
 ; Manually start or end a session via hotkey
@@ -404,6 +512,12 @@ Main() {
     WriteLog("Initialization complete - starting main detection loop")
     AppState := "WAITING_FOR_STUDENTS"
 
+    ; Enable sleep prevention during operation
+    PreventSleep()
+
+    ; Start waiting notification timer
+    StartWaitingTimer()
+
     ; Start main detection loop
     MainDetectionLoop()
 }
@@ -427,7 +541,7 @@ MainDetectionLoop() {
         if (AppState == "IN_SESSION") {
             ; Monitor for session end
             MonitorSessionEnd()
-            Sleep(2000)  ; Check every 2 seconds during session
+            Sleep(1000)  ; Check every 2 seconds during session
             continue
         }
 
@@ -441,7 +555,6 @@ MainDetectionLoop() {
 
         ; 1. Check for headers periodically
         if (A_TickCount - lastHeaderCheckTime > headerCheckInterval) {
-            WriteLog("Periodic header refresh triggered.")
             RefreshHeaderPositions()
             lastHeaderCheckTime := A_TickCount
         }
@@ -538,6 +651,9 @@ StartSession(student) {
 
     WriteLog("Starting session with: " . student.ToString())
 
+    ; Stop waiting timer when session starts
+    StopWaitingTimer()
+
     ; Update session variables from extension data first
     InSession := true
     AppState := "IN_SESSION"
@@ -613,6 +729,10 @@ EndCurrentSession() {
         ; Reset to waiting state (no script restart needed)
         InSession := false
         AppState := "WAITING_FOR_STUDENTS"
+
+        ; Restart waiting timer when returning to waiting state
+        StartWaitingTimer()
+
         ToolTip "⏳ Session ended - waiting for next student", 10, 10, 1
         WriteLog("Session ended - continuing monitoring")
 
@@ -620,6 +740,10 @@ EndCurrentSession() {
         ; Pause the application
         InSession := false
         AppState := "PAUSED"
+
+        ; Stop waiting timer when paused
+        StopWaitingTimer()
+
         ToolTip "⏸️ Session ended - application paused", 10, 10, 1
         WriteLog("Session ended - application paused")
 
