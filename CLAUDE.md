@@ -95,3 +95,6 @@ Automated student detection for UPchieve using browser extension (recommended) a
 - No leading `|` on first FindText pattern
 - Single-line if statements must be on separate lines
 - Pattern detection uses FindText library for visual element matching
+- MsgBox button combinations written as one word: "OKCancel", not "OK Cancel"
+- Use `Gui.Destroy()` to close GUI windows, not `Gui.Close()`
+- Arrays don't have `.Sort()` method - use custom sorting functions instead

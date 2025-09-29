@@ -130,7 +130,7 @@ ShowWaitingNotification() {
     WriteLog("Showing 15-minute waiting notification")
 
     result := MsgBox("Still waiting for students to appear?`n`nClick OK to continue waiting or Cancel to pause.",
-                     "Still Waiting?", "OK Cancel 4096")
+                     "Still Waiting?", "OKCancel 4096")
 
     if (result == "OK") {
         WriteLog("User chose to continue waiting - restarting timer")
@@ -419,8 +419,20 @@ SummarizeStudent(name) {
         }
         
         ; Sort entries by date in reverse chronological order
+        ; Simple bubble sort (good enough for small datasets)
         if (studentEntries.Length > 1) {
-            studentEntries.Sort(CompareDates)
+            Loop studentEntries.Length - 1 {
+                i := A_Index
+                Loop studentEntries.Length - i {
+                    j := A_Index
+                    ; Compare dates (assuming MM/d/yy format)
+                    if (CompareDates(studentEntries[j], studentEntries[j+1]) < 0) {
+                        temp := studentEntries[j]
+                        studentEntries[j] := studentEntries[j+1]
+                        studentEntries[j+1] := temp
+                    }
+                }
+            }
         }
         
         ; Build summary (up to 5 most recent visits)
@@ -690,8 +702,17 @@ ProcessStudentData() {
         WinWaitActive("ahk_id " . ExtensionWindowID, , 2)
         Click(clickPos.x, clickPos.y)
 
-        ; Start session
-        StartSession(selectedStudent)
+        ; Wait and verify session started
+        Sleep(2000)  ; Give time for session to load
+
+        ; Check if session actually started by looking for session indicators
+        if (VerifySessionStarted()) {
+            WriteLog("Session verified - student click successful")
+            StartSession(selectedStudent)
+        } else {
+            WriteLog("Session verification failed - click may not have worked")
+            ; Could add retry logic here if needed
+        }
 
     } else {
         ; TESTING mode - log detection without clicking
@@ -750,6 +771,28 @@ StartSession(student) {
     UpdateStatusDialog(sessionMsg)
 
     WriteLog("Session started - monitoring for session end. Final student: " . LastStudentName)
+}
+
+; Verify that a session has actually started after clicking
+VerifySessionStarted() {
+    global ExtensionWindowID
+
+    ; Look for visual indicators that a session has started
+    ; This could include checking for:
+    ; 1. Session UI elements
+    ; 2. Change in URL or page content
+    ; 3. Absence of the student waiting list
+
+    ; Check if the student list is no longer visible (indicating we're in a session)
+    ; Use a simple check - if we can't find any student headers, we're likely in session
+    if (!FindText(,, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.1, 0.1, StudentHeaderTarget)) {
+        return true  ; Headers not found - likely in session
+    }
+
+    ; Additional check: look for session-specific UI elements
+    ; You could add more specific pattern matching here based on the session interface
+
+    return false  ; Still seeing student list - session didn't start
 }
 
 ; Monitor for session end by searching the entire window for the target
