@@ -328,7 +328,7 @@ CheckBlockedNames(student, blockFile := "block_names.txt") {
         blockLines := StrSplit(blockContent, "`n")
 
         for lineNum, line in blockLines {
-            line := Trim(line)
+            line := Trim(line, " `t`r`n")
 
             ; Skip empty lines and comments
             if (line = "" || InStr(line, ";") = 1) {
@@ -502,7 +502,7 @@ CreateStatusDialog() {
     }
 
     ; Create new dialog
-    StatusDialog := Gui("+Resize +MinSize200x50 -MaximizeBox", "UPchieve Status")
+    StatusDialog := Gui("+Resize +MinSize200x50 -MaximizeBox +AlwaysOnTop", "UPchieve Status")
     StatusDialog.BackColor := "0xF0F0F0"
 
     ; Add status text control
@@ -752,7 +752,7 @@ StartSession(student) {
     SoundTimerFunc := () => PlayNotificationSound()
     SetTimer(SoundTimerFunc, 2000)
     ; Keep sounding alert until user clicks OK on msgbox
-    MsgBox("Session started with " . student.name . "(" . student.topic . ") \nClick to confirm", "Session Started", "OK 4096")
+    MsgBox("Session started with " . student.name . "(" . student.topic . ")`nClick to confirm", "Session Started", "OK 4096")
 
     ; Stop the notification
     if (SoundTimerFunc) {

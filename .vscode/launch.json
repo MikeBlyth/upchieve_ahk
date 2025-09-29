@@ -5,6 +5,7 @@
     "version": "0.2.0",
     "configurations": [
 
+
         
 
 
@@ -27,10 +28,10 @@
         },
 
         {
-            "name": "pattern tester",
+            "name": "Name Block Tester",
             "type": "ahk2",
             "request": "launch",
-            "program": "c:/users/mike/upchieve_ahk/findtext_pattern_tester.ahk",
+            "program": "c:/users/mike/upchieve_ahk/debug_blocking_test.ahk",
             "args": [],
             "stopOnEntry": true
         },
