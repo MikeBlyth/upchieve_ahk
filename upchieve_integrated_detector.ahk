@@ -47,6 +47,10 @@ global winHeight := 2000
 global SearchStats := SearchStatsClass()
 global SoundTimerFunc := ""
 
+; Status dialog for movable status display
+global StatusDialog := ""
+global StatusText := ""
+
 ; Hotkey handlers
 ^+q::CleanExit()  ; Ctrl+Shift+Q to quit
 ^+h::TogglePause()  ; Ctrl+Shift+H to pause/resume
@@ -164,8 +168,8 @@ CleanExit() {
     ; Restore normal power management before exit
     AllowSleep()
 
-    ; Clear tooltips
-    ToolTip ""
+    ; Close status dialog
+    CloseStatusDialog()
 
     ; Show exit message
     MsgBox("UPchieve Integrated Detector closed.", "Application Exit", "OK 4096")
@@ -476,6 +480,58 @@ SoundMuted() {
     return FindText(,, winWidth-700, winHeight-100, winWidth, winHeight, 0.1, 0.1, MutedTarget)
 }
 
+; Create movable status dialog
+CreateStatusDialog() {
+    global StatusDialog, StatusText
+
+    ; Close existing dialog if it exists
+    if (StatusDialog) {
+        StatusDialog.Destroy()
+    }
+
+    ; Create new dialog
+    StatusDialog := Gui("+Resize +MinSize200x50 -MaximizeBox", "UPchieve Status")
+    StatusDialog.BackColor := "0xF0F0F0"
+
+    ; Add status text control
+    StatusText := StatusDialog.Add("Text", "x10 y10 w180 h30 +Wrap", "Starting...")
+    StatusText.SetFont("s9", "Segoe UI")
+
+    ; Set initial position (top-left corner but not overlapping)
+    StatusDialog.Show("x50 y50 w200 h50")
+
+    return StatusDialog
+}
+
+; Update status dialog text
+UpdateStatusDialog(message) {
+    global StatusDialog, StatusText
+
+    ; Create dialog if it doesn't exist
+    if (!StatusDialog) {
+        CreateStatusDialog()
+    }
+
+    ; Update text
+    if (StatusText) {
+        StatusText.Text := message
+
+        ; Adjust dialog height based on text length
+        lines := 1 + StrLen(StrReplace(message, "`n"))//25  ; Rough estimate
+        newHeight := Max(50, lines * 20 + 20)
+        StatusDialog.Move(,, 200, newHeight)
+    }
+}
+
+; Close status dialog
+CloseStatusDialog() {
+    global StatusDialog
+    if (StatusDialog) {
+        StatusDialog.Destroy()
+        StatusDialog := ""
+    }
+}
+
 ; Main application entry point
 Main() {
     global LiveMode
@@ -518,6 +574,9 @@ Main() {
     ; Start waiting notification timer
     StartWaitingTimer()
 
+    ; Create status dialog for user feedback
+    CreateStatusDialog()
+
     ; Start main detection loop
     MainDetectionLoop()
 }
@@ -533,7 +592,7 @@ MainDetectionLoop() {
     while (true) {
         ; Handle different application states
         if (AppState == "PAUSED") {
-            ToolTip "⏸️ PAUSED - Press Ctrl+Shift+H to resume", 10, 10, 1
+            UpdateStatusDialog("⏸️ PAUSED - Press Ctrl+Shift+H to resume")
             Sleep(1000)
             continue
         }
@@ -551,7 +610,7 @@ MainDetectionLoop() {
             AppState := "WAITING_FOR_STUDENTS"
         }
 
-        ToolTip "⏳ Waiting for students... (" . modeText . " mode)", 10, 10, 1
+        UpdateStatusDialog("⏳ Waiting for students... (" . modeText . " mode)")
 
         ; 1. Check for headers periodically
         if (A_TickCount - lastHeaderCheckTime > headerCheckInterval) {
@@ -591,8 +650,8 @@ ProcessStudentData() {
             logMessage := timestamp . " | SCAN: " . student.name . " (" . student.topic . ")"
             WriteScanLog(logMessage)
         }
-        ToolTip "📈 SCAN: Logged " . students.Length . " students to scan.log", 10, 50, 2
-        SetTimer(() => ToolTip("", , , 2), -5000)
+        ; Show scan message briefly in log instead of dialog to avoid interference
+        WriteLog("📈 SCAN: Logged " . students.Length . " students to scan.log")
         ClearComm() ; Clear communication file after processing
         return ; Exit function after logging
     }
@@ -609,8 +668,8 @@ ProcessStudentData() {
     ; Check if student is blocked
     if (CheckBlockedNames(selectedStudent)) {
         WriteLog("Student blocked - skipping: " . selectedStudent.name)
-        ToolTip "🚫 Blocked student: " . selectedStudent.name, 10, 50, 2
-        SetTimer(() => ToolTip("", , , 2), -5000)
+        ; Show blocked message briefly in log
+        WriteLog("🚫 Blocked student: " . selectedStudent.name)
         return
     }
 
@@ -637,8 +696,8 @@ ProcessStudentData() {
     } else {
         ; TESTING mode - log detection without clicking
         WriteLog("TESTING MODE: Would click student " . selectedStudent.name . " at " . clickPos.x . "," . clickPos.y)
-        ToolTip "🧪 Testing: Found " . selectedStudent.name . " (" . selectedStudent.topic . ")", 10, 50, 2
-        SetTimer(() => ToolTip("", , , 2), -5000)
+        ; Show testing message briefly in log
+        WriteLog("🧪 Testing: Found " . selectedStudent.name . " (" . selectedStudent.topic . ")")
     }
 
     ; Clear the communication file now that it has been processed
@@ -688,7 +747,7 @@ StartSession(student) {
     if (LastStudentTopic != "") {
         sessionMsg .= " (" . LastStudentTopic . ")"
     }
-    ToolTip sessionMsg, 10, 10, 1
+    UpdateStatusDialog(sessionMsg)
 
     WriteLog("Session started - monitoring for session end. Final student: " . LastStudentName)
 }
@@ -733,7 +792,7 @@ EndCurrentSession() {
         ; Restart waiting timer when returning to waiting state
         StartWaitingTimer()
 
-        ToolTip "⏳ Session ended - waiting for next student", 10, 10, 1
+        UpdateStatusDialog("⏳ Session ended - waiting for next student")
         WriteLog("Session ended - continuing monitoring")
 
     } else if (feedbackResult == "Cancel") {
@@ -744,7 +803,7 @@ EndCurrentSession() {
         ; Stop waiting timer when paused
         StopWaitingTimer()
 
-        ToolTip "⏸️ Session ended - application paused", 10, 10, 1
+        UpdateStatusDialog("⏸️ Session ended - application paused")
         WriteLog("Session ended - application paused")
 
     } else {
@@ -848,10 +907,9 @@ ShowSessionStartDialog() {
     startTimeEdit.Text := startTimeFormatted
 
     ; Previous session info section (if available)
-    static lastSessionInfo := ""
-    if (lastSessionInfo != "") {
+    if (ShowSessionStartDialog.lastSessionInfo != "" && ShowSessionStartDialog.lastSessionInfo != "No previous session history.") {
         startGui.AddText("xm y+20", "Previous session info:")
-        startGui.AddText("xm y+5 w350", lastSessionInfo)
+        startGui.AddText("xm y+5 w350", ShowSessionStartDialog.lastSessionInfo)
     }
 
     ; Buttons
