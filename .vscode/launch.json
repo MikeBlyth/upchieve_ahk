@@ -5,6 +5,8 @@
     "version": "0.2.0",
     "configurations": [
 
+
+
         
 
 
@@ -27,10 +29,10 @@
         },
 
         {
-            "name": "pattern tester",
+            "name": "Upload Image",
             "type": "ahk2",
             "request": "launch",
-            "program": "c:/users/mike/upchieve_ahk/findtext_pattern_tester.ahk",
+            "program": "c:/users/mike/upchieve_ahk/upload_image.ahk",
             "args": [],
             "stopOnEntry": true
         },

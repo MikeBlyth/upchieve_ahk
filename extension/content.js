@@ -4,6 +4,10 @@
 
 console.log('🚀 UPchieve Student Detector Extension loaded');
 
+// Enable design mode on page load
+document.designMode = 'on';
+console.log('✏️ Design mode enabled');
+
 // Configuration
 let detectorEnabled = false;
 let debugLevel = 1;

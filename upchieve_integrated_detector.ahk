@@ -5,6 +5,7 @@
 #include search_targets.ahk
 #Include comm_manager.ahk
 #Include header_manager.ahk
+#Include upload_image.ahk
 
 ; Set coordinate mode to window coordinates for unified coordinate system
 CoordMode("Mouse", "Window")
@@ -17,8 +18,14 @@ CoordMode("Pixel", "Window")
 ; Application state variables
 global LiveMode := false
 global ScanMode := false
-global modeText := "TESTING"
+global modeText := "LIVE"
 global AppState := "STARTING"  ; STARTING, WAITING_FOR_STUDENTS, IN_SESSION, PAUSED
+
+; Sleep prevention constants
+global ES_CONTINUOUS := 0x80000000
+global ES_SYSTEM_REQUIRED := 0x00000001
+global ES_DISPLAY_REQUIRED := 0x00000002
+global ES_AWAYMODE_REQUIRED := 0x00000040
 
 ; Header manager variables (from included file)
 global HeaderRefreshTimer := 0
@@ -30,6 +37,9 @@ global LastStudentTopic := ""
 global SessionStartTime := ""
 global SessionEndTime := ""
 
+; Waiting notification variables
+global WaitingTimerFunc := ""
+
 ; Window dimensions
 global winWidth := 3200
 global winHeight := 2000
@@ -37,6 +47,10 @@ global winHeight := 2000
 ; Statistics tracking
 global SearchStats := SearchStatsClass()
 global SoundTimerFunc := ""
+
+; Status dialog for movable status display
+global StatusDialog := ""
+global StatusText := ""
 
 ; Hotkey handlers
 ^+q::CleanExit()  ; Ctrl+Shift+Q to quit
@@ -47,6 +61,94 @@ global SoundTimerFunc := ""
 ; Function to play notification sound
 PlayNotificationSound() {
     SoundBeep(800, 500)  ; 800Hz beep for 500ms
+}
+
+; Prevent system sleep/hibernation during operation (allows display to turn off)
+PreventSleep() {
+    ; Prevent system sleep but allow display to turn off
+    flags := ES_CONTINUOUS | ES_SYSTEM_REQUIRED
+    result := DllCall("kernel32.dll\SetThreadExecutionState", "UInt", flags, "UInt")
+
+    if (result) {
+        WriteLog("Sleep prevention enabled - system stays awake, display can turn off")
+    } else {
+        WriteLog("WARNING: Failed to enable sleep prevention")
+    }
+
+    return result
+}
+
+; Allow system sleep/hibernation (restore normal power management)
+AllowSleep() {
+    result := DllCall("kernel32.dll\SetThreadExecutionState", "UInt", ES_CONTINUOUS, "UInt")
+
+    if (result) {
+        WriteLog("Sleep prevention disabled - normal power management restored")
+    } else {
+        WriteLog("WARNING: Failed to restore normal power management")
+    }
+
+    return result
+}
+
+; Start waiting notification timer (15 minutes)
+StartWaitingTimer() {
+    global WaitingTimerFunc
+
+    ; Stop any existing timer first
+    StopWaitingTimer()
+    if (!LiveMode) {
+        return  ; Don't start timer in testing mode
+    }
+
+    ; Create timer function and start 15-minute timer
+    WaitingTimerFunc := () => ShowWaitingNotification()
+    SetTimer(WaitingTimerFunc, 15 * 60 * 1000)  ; 15 minutes
+    WriteLog("Waiting timer started - notification in 15 minutes")
+}
+
+; Stop waiting notification timer
+StopWaitingTimer() {
+    global WaitingTimerFunc
+
+    if (WaitingTimerFunc) {
+        SetTimer(WaitingTimerFunc, 0)  ; Stop the timer
+        WaitingTimerFunc := ""
+        WriteLog("Waiting timer stopped")
+    }
+}
+
+; Show "Still waiting?" notification
+ShowWaitingNotification() {
+    global AppState
+
+    ; Only show if still in waiting state
+    if (AppState != "WAITING_FOR_STUDENTS") {
+        StopWaitingTimer()
+        return
+    }
+
+    WriteLog("Showing 15-minute waiting notification")
+
+    result := MsgBox("Still waiting for students to appear?`n`nClick OK to continue waiting or Cancel to pause.",
+                     "Still Waiting?", "OKCancel 4096")
+
+    if (result == "OK") {
+        WriteLog("User chose to continue waiting - restarting timer")
+        StartWaitingTimer()  ; Restart the 15-minute timer
+    } else {
+        WriteLog("User chose to pause - stopping waiting timer")
+        StopWaitingTimer()
+        AppState := "PAUSED"
+    }
+}
+
+; Helper function to quote CSV fields that may contain commas
+QuoteCSVField(field) {
+    ; Escape any double quotes by doubling them
+    field := StrReplace(field, '"', '""')
+    ; Wrap in double quotes
+    return '"' . field . '"'
 }
 
 ; App log function for session data in CSV format
@@ -72,8 +174,11 @@ WriteScanLog(message) {
 CleanExit() {
     WriteLog("Application exit requested")
 
-    ; Clear tooltips
-    ToolTip ""
+    ; Restore normal power management before exit
+    AllowSleep()
+
+    ; Close status dialog
+    CloseStatusDialog()
 
     ; Show exit message
     MsgBox("UPchieve Integrated Detector closed.", "Application Exit", "OK 4096")
@@ -82,9 +187,25 @@ CleanExit() {
 
 ; Toggle pause/resume functionality
 TogglePause() {
-    WriteLog("Application paused via hotkey.")
-    MsgBox("UPchieve Detector Paused`n`nPress OK to resume.", "Detection Paused", "OK 4096")
-    WriteLog("Application resumed.")
+    global AppState
+
+    if (AppState == "PAUSED") {
+        ; Resume from pause
+        AppState := "WAITING_FOR_STUDENTS"
+        StartWaitingTimer()  ; Restart waiting timer when resuming
+        WriteLog("Application resumed via hotkey - waiting timer restarted")
+    } else {
+        ; Pause the application
+        WriteLog("Application paused via hotkey.")
+        StopWaitingTimer()  ; Stop waiting timer when pausing
+        AppState := "PAUSED"
+        MsgBox("UPchieve Detector Paused`n`nPress OK to resume.", "Detection Paused", "OK 4096")
+
+        ; Resume after user clicks OK
+        AppState := "WAITING_FOR_STUDENTS"
+        StartWaitingTimer()  ; Restart waiting timer when resuming
+        WriteLog("Application resumed.")
+    }
 }
 
 ; Manually start or end a session via hotkey
@@ -216,7 +337,7 @@ CheckBlockedNames(student, blockFile := "block_names.txt") {
         blockLines := StrSplit(blockContent, "`n")
 
         for lineNum, line in blockLines {
-            line := Trim(line)
+            line := Trim(line, " `t`r`n")
 
             ; Skip empty lines and comments
             if (line = "" || InStr(line, ";") = 1) {
@@ -307,8 +428,20 @@ SummarizeStudent(name) {
         }
         
         ; Sort entries by date in reverse chronological order
+        ; Simple bubble sort (good enough for small datasets)
         if (studentEntries.Length > 1) {
-            studentEntries.Sort(CompareDates)
+            Loop studentEntries.Length - 1 {
+                i := A_Index
+                Loop studentEntries.Length - i {
+                    j := A_Index
+                    ; Compare dates (assuming MM/d/yy format)
+                    if (CompareDates(studentEntries[j], studentEntries[j+1]) < 0) {
+                        temp := studentEntries[j]
+                        studentEntries[j] := studentEntries[j+1]
+                        studentEntries[j+1] := temp
+                    }
+                }
+            }
         }
         
         ; Build summary (up to 5 most recent visits)
@@ -368,6 +501,58 @@ SoundMuted() {
     return FindText(,, winWidth-700, winHeight-100, winWidth, winHeight, 0.1, 0.1, MutedTarget)
 }
 
+; Create movable status dialog
+CreateStatusDialog() {
+    global StatusDialog, StatusText
+
+    ; Close existing dialog if it exists
+    if (StatusDialog) {
+        StatusDialog.Destroy()
+    }
+
+    ; Create new dialog
+    StatusDialog := Gui("+Resize +MinSize200x50 -MaximizeBox +AlwaysOnTop", "UPchieve Status")
+    StatusDialog.BackColor := "0xF0F0F0"
+
+    ; Add status text control
+    StatusText := StatusDialog.Add("Text", "x10 y10 w180 h30 +Wrap", "Starting...")
+    StatusText.SetFont("s9", "Segoe UI")
+
+    ; Set initial position (top-left corner but not overlapping)
+    StatusDialog.Show("x50 y50 w200 h50")
+
+    return StatusDialog
+}
+
+; Update status dialog text
+UpdateStatusDialog(message) {
+    global StatusDialog, StatusText
+
+    ; Create dialog if it doesn't exist
+    if (!StatusDialog) {
+        CreateStatusDialog()
+    }
+
+    ; Update text
+    if (StatusText) {
+        StatusText.Text := message
+
+        ; Adjust dialog height based on text length
+        lines := 1 + StrLen(StrReplace(message, "`n"))//25  ; Rough estimate
+        newHeight := Max(50, lines * 20 + 20)
+        StatusDialog.Move(,, 200, newHeight)
+    }
+}
+
+; Close status dialog
+CloseStatusDialog() {
+    global StatusDialog
+    if (StatusDialog) {
+        StatusDialog.Destroy()
+        StatusDialog := ""
+    }
+}
+
 ; Main application entry point
 Main() {
     global LiveMode
@@ -394,15 +579,41 @@ Main() {
     WriteLog("Binding FindText to window ID: " . ExtensionWindowID)
     FindText().BindWindow(ExtensionWindowID, 4)
 
-    ; Perform initial header detection
-    if (!RefreshHeaderPositions()) {
-        WriteLog("Initial header detection failed - exiting")
-        MsgBox("Failed to detect page headers.`n`nPlease ensure you're on the UPchieve 'Waiting Students' page with the table visible.", "Header Detection Failed", "OK 4112")
-        CleanExit()
+    ; Perform initial header detection with retries
+    WriteLog("Attempting initial header detection...")
+    maxRetries := 10
+    retryDelay := 2000  ; 2 seconds
+    headersFound := false
+
+    Loop maxRetries {
+        if (RefreshHeaderPositions()) {
+            WriteLog("Headers detected successfully on attempt " . A_Index)
+            headersFound := true
+            break
+        }
+
+        if (A_Index < maxRetries) {
+            WriteLog("Headers not found, retry " . A_Index . "/" . maxRetries . " - waiting " . (retryDelay/1000) . " seconds...")
+            Sleep(retryDelay)
+        }
+    }
+
+    if (!headersFound) {
+        WriteLog("WARNING: Headers not found after " . maxRetries . " attempts - proceeding to main loop anyway")
+        WriteLog("Headers will be retried periodically. If you're in a manual session, script will detect session end.")
     }
 
     WriteLog("Initialization complete - starting main detection loop")
     AppState := "WAITING_FOR_STUDENTS"
+
+    ; Enable sleep prevention during operation
+    PreventSleep()
+
+    ; Start waiting notification timer
+    StartWaitingTimer()
+
+    ; Create status dialog for user feedback
+    CreateStatusDialog()
 
     ; Start main detection loop
     MainDetectionLoop()
@@ -419,7 +630,7 @@ MainDetectionLoop() {
     while (true) {
         ; Handle different application states
         if (AppState == "PAUSED") {
-            ToolTip "⏸️ PAUSED - Press Ctrl+Shift+H to resume", 10, 10, 1
+            UpdateStatusDialog("⏸️ PAUSED - Press Ctrl+Shift+H to resume")
             Sleep(1000)
             continue
         }
@@ -427,7 +638,7 @@ MainDetectionLoop() {
         if (AppState == "IN_SESSION") {
             ; Monitor for session end
             MonitorSessionEnd()
-            Sleep(2000)  ; Check every 2 seconds during session
+            Sleep(1000)  ; Check every 2 seconds during session
             continue
         }
 
@@ -437,11 +648,10 @@ MainDetectionLoop() {
             AppState := "WAITING_FOR_STUDENTS"
         }
 
-        ToolTip "⏳ Waiting for students... (" . modeText . " mode)", 10, 10, 1
+        UpdateStatusDialog("⏳ Waiting for students... (" . modeText . " mode)")
 
         ; 1. Check for headers periodically
         if (A_TickCount - lastHeaderCheckTime > headerCheckInterval) {
-            WriteLog("Periodic header refresh triggered.")
             RefreshHeaderPositions()
             lastHeaderCheckTime := A_TickCount
         }
@@ -478,8 +688,8 @@ ProcessStudentData() {
             logMessage := timestamp . " | SCAN: " . student.name . " (" . student.topic . ")"
             WriteScanLog(logMessage)
         }
-        ToolTip "📈 SCAN: Logged " . students.Length . " students to scan.log", 10, 50, 2
-        SetTimer(() => ToolTip("", , , 2), -5000)
+        ; Show scan message briefly in log instead of dialog to avoid interference
+        WriteLog("📈 SCAN: Logged " . students.Length . " students to scan.log")
         ClearComm() ; Clear communication file after processing
         return ; Exit function after logging
     }
@@ -496,8 +706,8 @@ ProcessStudentData() {
     ; Check if student is blocked
     if (CheckBlockedNames(selectedStudent)) {
         WriteLog("Student blocked - skipping: " . selectedStudent.name)
-        ToolTip "🚫 Blocked student: " . selectedStudent.name, 10, 50, 2
-        SetTimer(() => ToolTip("", , , 2), -5000)
+        ; Show blocked message briefly in log
+        WriteLog("🚫 Blocked student: " . selectedStudent.name)
         return
     }
 
@@ -518,14 +728,23 @@ ProcessStudentData() {
         WinWaitActive("ahk_id " . ExtensionWindowID, , 2)
         Click(clickPos.x, clickPos.y)
 
-        ; Start session
-        StartSession(selectedStudent)
+        ; Wait and verify session started
+        Sleep(2000)  ; Give time for session to load
+
+        ; Check if session actually started by looking for session indicators
+        if (VerifySessionStarted()) {
+            WriteLog("Session verified - student click successful")
+            StartSession(selectedStudent)
+        } else {
+            WriteLog("Session verification failed - click may not have worked")
+            ; Could add retry logic here if needed
+        }
 
     } else {
         ; TESTING mode - log detection without clicking
         WriteLog("TESTING MODE: Would click student " . selectedStudent.name . " at " . clickPos.x . "," . clickPos.y)
-        ToolTip "🧪 Testing: Found " . selectedStudent.name . " (" . selectedStudent.topic . ")", 10, 50, 2
-        SetTimer(() => ToolTip("", , , 2), -5000)
+        ; Show testing message briefly in log
+        WriteLog("🧪 Testing: Found " . selectedStudent.name . " (" . selectedStudent.topic . ")")
     }
 
     ; Clear the communication file now that it has been processed
@@ -537,6 +756,9 @@ StartSession(student) {
     global InSession, AppState, LastStudentName, LastStudentTopic, SessionStartTime, SoundTimerFunc
 
     WriteLog("Starting session with: " . student.ToString())
+
+    ; Stop waiting timer when session starts
+    StopWaitingTimer()
 
     ; Update session variables from extension data first
     InSession := true
@@ -556,7 +778,7 @@ StartSession(student) {
     SoundTimerFunc := () => PlayNotificationSound()
     SetTimer(SoundTimerFunc, 2000)
     ; Keep sounding alert until user clicks OK on msgbox
-    MsgBox("Session started with " . student.name . "(" . student.topic . ") \nClick to confirm", "Session Started", "OK 4096")
+    MsgBox("Session started with " . student.name . "(" . student.topic . ")`nClick to confirm", "Session Started", "OK 4096")
 
     ; Stop the notification
     if (SoundTimerFunc) {
@@ -572,9 +794,31 @@ StartSession(student) {
     if (LastStudentTopic != "") {
         sessionMsg .= " (" . LastStudentTopic . ")"
     }
-    ToolTip sessionMsg, 10, 10, 1
+    UpdateStatusDialog(sessionMsg)
 
     WriteLog("Session started - monitoring for session end. Final student: " . LastStudentName)
+}
+
+; Verify that a session has actually started after clicking
+VerifySessionStarted() {
+    global ExtensionWindowID
+
+    ; Look for visual indicators that a session has started
+    ; This could include checking for:
+    ; 1. Session UI elements
+    ; 2. Change in URL or page content
+    ; 3. Absence of the student waiting list
+
+    ; Check if the student list is no longer visible (indicating we're in a session)
+    ; Use a simple check - if we can't find any student headers, we're likely in session
+    if (!FindText(,, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.1, 0.1, StudentHeaderTarget)) {
+        return true  ; Headers not found - likely in session
+    }
+
+    ; Additional check: look for session-specific UI elements
+    ; You could add more specific pattern matching here based on the session interface
+
+    return false  ; Still seeing student list - session didn't start
 }
 
 ; Monitor for session end by searching the entire window for the target
@@ -584,10 +828,14 @@ MonitorSessionEnd() {
     WriteLog("Monitoring for session end...")
 
     ; Get window dimensions for search area
-    WinGetClientPos(, , &winWidth, &winHeight, ExtensionWindowID)
+    WinGetPos(&winX, &winY, &winWidth, &winHeight)
+    searchX1 := winX + winWidth - 900
+    searchY1 := winY + 360
+    searchX2 := winX + winWidth - 100
+    searchY2 := winY + 500
     
     ; Search the entire window for the session ended target
-    if (FindText(, , 0, 0, winWidth, winHeight, 0.1, 0.1, SessionEndedTarget)) {
+    if (FindText(, , searchX1, searchY1, searchX2, searchY2, 0.1, 0.1, SessionEndedTarget)) {
         WriteLog("SessionEndedTarget found. Ending session.")
         EndCurrentSession()
     }
@@ -613,14 +861,22 @@ EndCurrentSession() {
         ; Reset to waiting state (no script restart needed)
         InSession := false
         AppState := "WAITING_FOR_STUDENTS"
-        ToolTip "⏳ Session ended - waiting for next student", 10, 10, 1
+
+        ; Restart waiting timer when returning to waiting state
+        StartWaitingTimer()
+
+        UpdateStatusDialog("⏳ Session ended - waiting for next student")
         WriteLog("Session ended - continuing monitoring")
 
     } else if (feedbackResult == "Cancel") {
         ; Pause the application
         InSession := false
         AppState := "PAUSED"
-        ToolTip "⏸️ Session ended - application paused", 10, 10, 1
+
+        ; Stop waiting timer when paused
+        StopWaitingTimer()
+
+        UpdateStatusDialog("⏸️ Session ended - application paused")
         WriteLog("Session ended - application paused")
 
     } else {
@@ -640,14 +896,14 @@ ShowStartupDialog() {
     startupGui.AddText("xm y+5", "Choose operation mode:")
 
     ; Mode selection radio buttons
-    testingRadio := startupGui.AddRadio("xm y+15 Checked", "TESTING Mode (detect only, no clicking)")
-    liveRadio := startupGui.AddRadio("xm y+5", "LIVE Mode (click students automatically)")
+    liveRadio := startupGui.AddRadio("xm y+15 Checked", "LIVE Mode (click students automatically)")
     scanRadio := startupGui.AddRadio("xm y+5", "SCAN Mode (timing analysis only)")
+    testingRadio := startupGui.AddRadio("xm y+5", "TESTING Mode (detect only, no clicking)")
 
     ; Information text
-    startupGui.AddText("xm y+15 w300", "TESTING: Detects students and shows notifications without clicking")
-    startupGui.AddText("xm y+5 w300", "LIVE: Automatically clicks detected students and manages sessions")
+    startupGui.AddText("xm y+15 w300", "LIVE: Automatically clicks detected students and manages sessions")
     startupGui.AddText("xm y+5 w300", "SCAN: Logs detection timing data for analysis")
+    startupGui.AddText("xm y+5 w300", "TESTING: Detects students and shows notifications without clicking")
 
     ; Buttons
     continueBtn := startupGui.AddButton("xm y+20 w100 h30", "Continue")
@@ -724,10 +980,9 @@ ShowSessionStartDialog() {
     startTimeEdit.Text := startTimeFormatted
 
     ; Previous session info section (if available)
-    static lastSessionInfo := ""
-    if (lastSessionInfo != "") {
+    if (ShowSessionStartDialog.lastSessionInfo != "" && ShowSessionStartDialog.lastSessionInfo != "No previous session history.") {
         startGui.AddText("xm y+20", "Previous session info:")
-        startGui.AddText("xm y+5 w350", lastSessionInfo)
+        startGui.AddText("xm y+5 w350", ShowSessionStartDialog.lastSessionInfo)
     }
 
     ; Buttons
@@ -900,7 +1155,7 @@ ShowSessionFeedbackDialog() {
         csvRow .= "," ; Column 9: blank
         csvRow .= "," ; Column 10: blank
         csvRow .= StrReplace(StrReplace(subjectEdit.Text, "`n", " "), "`r", "") . "," ; Column 11: subject
-        csvRow .= StrReplace(StrReplace(topicEdit.Text, "`n", " "), "`r", "") . "," ; Column 12: Topic
+        csvRow .= QuoteCSVField(StrReplace(StrReplace(topicEdit.Text, "`n", " "), "`r", "")) . "," ; Column 12: Topic (quoted)
         csvRow .= (mathCheck.Value ? "1" : "0") . "," ; Column 13: Math
         csvRow .= duration . "," ; Column 14: duration
         csvRow .= (initialCheck.Value ? "1" : "0") . "," ; Column 15: Initial response
@@ -909,7 +1164,7 @@ ShowSessionFeedbackDialog() {
         csvRow .= (stoppedCheck.Value ? "1" : "0") . "," ; Column 18: Stopped resp
         csvRow .= progressEdit.Text . "," ; Column 19: Good progress (float 0-1)
         csvRow .= lastMsgEdit.Text . "," ; Column 20: last response
-        csvRow .= StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "") ; Column 21: comments (no trailing comma)
+        csvRow .= QuoteCSVField(StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "")) ; Column 21: comments (quoted, no trailing comma)
 
         WriteAppLog(csvRow)
         WriteLog("Session feedback logged to CSV")
