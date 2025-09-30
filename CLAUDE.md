@@ -63,10 +63,11 @@ Automated student detection for UPchieve using browser extension (recommended) a
 ## AutoHotkey Technical Details
 
 ### Architecture
-- **Header Detection**: Requires all 3 column headers (Student, Subject, Wait Time) before starting
+- **Header Detection**: Retries up to 10 times (2-second intervals) at startup, then proceeds to main loop even if not found. Headers are retried periodically during operation.
 - **SearchZone System**: Header-based positioning for pattern detection
 - **FindText Wait**: 60-second continuous monitoring (no polling)
 - **Subject Recognition**: Direct pattern matching for 10+ subjects
+- **Manual Session Handling**: If script starts during a manual session, it will wait until session ends to detect headers
 
 ### Session Management
 1. **WAITING_FOR_STUDENT**: Scans for "< 1 minute" indicators
@@ -75,7 +76,7 @@ Automated student detection for UPchieve using browser extension (recommended) a
 4. **CSV Export**: 21-column format for spreadsheet analysis
 
 ### Performance
-- **Header detection**: Once at startup
+- **Header detection**: Up to 10 retries at startup (2s intervals), then periodic refresh every 60s
 - **Student detection**: ~25ms (pattern matching) + ~25ms (blocking check)
 - **Subject detection**: ~25ms (pattern matching)
 - **Wait monitoring**: 60-second continuous cycles
@@ -83,7 +84,7 @@ Automated student detection for UPchieve using browser extension (recommended) a
 ## Troubleshooting
 - **Extension**: Check console (F12) for debug output
 - **AutoHotkey**: Ensure all 3 column headers visible, browser zoom at 100%
-- **Missing headers**: Reload page if header detection fails
+- **Missing headers**: Script will retry automatically. If starting during a manual session, script will wait for session to end before detecting headers.
 - **Pattern issues**: Check that UI elements match expected visual patterns
 
 ## Dependencies

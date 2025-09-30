@@ -18,7 +18,7 @@ CoordMode("Pixel", "Window")
 ; Application state variables
 global LiveMode := false
 global ScanMode := false
-global modeText := "TESTING"
+global modeText := "LIVE"
 global AppState := "STARTING"  ; STARTING, WAITING_FOR_STUDENTS, IN_SESSION, PAUSED
 
 ; Sleep prevention constants
@@ -141,6 +141,14 @@ ShowWaitingNotification() {
         StopWaitingTimer()
         AppState := "PAUSED"
     }
+}
+
+; Helper function to quote CSV fields that may contain commas
+QuoteCSVField(field) {
+    ; Escape any double quotes by doubling them
+    field := StrReplace(field, '"', '""')
+    ; Wrap in double quotes
+    return '"' . field . '"'
 }
 
 ; App log function for session data in CSV format
@@ -571,11 +579,28 @@ Main() {
     WriteLog("Binding FindText to window ID: " . ExtensionWindowID)
     FindText().BindWindow(ExtensionWindowID, 4)
 
-    ; Perform initial header detection
-    if (!RefreshHeaderPositions()) {
-        WriteLog("Initial header detection failed - exiting")
-        MsgBox("Failed to detect page headers.`n`nPlease ensure you're on the UPchieve 'Waiting Students' page with the table visible.", "Header Detection Failed", "OK 4112")
-        CleanExit()
+    ; Perform initial header detection with retries
+    WriteLog("Attempting initial header detection...")
+    maxRetries := 10
+    retryDelay := 2000  ; 2 seconds
+    headersFound := false
+
+    Loop maxRetries {
+        if (RefreshHeaderPositions()) {
+            WriteLog("Headers detected successfully on attempt " . A_Index)
+            headersFound := true
+            break
+        }
+
+        if (A_Index < maxRetries) {
+            WriteLog("Headers not found, retry " . A_Index . "/" . maxRetries . " - waiting " . (retryDelay/1000) . " seconds...")
+            Sleep(retryDelay)
+        }
+    }
+
+    if (!headersFound) {
+        WriteLog("WARNING: Headers not found after " . maxRetries . " attempts - proceeding to main loop anyway")
+        WriteLog("Headers will be retried periodically. If you're in a manual session, script will detect session end.")
     }
 
     WriteLog("Initialization complete - starting main detection loop")
@@ -803,10 +828,14 @@ MonitorSessionEnd() {
     WriteLog("Monitoring for session end...")
 
     ; Get window dimensions for search area
-    WinGetClientPos(, , &winWidth, &winHeight, ExtensionWindowID)
+    WinGetPos(&winX, &winY, &winWidth, &winHeight)
+    searchX1 := winX + winWidth - 900
+    searchY1 := winY + 360
+    searchX2 := winX + winWidth - 100
+    searchY2 := winY + 500
     
     ; Search the entire window for the session ended target
-    if (FindText(, , 0, 0, winWidth, winHeight, 0.1, 0.1, SessionEndedTarget)) {
+    if (FindText(, , searchX1, searchY1, searchX2, searchY2, 0.1, 0.1, SessionEndedTarget)) {
         WriteLog("SessionEndedTarget found. Ending session.")
         EndCurrentSession()
     }
@@ -867,14 +896,14 @@ ShowStartupDialog() {
     startupGui.AddText("xm y+5", "Choose operation mode:")
 
     ; Mode selection radio buttons
-    testingRadio := startupGui.AddRadio("xm y+15 Checked", "TESTING Mode (detect only, no clicking)")
-    liveRadio := startupGui.AddRadio("xm y+5", "LIVE Mode (click students automatically)")
+    liveRadio := startupGui.AddRadio("xm y+15 Checked", "LIVE Mode (click students automatically)")
     scanRadio := startupGui.AddRadio("xm y+5", "SCAN Mode (timing analysis only)")
+    testingRadio := startupGui.AddRadio("xm y+5", "TESTING Mode (detect only, no clicking)")
 
     ; Information text
-    startupGui.AddText("xm y+15 w300", "TESTING: Detects students and shows notifications without clicking")
-    startupGui.AddText("xm y+5 w300", "LIVE: Automatically clicks detected students and manages sessions")
+    startupGui.AddText("xm y+15 w300", "LIVE: Automatically clicks detected students and manages sessions")
     startupGui.AddText("xm y+5 w300", "SCAN: Logs detection timing data for analysis")
+    startupGui.AddText("xm y+5 w300", "TESTING: Detects students and shows notifications without clicking")
 
     ; Buttons
     continueBtn := startupGui.AddButton("xm y+20 w100 h30", "Continue")
@@ -1126,7 +1155,7 @@ ShowSessionFeedbackDialog() {
         csvRow .= "," ; Column 9: blank
         csvRow .= "," ; Column 10: blank
         csvRow .= StrReplace(StrReplace(subjectEdit.Text, "`n", " "), "`r", "") . "," ; Column 11: subject
-        csvRow .= StrReplace(StrReplace(topicEdit.Text, "`n", " "), "`r", "") . "," ; Column 12: Topic
+        csvRow .= QuoteCSVField(StrReplace(StrReplace(topicEdit.Text, "`n", " "), "`r", "")) . "," ; Column 12: Topic (quoted)
         csvRow .= (mathCheck.Value ? "1" : "0") . "," ; Column 13: Math
         csvRow .= duration . "," ; Column 14: duration
         csvRow .= (initialCheck.Value ? "1" : "0") . "," ; Column 15: Initial response
@@ -1135,7 +1164,7 @@ ShowSessionFeedbackDialog() {
         csvRow .= (stoppedCheck.Value ? "1" : "0") . "," ; Column 18: Stopped resp
         csvRow .= progressEdit.Text . "," ; Column 19: Good progress (float 0-1)
         csvRow .= lastMsgEdit.Text . "," ; Column 20: last response
-        csvRow .= StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "") ; Column 21: comments (no trailing comma)
+        csvRow .= QuoteCSVField(StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "")) ; Column 21: comments (quoted, no trailing comma)
 
         WriteAppLog(csvRow)
         WriteLog("Session feedback logged to CSV")
