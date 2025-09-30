@@ -140,6 +140,7 @@ ProcessUpchieveUpload(fileName) {
 
     WinActivate(upchieveWindowTitle)
     WinWaitActive(upchieveWindowTitle, , 3)
+    WinGetPos(&winX, &winY, &winWidth, &winHeight)
 
     if (!WinActive(upchieveWindowTitle)) {
         WriteLog("ERROR: Failed to activate Baseline workspace window")
@@ -153,7 +154,7 @@ ProcessUpchieveUpload(fileName) {
 
     ; Find and click Upload Icon (this also validates we're on the UPchieve tab)
     WriteLog("Looking for Upload Icon to validate UPchieve tab and start upload")
-    if (!FindAndClick(UploadIconTarget)) {
+    if (!FindAndClick(UploadIconTarget, 600, winHeight - 250, 1700, winHeight - 100)) {
         WriteLog("ERROR: Upload Icon not found - ensure UPchieve tab is active in Baseline workspace")
         return false
     }
