@@ -6,6 +6,7 @@
     "configurations": [
 
 
+
         
 
 
@@ -28,10 +29,10 @@
         },
 
         {
-            "name": "Name Block Tester",
+            "name": "Upload Image",
             "type": "ahk2",
             "request": "launch",
-            "program": "c:/users/mike/upchieve_ahk/debug_blocking_test.ahk",
+            "program": "c:/users/mike/upchieve_ahk/upload_image.ahk",
             "args": [],
             "stopOnEntry": true
         },

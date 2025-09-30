@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(\"C:\\Program Files\\AutoHotkey\\v2\\AutoHotkey64.exe\" /ErrorStdOut \"upload_image.ahk\")"
     ],
     "deny": [],
     "ask": []
