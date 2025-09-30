@@ -5,6 +5,7 @@
 #include search_targets.ahk
 #Include comm_manager.ahk
 #Include header_manager.ahk
+#Include upload_image.ahk
 
 ; Set coordinate mode to window coordinates for unified coordinate system
 CoordMode("Mouse", "Window")
