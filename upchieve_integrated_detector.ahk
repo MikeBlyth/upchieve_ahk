@@ -796,7 +796,7 @@ StartSession(student) {
     }
     UpdateStatusDialog(sessionMsg)
 
-    WriteLog("Session started - monitoring for session end. Final student: " . LastStudentName)
+;    WriteLog("Session started - monitoring for session end. Student: " . LastStudentName)
 }
 
 ; Verify that a session has actually started after clicking
@@ -825,7 +825,7 @@ VerifySessionStarted() {
 MonitorSessionEnd() {
     global ExtensionWindowID, InSession, SessionEndedTarget
 
-    WriteLog("Monitoring for session end...")
+;    WriteLog("Monitoring for session end...")
 
     ; Get window dimensions for search area
     WinGetPos(&winX, &winY, &winWidth, &winHeight)
