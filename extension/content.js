@@ -65,6 +65,15 @@ function initializeDetector() {
 
     debugLog(1, '🎯 Initializing DOM monitoring...');
 
+    // Initial scan to remove any existing header rows
+    document.querySelectorAll('.session-row').forEach(row => {
+        const firstColumn = row.querySelector('td:first-child');
+        if (firstColumn && firstColumn.textContent.includes('Student')) {
+            debugLog(1, '🗑️ Deleting existing header row on init:', row);
+            row.remove();
+        }
+    });
+
     // Create DOM observer for student row changes (additions and removals)
     domObserver = new MutationObserver(mutations => {
         if (!detectorEnabled) return;
@@ -73,46 +82,35 @@ function initializeDetector() {
         let changeDetails = [];
 
         mutations.forEach(mutation => {
-            // Check for added student rows
+            // Process added nodes
             mutation.addedNodes.forEach(node => {
-                if (node.nodeType === 1) { // Element node
-                    // Check if the added node is a student row
-                    if (node.classList && node.classList.contains('session-row')) {
-                        debugLog(1, '🚨 New student added via DOM monitoring:', node);
+                if (node.nodeType !== 1) return; // Not an element
+
+                // Find all session rows within the added node, or check the node itself
+                const rows = node.matches('.session-row') ? [node] : Array.from(node.querySelectorAll('.session-row'));
+
+                rows.forEach(row => {
+                    const firstColumn = row.querySelector('td:first-child');
+                    if (firstColumn && firstColumn.textContent.includes('Student')) {
+                        debugLog(1, '🗑️ Deleting header row:', row);
+                        row.remove();
+                    } else {
+                        debugLog(1, '🚨 New student added via DOM monitoring:', row);
                         studentListChanged = true;
                         changeDetails.push('student row added');
                     }
-
-                    // Also check if student rows were added within this node
-                    if (node.querySelectorAll) {
-                        const newStudentRows = node.querySelectorAll('.session-row');
-                        if (newStudentRows.length > 0) {
-                            debugLog(1, `🚨 ${newStudentRows.length} new student(s) added in container:`, newStudentRows);
-                            studentListChanged = true;
-                            changeDetails.push(`${newStudentRows.length} students added in container`);
-                        }
-                    }
-                }
+                });
             });
 
-            // Check for removed student rows
+            // Process removed nodes to see if it was a student
             mutation.removedNodes.forEach(node => {
-                if (node.nodeType === 1) { // Element node
-                    // Check if the removed node is a student row
-                    if (node.classList && node.classList.contains('session-row')) {
+                if (node.nodeType === 1 && node.matches && node.matches('.session-row')) {
+                    // Check it's not a header row we just deleted
+                    const firstColumn = node.querySelector('td:first-child');
+                    if (!firstColumn || !firstColumn.textContent.includes('Student')) {
                         debugLog(1, '📤 Student removed via DOM monitoring:', node);
                         studentListChanged = true;
                         changeDetails.push('student row removed');
-                    }
-
-                    // Also check if student rows were removed within this node
-                    if (node.querySelectorAll) {
-                        const removedStudentRows = node.querySelectorAll('.session-row');
-                        if (removedStudentRows.length > 0) {
-                            debugLog(1, `📤 ${removedStudentRows.length} student(s) removed in container:`, removedStudentRows);
-                            studentListChanged = true;
-                            changeDetails.push(`${removedStudentRows.length} students removed in container`);
-                        }
                     }
                 }
             });
