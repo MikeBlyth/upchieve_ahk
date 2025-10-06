@@ -52,6 +52,12 @@ global SoundTimerFunc := ""
 global StatusDialog := ""
 global StatusText := ""
 
+
+; Subjects
+global Subjects := ["6th Grade Math", "7th Grade Math", "8th Grade Math", "9th Grade Math", 
+  "Prealgebra", "Algebra", "Algebra 1", "Integrated Math", 
+  "Statistics", "AP Computer Science A", "AP Computer Science Principles"]
+
 ; Hotkey handlers
 ^+q::CleanExit()  ; Ctrl+Shift+Q to quit
 ^+h::TogglePause()  ; Ctrl+Shift+H to pause/resume
@@ -194,17 +200,13 @@ TogglePause() {
         AppState := "WAITING_FOR_STUDENTS"
         StartWaitingTimer()  ; Restart waiting timer when resuming
         WriteLog("Application resumed via hotkey - waiting timer restarted")
+        UpdateStatusDialog("⏳ Resumed - waiting for students...")
     } else {
         ; Pause the application
         WriteLog("Application paused via hotkey.")
         StopWaitingTimer()  ; Stop waiting timer when pausing
         AppState := "PAUSED"
-        MsgBox("UPchieve Detector Paused`n`nPress OK to resume.", "Detection Paused", "OK 4096")
-
-        ; Resume after user clicks OK
-        AppState := "WAITING_FOR_STUDENTS"
-        StartWaitingTimer()  ; Restart waiting timer when resuming
-        WriteLog("Application resumed.")
+        UpdateStatusDialog("⏸️ PAUSED - Press Ctrl+Shift+H to resume")
     }
 }
 
@@ -343,7 +345,7 @@ CheckBlockedNames(student, blockFile := "block_names.txt") {
             if (line = "" || InStr(line, ";") = 1) {
                 continue
             }
-
+            line := StrSplit(line, ",")[1]  ; Remove comments
             ; Case-insensitive name matching
             if (InStr(StrLower(student.name), StrLower(line)) > 0) {
                 WriteLog("BLOCKED: Student '" . student.name . "' matches blocked pattern '" . line . "'")
@@ -631,6 +633,13 @@ MainDetectionLoop() {
         ; Handle different application states
         if (AppState == "PAUSED") {
             UpdateStatusDialog("⏸️ PAUSED - Press Ctrl+Shift+H to resume")
+
+            ; Check if user manually opened a session while paused
+            if (CheckForManualSession()) {
+                WriteLog("Manual session detected while paused - starting session tracking")
+                StartSession(Student("", "", 0))
+            }
+
             Sleep(1000)
             continue
         }
@@ -711,6 +720,10 @@ ProcessStudentData() {
         return
     }
 
+    if !IndexOf(Subjects, selectedStudent.topic) {
+        WriteLog("WARNING: Student topic '" . selectedStudent.topic . "' not in predefined subjects list")
+        return
+    }
     ; Calculate click position
     clickPos := CalculateClickPosition(selectedStudent.name)
     if (clickPos.x == 0 || clickPos.y == 0) {
@@ -797,6 +810,26 @@ StartSession(student) {
     UpdateStatusDialog(sessionMsg)
 
 ;    WriteLog("Session started - monitoring for session end. Student: " . LastStudentName)
+}
+
+; Check if user has manually opened a session (used when paused)
+CheckForManualSession() {
+    global ExtensionWindowID
+
+    ; Get current window dimensions
+    WinGetPos(&winX, &winY, &winWidth, &winHeight, "ahk_id " . ExtensionWindowID)
+
+    ; Look for PencilTipTarget in the specified zone (right edge - 850 to right edge - 700, Y: 400-496)
+    searchX1 := winX + winWidth - 850
+    searchY1 := winY + 400
+    searchX2 := winX + winWidth - 700
+    searchY2 := winY + 496
+
+    if (FindText(, , searchX1, searchY1, searchX2, searchY2, 0.1, 0.1, PencilTipTarget)) {
+        return true
+    }
+
+    return false
 }
 
 ; Verify that a session has actually started after clicking

@@ -5,6 +5,14 @@ WriteLog(message, filename := "debug_log.txt") {
     FileAppend timestamp . " - " . message . "`n", filename
 }
 
+IndexOf(arr, val) {
+	Loop arr.Length {
+		if (arr[A_Index] == val)
+			return A_Index
+	}
+    return 0
+}
+
 GetTargetWindow(message := 'Select window', confirm := true) {
     ; Function to get the target window ID
     ; Window selection and binding
