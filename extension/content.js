@@ -59,19 +59,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // DOM monitoring variables
 let domObserver = null;
 
+// Determines if a row should be deleted based on its class.
+function isRowToDelete(row) {
+    if (!row || row.nodeType !== 1) {
+        return false;
+    }
+    // The user has clarified that any row with 'session-row-locked' should be deleted.
+    if (row.classList.contains('session-row-locked')) {
+        debugLog(2, '🗑️ Row identified for deletion by class \'session-row-locked\':', row);
+        return true;
+    }
+    return false;
+}
+
 // Initialize the student detector
 function initializeDetector() {
     if (domObserver) return; // Already initialized
 
     debugLog(1, '🎯 Initializing DOM monitoring...');
 
-    // Initial scan to remove any existing header rows
-    document.querySelectorAll('.session-row').forEach(row => {
-        const firstColumn = row.querySelector('td:first-child');
-        if (firstColumn && firstColumn.textContent.includes('Student')) {
-            debugLog(1, '🗑️ Deleting existing header row on init:', row);
-            row.remove();
-        }
+    // Initial scan to remove any rows that should be deleted
+    document.querySelectorAll('.session-row.session-row-locked').forEach(row => {
+        debugLog(1, '🗑️ Deleting existing locked row on init:', row);
+        row.remove();
     });
 
     // Create DOM observer for student row changes (additions and removals)
@@ -90,11 +100,11 @@ function initializeDetector() {
                 const rows = node.matches('.session-row') ? [node] : Array.from(node.querySelectorAll('.session-row'));
 
                 rows.forEach(row => {
-                    const firstColumn = row.querySelector('td:first-child');
-                    if (firstColumn && firstColumn.textContent.includes('Student')) {
-                        debugLog(1, '🗑️ Deleting header row:', row);
+                    if (isRowToDelete(row)) {
+                        debugLog(1, '🗑️ Deleting locked row:', row);
                         row.remove();
                     } else {
+                        // This is a valid student row, so we flag that the list has changed.
                         debugLog(1, '🚨 New student added via DOM monitoring:', row);
                         studentListChanged = true;
                         changeDetails.push('student row added');
@@ -104,10 +114,10 @@ function initializeDetector() {
 
             // Process removed nodes to see if it was a student
             mutation.removedNodes.forEach(node => {
+                // We only care about .session-row elements being removed.
                 if (node.nodeType === 1 && node.matches && node.matches('.session-row')) {
-                    // Check it's not a header row we just deleted
-                    const firstColumn = node.querySelector('td:first-child');
-                    if (!firstColumn || !firstColumn.textContent.includes('Student')) {
+                    // If the removed node was NOT a row we intended to delete, it must have been a real student.
+                    if (!isRowToDelete(node)) {
                         debugLog(1, '📤 Student removed via DOM monitoring:', node);
                         studentListChanged = true;
                         changeDetails.push('student row removed');
@@ -116,7 +126,7 @@ function initializeDetector() {
             });
         });
 
-        // If student list changed, trigger detection to update clipboard
+        // If a valid student was added or removed, trigger the data extraction.
         if (studentListChanged) {
             debugLog(1, '🔄 Student list changed:', changeDetails.join(', '));
             triggerStudentDetection('DOM monitoring', changeDetails.join(', '));
