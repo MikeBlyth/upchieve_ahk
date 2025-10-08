@@ -4,8 +4,15 @@
 
 console.log('🚀 UPchieve Student Detector Extension loaded');
 
-// Enable design mode on page load
-
+// Inject a stylesheet for hiding rows safely
+function injectHidingStylesheet() {
+    const style = document.createElement('style');
+    style.id = 'gemini-hiding-style';
+    style.innerHTML = `.gemini-hidden-row { display: none !important; }`;
+    document.head.appendChild(style);
+    debugLog(1, '🎨 Injected hiding stylesheet');
+}
+injectHidingStylesheet();
 
 
 // Configuration
@@ -81,7 +88,7 @@ function initializeDetector() {
     // Initial scan to hide any rows that should be deleted
     document.querySelectorAll('.session-row.session-row-locked').forEach(row => {
         debugLog(1, '🙈 Hiding existing locked row on init:', row);
-        row.style.display = 'none';
+        row.classList.add('gemini-hidden-row');
     });
 
     // Create DOM observer for student row changes (additions and removals)
@@ -100,7 +107,7 @@ function initializeDetector() {
                     rows.forEach(row => {
                         if (isRowToDelete(row)) {
                             debugLog(1, '🙈 Hiding locked row on add:', row);
-                            row.style.display = 'none';
+                            row.classList.add('gemini-hidden-row');
                         } else {
                             debugLog(1, '🚨 New student added:', row);
                             studentListChanged = true;
@@ -125,7 +132,7 @@ function initializeDetector() {
                 // Check if the row now matches the deletion criteria
                 if (row && row.matches && row.matches('.session-row') && isRowToDelete(row)) {
                     debugLog(1, '🙈 Hiding locked row after class update:', row);
-                    row.style.display = 'none';
+                    row.classList.add('gemini-hidden-row');
                     // Since we hid a row, trigger a re-evaluation.
                     studentListChanged = true;
                     changeDetails.push('locked row hidden by attribute change');
@@ -266,8 +273,8 @@ function extractAndDisplayStudentData() {
         const students = [];
 
         sessionRows.forEach((row, index) => {
-            // Skip any rows that have been hidden
-            if (row.style.display === 'none') {
+            // Skip any rows that have been hidden by the extension
+            if (row.classList.contains('gemini-hidden-row')) {
                 debugLog(2, `🙈 Skipping hidden row ${index}`);
                 return; // Continue to next iteration
             }
