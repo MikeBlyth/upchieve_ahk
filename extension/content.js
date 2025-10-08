@@ -175,6 +175,13 @@ function disableDetector() {
         domObserver = null;
         debugLog(1, '🛑 DOM monitoring disabled');
     }
+
+    // Remove the injected stylesheet when disabling the detector
+    const styleElement = document.getElementById('gemini-global-styles');
+    if (styleElement && styleElement.parentNode) {
+        styleElement.parentNode.removeChild(styleElement);
+        debugLog(1, '🎨 Removed global stylesheet');
+    }
 }
 
 // Debouncing for student detection
