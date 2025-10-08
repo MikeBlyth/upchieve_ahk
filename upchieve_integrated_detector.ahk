@@ -579,6 +579,7 @@ FindHeadersWithRetry() {
     if (!headersFound) {
         WriteLog("WARNING: Headers not found after " . maxRetries . " attempts.")
         UpdateStatusDialog("⚠️ Headers not found. Will retry periodically.")
+        MsgBox("WARNING: Student header not found after " . maxRetries . " attempts. Please ensure the UPchieve page is visible and not covered.", "Header Not Found", "OK 4096")
     }
     return headersFound
 }
