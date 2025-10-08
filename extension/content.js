@@ -5,8 +5,8 @@
 console.log('🚀 UPchieve Student Detector Extension loaded');
 
 // Enable design mode on page load
-document.designMode = 'on';
-console.log('✏️ Design mode enabled');
+
+
 
 // Configuration
 let detectorEnabled = false;
@@ -78,10 +78,10 @@ function initializeDetector() {
 
     debugLog(1, '🎯 Initializing DOM monitoring...');
 
-    // Initial scan to remove any rows that should be deleted
+    // Initial scan to hide any rows that should be deleted
     document.querySelectorAll('.session-row.session-row-locked').forEach(row => {
-        debugLog(1, '🗑️ Deleting existing locked row on init:', row);
-        row.remove();
+        debugLog(1, '🙈 Hiding existing locked row on init:', row);
+        row.style.display = 'none';
     });
 
     // Create DOM observer for student row changes (additions and removals)
@@ -92,38 +92,45 @@ function initializeDetector() {
         let changeDetails = [];
 
         mutations.forEach(mutation => {
-            // Process added nodes
-            mutation.addedNodes.forEach(node => {
-                if (node.nodeType !== 1) return; // Not an element
+            // Handle added/removed nodes
+            if (mutation.type === 'childList') {
+                mutation.addedNodes.forEach(node => {
+                    if (node.nodeType !== 1) return;
+                    const rows = node.matches('.session-row') ? [node] : Array.from(node.querySelectorAll('.session-row'));
+                    rows.forEach(row => {
+                        if (isRowToDelete(row)) {
+                            debugLog(1, '🙈 Hiding locked row on add:', row);
+                            row.style.display = 'none';
+                        } else {
+                            debugLog(1, '🚨 New student added:', row);
+                            studentListChanged = true;
+                            changeDetails.push('student row added');
+                        }
+                    });
+                });
 
-                // Find all session rows within the added node, or check the node itself
-                const rows = node.matches('.session-row') ? [node] : Array.from(node.querySelectorAll('.session-row'));
-
-                rows.forEach(row => {
-                    if (isRowToDelete(row)) {
-                        debugLog(1, '🗑️ Deleting locked row:', row);
-                        row.remove();
-                    } else {
-                        // This is a valid student row, so we flag that the list has changed.
-                        debugLog(1, '🚨 New student added via DOM monitoring:', row);
-                        studentListChanged = true;
-                        changeDetails.push('student row added');
+                mutation.removedNodes.forEach(node => {
+                    if (node.nodeType === 1 && node.matches && node.matches('.session-row')) {
+                        if (!isRowToDelete(node)) {
+                            debugLog(1, '📤 Student removed:', node);
+                            studentListChanged = true;
+                            changeDetails.push('student row removed');
+                        }
                     }
                 });
-            });
-
-            // Process removed nodes to see if it was a student
-            mutation.removedNodes.forEach(node => {
-                // We only care about .session-row elements being removed.
-                if (node.nodeType === 1 && node.matches && node.matches('.session-row')) {
-                    // If the removed node was NOT a row we intended to delete, it must have been a real student.
-                    if (!isRowToDelete(node)) {
-                        debugLog(1, '📤 Student removed via DOM monitoring:', node);
-                        studentListChanged = true;
-                        changeDetails.push('student row removed');
-                    }
+            }
+            // Handle class attribute changes
+            else if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+                const row = mutation.target;
+                // Check if the row now matches the deletion criteria
+                if (row && row.matches && row.matches('.session-row') && isRowToDelete(row)) {
+                    debugLog(1, '🙈 Hiding locked row after class update:', row);
+                    row.style.display = 'none';
+                    // Since we hid a row, trigger a re-evaluation.
+                    studentListChanged = true;
+                    changeDetails.push('locked row hidden by attribute change');
                 }
-            });
+            }
         });
 
         // If a valid student was added or removed, trigger the data extraction.
@@ -142,14 +149,18 @@ function initializeDetector() {
     if (tableContainer) {
         domObserver.observe(tableContainer, {
             childList: true,
-            subtree: true
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class']
         });
         debugLog(1, '👀 DOM monitoring initialized on:', tableContainer.tagName + (tableContainer.className ? '.' + tableContainer.className : ''));
     } else {
         debugLog(1, '⚠️ Could not find student table container, monitoring document body');
         domObserver.observe(document.body, {
             childList: true,
-            subtree: true
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['class']
         });
     }
 }
@@ -164,18 +175,20 @@ function disableDetector() {
 }
 
 // Debouncing for student detection
-let lastDetectionTime = 0;
+let detectionTimeout = null;
 function triggerStudentDetection(method, details) {
-    const now = Date.now();
-    if (now - lastDetectionTime < 1000) { // Debounce multiple triggers within 1 second
-        debugLog(1, '⏸️ Detection debounced (too soon after last detection)');
-        return;
+    // Clear any pending detection to ensure we only run once after the last change.
+    if (detectionTimeout) {
+        clearTimeout(detectionTimeout);
     }
-    lastDetectionTime = now;
 
-    debugLog(1, `🎯 Student detection triggered by ${method}: ${details}`);
-    // DOM changes are immediate, no delay needed
-    extractAndDisplayStudentData();
+    // Schedule a new detection to run after a short delay (e.g., 250ms).
+    // This groups together rapid-fire mutations into a single processing event.
+    detectionTimeout = setTimeout(() => {
+        debugLog(1, `🎯 Student detection triggered by ${method}: ${details}`);
+        extractAndDisplayStudentData();
+        detectionTimeout = null; // Reset after running
+    }, 250);
 }
 
 // Format all students for clipboard in AHK-compatible format
@@ -253,6 +266,12 @@ function extractAndDisplayStudentData() {
         const students = [];
 
         sessionRows.forEach((row, index) => {
+            // Skip any rows that have been hidden
+            if (row.style.display === 'none') {
+                debugLog(2, `🙈 Skipping hidden row ${index}`);
+                return; // Continue to next iteration
+            }
+
             try {
                 // Look for student name (typically in first column)
                 const nameElements = row.querySelectorAll('td:first-child, .student-name, [data-testid*="name"], [class*="name"]');

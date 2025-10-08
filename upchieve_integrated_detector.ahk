@@ -555,6 +555,34 @@ CloseStatusDialog() {
     }
 }
 
+; Find headers with multiple retries
+FindHeadersWithRetry() {
+    WriteLog("Attempting to find headers with retries...")
+    maxRetries := 10
+    retryDelay := 2000  ; 2 seconds
+    headersFound := false
+
+    Loop maxRetries {
+        UpdateStatusDialog("🔎 Searching for headers... (Attempt " . A_Index . "/" . maxRetries . ")")
+        if (RefreshHeaderPositions()) {
+            WriteLog("Headers detected successfully on attempt " . A_Index)
+            headersFound := true
+            break
+        }
+
+        if (A_Index < maxRetries) {
+            WriteLog("Headers not found, retry " . A_Index . "/" . maxRetries . " - waiting " . (retryDelay/1000) . " seconds...")
+            Sleep(retryDelay)
+        }
+    }
+
+    if (!headersFound) {
+        WriteLog("WARNING: Headers not found after " . maxRetries . " attempts.")
+        UpdateStatusDialog("⚠️ Headers not found. Will retry periodically.")
+    }
+    return headersFound
+}
+
 ; Main application entry point
 Main() {
     global LiveMode
@@ -582,26 +610,8 @@ Main() {
     FindText().BindWindow(ExtensionWindowID, 4)
 
     ; Perform initial header detection with retries
-    WriteLog("Attempting initial header detection...")
-    maxRetries := 10
-    retryDelay := 2000  ; 2 seconds
-    headersFound := false
-
-    Loop maxRetries {
-        if (RefreshHeaderPositions()) {
-            WriteLog("Headers detected successfully on attempt " . A_Index)
-            headersFound := true
-            break
-        }
-
-        if (A_Index < maxRetries) {
-            WriteLog("Headers not found, retry " . A_Index . "/" . maxRetries . " - waiting " . (retryDelay/1000) . " seconds...")
-            Sleep(retryDelay)
-        }
-    }
-
-    if (!headersFound) {
-        WriteLog("WARNING: Headers not found after " . maxRetries . " attempts - proceeding to main loop anyway")
+    if (!FindHeadersWithRetry()) {
+        WriteLog("WARNING: Initial header detection failed - proceeding to main loop anyway")
         WriteLog("Headers will be retried periodically. If you're in a manual session, script will detect session end.")
     }
 
@@ -900,6 +910,9 @@ EndCurrentSession() {
 
         UpdateStatusDialog("⏳ Session ended - waiting for next student")
         WriteLog("Session ended - continuing monitoring")
+
+        ; Actively search for headers before resuming main loop
+        FindHeadersWithRetry()
 
     } else if (feedbackResult == "Cancel") {
         ; Pause the application
