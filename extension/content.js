@@ -4,17 +4,6 @@
 
 console.log('🚀 UPchieve Student Detector Extension loaded');
 
-// Inject a stylesheet for hiding rows safely
-function injectHidingStylesheet() {
-    const style = document.createElement('style');
-    style.id = 'gemini-hiding-style';
-    style.innerHTML = `.gemini-hidden-row { display: none !important; }`;
-    document.head.appendChild(style);
-    debugLog(1, '🎨 Injected hiding stylesheet');
-}
-injectHidingStylesheet();
-
-
 // Configuration
 let detectorEnabled = false;
 let debugLevel = 1;
@@ -26,6 +15,28 @@ function debugLog(level, message, ...args) {
         console.log(`[${timestamp}] ${message}`, ...args);
     }
 }
+
+// Inject a stylesheet for global page styles (text selection, hiding rows)
+function injectHidingStylesheet() {
+    const style = document.createElement('style');
+    style.id = 'gemini-global-styles';
+    style.innerHTML = `
+        /* Force text selection to be enabled everywhere */
+        * {
+            user-select: text !important;
+            -webkit-user-select: text !important;
+        }
+
+        /* Hide locked rows directly via CSS */
+        .session-row.session-row-locked {
+            display: none !important;
+        }
+    `;
+    document.head.appendChild(style);
+    debugLog(1, '🎨 Injected global stylesheet');
+}
+
+injectHidingStylesheet();
 
 // Check if detector should be enabled (from storage)
 chrome.storage.sync.get(['detectorEnabled'], function(result) {
@@ -66,18 +77,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // DOM monitoring variables
 let domObserver = null;
 
-// Determines if a row should be deleted based on its class.
-function isRowToDelete(row) {
-    if (!row || row.nodeType !== 1) {
-        return false;
-    }
-    // The user has clarified that any row with 'session-row-locked' should be deleted.
-    if (row.classList.contains('session-row-locked')) {
-        debugLog(2, '🗑️ Row identified for deletion by class \'session-row-locked\':', row);
-        return true;
-    }
-    return false;
-}
+
 
 // Initialize the student detector
 function initializeDetector() {
@@ -85,11 +85,7 @@ function initializeDetector() {
 
     debugLog(1, '🎯 Initializing DOM monitoring...');
 
-    // Initial scan to hide any rows that should be deleted
-    document.querySelectorAll('.session-row.session-row-locked').forEach(row => {
-        debugLog(1, '🙈 Hiding existing locked row on init:', row);
-        row.classList.add('gemini-hidden-row');
-    });
+    // Initial scan is no longer needed as CSS handles hiding
 
     // Create DOM observer for student row changes (additions and removals)
     domObserver = new MutationObserver(mutations => {
@@ -105,10 +101,9 @@ function initializeDetector() {
                     if (node.nodeType !== 1) return;
                     const rows = node.matches('.session-row') ? [node] : Array.from(node.querySelectorAll('.session-row'));
                     rows.forEach(row => {
-                        if (isRowToDelete(row)) {
-                            debugLog(1, '🙈 Hiding locked row on add:', row);
-                            row.classList.add('gemini-hidden-row');
-                        } else {
+                        // No longer hiding via JS, CSS handles it.
+                        // We only care if a new student (non-locked) is added.
+                        if (!row.classList.contains('session-row-locked')) {
                             debugLog(1, '🚨 New student added:', row);
                             studentListChanged = true;
                             changeDetails.push('student row added');
@@ -118,7 +113,8 @@ function initializeDetector() {
 
                 mutation.removedNodes.forEach(node => {
                     if (node.nodeType === 1 && node.matches && node.matches('.session-row')) {
-                        if (!isRowToDelete(node)) {
+                        // We only care if a student (non-locked) is removed.
+                        if (!row.classList.contains('session-row-locked')) {
                             debugLog(1, '📤 Student removed:', node);
                             studentListChanged = true;
                             changeDetails.push('student row removed');
@@ -126,16 +122,16 @@ function initializeDetector() {
                     }
                 });
             }
-            // Handle class attribute changes
+            // Attribute changes are no longer handled by JS for hiding, CSS handles it.
+            // We still need to trigger detection if a row's class changes from locked to unlocked (or vice-versa)
             else if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
                 const row = mutation.target;
-                // Check if the row now matches the deletion criteria
-                if (row && row.matches && row.matches('.session-row') && isRowToDelete(row)) {
-                    debugLog(1, '🙈 Hiding locked row after class update:', row);
-                    row.classList.add('gemini-hidden-row');
-                    // Since we hid a row, trigger a re-evaluation.
+                // If a row's class changed, and it's a session-row, re-evaluate the list.
+                // This covers cases where a row might become locked/unlocked.
+                if (row && row.matches && row.matches('.session-row')) {
+                    debugLog(1, '🔄 Session row class changed, re-evaluating list:', row);
                     studentListChanged = true;
-                    changeDetails.push('locked row hidden by attribute change');
+                    changeDetails.push('session row class changed');
                 }
             }
         });
@@ -273,9 +269,9 @@ function extractAndDisplayStudentData() {
         const students = [];
 
         sessionRows.forEach((row, index) => {
-            // Skip any rows that have been hidden by the extension
-            if (row.classList.contains('gemini-hidden-row')) {
-                debugLog(2, `🙈 Skipping hidden row ${index}`);
+            // Skip any rows that are locked (hidden by CSS)
+            if (row.classList.contains('session-row-locked')) {
+                debugLog(2, `🙈 Skipping locked row ${index}`);
                 return; // Continue to next iteration
             }
 
