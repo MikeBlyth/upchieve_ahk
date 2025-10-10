@@ -20,6 +20,7 @@ global LiveMode := false
 global ScanMode := false
 global modeText := "LIVE"
 global AppState := "STARTING"  ; STARTING, WAITING_FOR_STUDENTS, IN_SESSION, PAUSED
+global g_targetStudentName := ""
 
 ; Sleep prevention constants
 global ES_CONTINUOUS := 0x80000000
@@ -328,6 +329,20 @@ SelectFirstStudent(studentArray) {
 ; Check if student is blocked via block_names.txt
 ; Returns true if student should be blocked, false otherwise
 CheckBlockedNames(student, blockFile := "block_names.txt") {
+    global g_targetStudentName
+
+    ; If a target student is set, only allow that student
+    if (g_targetStudentName != "") {
+        if (StrLower(student.name) == StrLower(g_targetStudentName)) {
+            WriteLog("NOT BLOCKED: Student '" . student.name . "' matches target.")
+            return false  ; It's the target, so don't block
+        } else {
+            WriteLog("BLOCKED: Student '" . student.name . "' does not match target '" . g_targetStudentName . "'.")
+            return true  ; It's not the target, so block
+        }
+    }
+
+    ; Original logic: Check the block file if no target is set
     ; Return false if no block file exists
     if (!FileExist(blockFile)) {
         return false
@@ -714,20 +729,19 @@ ProcessStudentData() {
         return ; Exit function after logging
     }
 
-    ; Select first student (future: implement selection logic)
-    selectedStudent := SelectFirstStudent(students)
-    if (selectedStudent.name == "") {
-        WriteLog("No student selected from array")
-        return
+    ; Find the first student that is not blocked
+    selectedStudent := Student("", "", 0)
+    for a_student in students {
+        if (!CheckBlockedNames(a_student)) {
+            selectedStudent := a_student
+            WriteLog("Selected student: " . selectedStudent.ToString())
+            break  ; Found our student, stop looking
+        }
     }
 
-    WriteLog("Selected student: " . selectedStudent.ToString())
-
-    ; Check if student is blocked
-    if (CheckBlockedNames(selectedStudent)) {
-        WriteLog("Student blocked - skipping: " . selectedStudent.name)
-        ; Show blocked message briefly in log
-        WriteLog("🚫 Blocked student: " . selectedStudent.name)
+    ; If no selectable student was found, exit
+    if (selectedStudent.name == "") {
+        WriteLog("No selectable students found after checking block/target list.")
         return
     }
 
@@ -912,7 +926,7 @@ EndCurrentSession() {
 
 ; Show startup dialog for mode selection
 ShowStartupDialog() {
-    global LiveMode, ScanMode, modeText
+    global LiveMode, ScanMode, modeText, g_targetStudentName
 
     ; Create startup GUI
     startupGui := Gui("+AlwaysOnTop", "UPchieve Integrated Detector - Setup")
@@ -923,6 +937,10 @@ ShowStartupDialog() {
     liveRadio := startupGui.AddRadio("xm y+15 Checked", "LIVE Mode (click students automatically)")
     scanRadio := startupGui.AddRadio("xm y+5", "SCAN Mode (timing analysis only)")
     testingRadio := startupGui.AddRadio("xm y+5", "TESTING Mode (detect only, no clicking)")
+
+    ; Add text input for specific student name
+    startupGui.AddText("xm y+15", "Optional: Wait for a specific student by name:")
+    nameEdit := startupGui.AddEdit("xm y+5 w300")
 
     ; Information text
     startupGui.AddText("xm y+15 w300", "LIVE: Automatically clicks detected students and manages sessions")
@@ -950,6 +968,12 @@ ShowStartupDialog() {
             LiveMode := false
             ScanMode := false
             modeText := "TESTING"
+        }
+
+        ; Get target student name from input
+        g_targetStudentName := Trim(nameEdit.Value)
+        if (g_targetStudentName != "") {
+            WriteLog("Target student set to: " . g_targetStudentName)
         }
 
         result := "Continue"

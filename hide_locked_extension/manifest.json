@@ -1,0 +1,21 @@
+
+{
+  "manifest_version": 3,
+  "name": "UPchieve Locked Row Hider",
+  "version": "1.2",
+  "description": "Hides the 'locked' student rows on the UPchieve dashboard.",
+  "permissions": ["storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Click to toggle hiding locked rows",
+    "default_badge": "ON"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.upchieve.org/*"],
+      "js": ["content.js"]
+    }
+  ]
+}
