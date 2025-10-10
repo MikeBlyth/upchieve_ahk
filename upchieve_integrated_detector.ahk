@@ -55,7 +55,7 @@ global StatusText := ""
 
 ; Subjects
 global Subjects := ["6th Grade Math", "7th Grade Math", "8th Grade Math", "9th Grade Math", 
-  "Prealgebra", "Algebra", "Algebra 1", "Integrated Math", 
+  "Prealgebra", "Algebra", "Algebra 1", "Integrated Math", "Middle School Science",
   "Statistics", "AP Computer Science A", "AP Computer Science Principles"]
 
 ; Hotkey handlers
@@ -646,7 +646,7 @@ MainDetectionLoop() {
             UpdateStatusDialog("⏸️ PAUSED - Press Ctrl+Shift+H to resume")
 
             ; Check if user manually opened a session while paused
-            if (CheckForManualSession()) {
+            if (IsSessionActive()) {
                 WriteLog("Manual session detected while paused - starting session tracking")
                 StartSession(Student("", "", 0))
             }
@@ -752,11 +752,8 @@ ProcessStudentData() {
         WinWaitActive("ahk_id " . ExtensionWindowID, , 2)
         Click(clickPos.x, clickPos.y)
 
-        ; Wait and verify session started
-        Sleep(2000)  ; Give time for session to load
-
-        ; Check if session actually started by looking for session indicators
-        if (VerifySessionStarted()) {
+        ; Wait and verify session started by looking for the session UI
+        if (IsSessionActive()) {
             WriteLog("Session verified - student click successful")
             StartSession(selectedStudent)
         } else {
@@ -823,46 +820,26 @@ StartSession(student) {
 ;    WriteLog("Session started - monitoring for session end. Student: " . LastStudentName)
 }
 
-; Check if user has manually opened a session (used when paused)
-CheckForManualSession() {
+; Check if a session is active by looking for the pencil target.
+; This function waits up to 3 seconds for the target to appear.
+IsSessionActive() {
     global ExtensionWindowID
 
     ; Get current window dimensions
     WinGetPos(&winX, &winY, &winWidth, &winHeight, "ahk_id " . ExtensionWindowID)
 
-    ; Look for PencilTipTarget in the specified zone (right edge - 850 to right edge - 700, Y: 400-496)
+    ; Look for PencilTipTarget in the specified zone, waiting up to 3 seconds.
     searchX1 := winX + winWidth - 850
     searchY1 := winY + 400
     searchX2 := winX + winWidth - 700
     searchY2 := winY + 496
 
-    if (FindText(, , searchX1, searchY1, searchX2, searchY2, 0.1, 0.1, PencilTipTarget)) {
+    ; The '3' parameter tells FindText to wait for up to 3 seconds for the image to appear.
+    if (FindText(&X:='wait', &Y:=3, searchX1, searchY1, searchX2, searchY2, 0.1, 0.1, PencilTipTarget)) {
         return true
     }
 
     return false
-}
-
-; Verify that a session has actually started after clicking
-VerifySessionStarted() {
-    global ExtensionWindowID
-
-    ; Look for visual indicators that a session has started
-    ; This could include checking for:
-    ; 1. Session UI elements
-    ; 2. Change in URL or page content
-    ; 3. Absence of the student waiting list
-
-    ; Check if the student list is no longer visible (indicating we're in a session)
-    ; Use a simple check - if we can't find any student headers, we're likely in session
-    if (!FindText(,, 0, 0, A_ScreenWidth, A_ScreenHeight, 0.1, 0.1, StudentHeaderTarget)) {
-        return true  ; Headers not found - likely in session
-    }
-
-    ; Additional check: look for session-specific UI elements
-    ; You could add more specific pattern matching here based on the session interface
-
-    return false  ; Still seeing student list - session didn't start
 }
 
 ; Monitor for session end by searching the entire window for the target

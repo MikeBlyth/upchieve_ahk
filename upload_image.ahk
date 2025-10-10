@@ -19,15 +19,18 @@ UploadImageWorkflow() {
     ; Generate timestamped filename
     currentTime := FormatTime(A_Now, "yyyy-MM-dd_HH-mm-ss")
     fileName := "C:\temp\upload-" . currentTime . ".png"
+    WriteLog("Uploading image")
 
     try {
         if (!ProcessSnagitSave(fileName)) {
             MsgBox("Failed to save image in Snagit. Please check the application.", "Error", "OK 4096")
+            WriteLog("Failed to save image in Snagit.")
             return false
         }
 
         if (!ProcessUpchieveUpload(fileName)) {
             MsgBox("Failed to upload image to UPchieve.`n`nPlease ensure:`n1. Baseline workspace is open in Edge`n2. UPchieve tab is active in Baseline workspace`n3. You are logged into UPchieve", "Upload Failed", "OK 4096")
+            WriteLog("Upload to UPchieve failed.")
             return false
         }
         return true
@@ -54,9 +57,10 @@ ProcessSnagitSave(fileName) {
 
     Click(60, 264)
 
-    if (!WinWait("Save As", , 5))
+    if (!WinWait("Save As", , 5)) {
+        WriteLog("Save As dialog did not appear.")
         return false
-
+    }
     WinActivate("Save As")
     WinWaitActive("Save As", , 3)
     Sleep(100)
@@ -70,9 +74,10 @@ ProcessSnagitSave(fileName) {
     searchX2 := dialogWidth
     searchY2 := dialogHeight
 
-    if (!FindAndClick(SaveTarget, searchX1, searchY1, searchX2, searchY2))
+    if (!FindAndClick(SaveTarget, searchX1, searchY1, searchX2, searchY2)) {    
+        WriteLog("Failed to find Save button.")
         return false
-
+    }
     Sleep(1000)
     return true
 }
