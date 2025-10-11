@@ -12,46 +12,60 @@ CoordMode("Pixel", "Window")
 
 ; --- Core function to find and click one or two buttons ---
 ClickButtons(button_1, button_2 := "") {
-    ; Only run if the Upchieve window is active
-    if not WinActive("Upchieve") {
-        return
+    ; Save original state so we can be a polite, non-interfering function
+    originalBindingID := FindText().BindWindow(0, 0, 1, 0)
+    originalMouseMode := A_CoordModeMouse
+
+    try {
+        ; Set a predictable environment: unbound and using screen coordinates
+        FindText().BindWindow(0)
+        CoordMode("Mouse", "Screen")
+
+        if not WinActive("Upchieve") {
+            return
+        }
+
+        WinGetPos(&winX, &winY, &winWidth, &winHeight, "A")
+
+        Menu_Range_x1_screen := 488 + winX
+        Menu_Range_y1_screen := 1600 + winY
+        Menu_Range_x2_screen := 1900 + winX
+        Menu_Range_y2_screen := 1800 + winY
+
+        MouseGetPos(&OrigMouseX, &OrigMouseY)
+
+        if (result1 := FindText(, , Menu_Range_x1_screen, Menu_Range_y1_screen, Menu_Range_x2_screen, Menu_Range_y2_screen, 0.15, 0.10, button_1)) {
+            WriteLog("HELPER: Found button_1 at screen (" . result1[1].x . ", " . result1[1].y . "). Clicking.")
+            Click(result1[1].x, result1[1].y)
+
+            if (button_2 != "") {
+                Sleep(100)
+                found_y_screen := result1[1].y
+                new_submenu_y1_screen := found_y_screen - 125
+                new_submenu_y2_screen := found_y_screen - 55
+                new_submenu_x1_screen := Menu_Range_x1_screen
+                new_submenu_x2_screen := Menu_Range_x2_screen
+
+                if (result2 := FindText(, , new_submenu_x1_screen, new_submenu_y1_screen, new_submenu_x2_screen, new_submenu_y2_screen, 0.15, 0.10, button_2)) {
+                    WriteLog("HELPER: Found button_2 at screen (" . result2[1].x . ", " . result2[1].y . "). Clicking.")
+                    Click(result2[1].x, result2[1].y)
+                } else {
+                    WriteLog("HELPER: button_2 not found in submenu area.")
+                }
+            }
+        } else {
+            WriteLog("HELPER: button_1 not found.")
+        }
+
+        MouseMove(OrigMouseX, OrigMouseY, 0)
+
+    } finally {
+        ; Always restore the original state
+        CoordMode("Mouse", originalMouseMode)
+        if (originalBindingID) {
+            FindText().BindWindow(originalBindingID, 4)
+        }
     }
-
-    Menu_Range_x1 := 488
-    Menu_Range_y1 := 1600
-    Menu_Range_x2 := 1900
-    Menu_Range_y2 := 1800
-
-    MouseGetPos(&OrigMouseX, &OrigMouseY)
-
-    ; Find and click the first button, get the result
-    first_click_result := FindAndClick(button_1, Menu_Range_x1, Menu_Range_y1, Menu_Range_x2, Menu_Range_y2)
-
-    ; If the first button was found and a second button is specified...
-    if (first_click_result && button_2 != "") {
-        Sleep(100) ; Wait for submenu to appear
-
-        ; Get the screen Y-coordinate where the first button was found
-        found_y_screen := first_click_result[1].y
-
-        ; Get the active window's position to convert coordinates
-        WinGetPos(&winX, &winY, , , "A")
-
-        ; Calculate the new search area for the second button.
-        ; The user specified a Y-range relative to the first button's location.
-        ; We convert this to the window-relative coordinates that FindAndClick expects.
-        new_submenu_y1 := (found_y_screen - winY) - 125
-        new_submenu_y2 := (found_y_screen - winY) - 55
-
-        ; Use the original X-range for the submenu search
-        new_submenu_x1 := Menu_Range_x1
-        new_submenu_x2 := Menu_Range_x2
-
-        ; Find and click the second button within the new, refined search area
-        FindAndClick(button_2, new_submenu_x1, new_submenu_y1, new_submenu_x2, new_submenu_y2)
-    }
-
-    MouseMove(OrigMouseX, OrigMouseY, 0)
 }
 
 ; --- Tool Hotkeys (Left Alt + Key) ---
