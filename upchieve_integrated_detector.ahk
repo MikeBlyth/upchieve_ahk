@@ -6,6 +6,7 @@
 #Include comm_manager.ahk
 #Include header_manager.ahk
 #Include upload_image.ahk
+#Include upchieve_helper.ahk
 
 ; Set coordinate mode to window coordinates for unified coordinate system
 CoordMode("Mouse", "Window")
@@ -601,7 +602,7 @@ FindHeadersWithRetry() {
 
 ; Main application entry point
 Main() {
-    global LiveMode
+    global LiveMode, AppState
     WriteLog("`n=== UPchieve Integrated Detector Started ===")
 
     ; Show startup dialog for mode selection
@@ -627,12 +628,21 @@ Main() {
 
     ; Perform initial header detection with retries
     if (!FindHeadersWithRetry()) {
-        WriteLog("WARNING: Initial header detection failed - proceeding to main loop anyway")
-        WriteLog("Headers will be retried periodically. If you're in a manual session, script will detect session end.")
+        WriteLog("WARNING: Initial header detection failed. Checking if a session is already active.")
+        
+        ; Check if the reason headers weren't found is because a session is already active
+        if (IsSessionActive()) {
+            WriteLog("Manual session detected during startup - starting session tracking.")
+            StartSession(Student("", "", 0)) ; This will set AppState to IN_SESSION
+        } else {
+             WriteLog("Headers will be retried periodically.")
+        }
     }
 
     WriteLog("Initialization complete - starting main detection loop")
-    AppState := "WAITING_FOR_STUDENTS"
+    if (AppState != "IN_SESSION") {
+        AppState := "WAITING_FOR_STUDENTS"
+    }
 
     ; Enable sleep prevention during operation
     PreventSleep()
