@@ -1,0 +1,96 @@
+Purpose: Assign hotkeys to activate toolbar items. Some items are in a submenu so we first click Shapes and then Rectangle, for example. A few are single clicks, for example Select. Colors are always chosen by clicking on MenuColorsTarget then on a specific color like ColorRedTarget.
+	FindAndClick is found in ahk_utilities with signature
+	FindAndClick(TargetString, x1 := "", y1 := "", x2 := "", y2 := "", err1 := 0.15, err2 := 0.10) {
+
+
+Menu_Range is (488,1600) to (1900, 1800)
+function ClickButtons(button_1, button_2) is like
+	- Save current mouse position
+	- Within menu_range
+		- FindAndClick button_1
+		  Wait 10 ms
+		- FindAndClick button_2 if it is specified
+	- Return to mouse position
+
+
+-----------------
+Plan 1
+
+Make \ a hotkey {
+	- if not in target window (Upchieve) then do nothing; return
+	- capture the next two characters with 2 sec timeout
+	- check whether they fit a pattern (ValidCommand() function)
+		- yes: send to a command processor
+		- no: send the characters including the \ and exit
+}		
+		
+Concept of command structure. Validate by ensuring both chars are in these sets
+	- first key = tool
+		A = big text	MenuTextTarget, SubmenuBigTextTarget, 
+		a = small text	MenuTextTarget, SubmenuSmallTextTarget
+		l = line		MenuShapesTarget, SubmenuLineTarget
+		> = arrow		MenuShapesTarget, SubmenuArrowTarget
+		t = triangle	MenuShapesTarget, SubmenuTriangleTarget
+		r = rectangle	MenuShapesTarget, SubmenuSquareTarget
+		c = circle		MenuShapesTarget, SubmenuCircleTarget
+		P = thick pen	MenuPenTarget, SubmenuThickPenTarget
+		p = thin pen	MenuPenTarget, SubmenuThinPenTarget
+		s = select		MenuSelectTarget
+	- second key = color. Targets are named Color{color name}Target, like ColorBlackTarget
+		k = Black
+		n = Navy
+		r = Red
+		s = Sand
+		t = Teal
+		b = Blue
+		m = Magenta
+		g = Green
+		o = Orange
+		y = Yellow
+		c = Clear
+		x = none
+	    Colors all require two buttons: MenuColorsTarget and the specific color target
+		
+Processing:
+	- ClickButtons target(s) associated with first character. For example, ClickButtons(MenuTextTarget, SubmenuBigTextTarget)
+	- 20 ms pause
+	- ClickButtons targets associated with second character (color) if not 'none' (x). For example, ClickButtons(MenuColorsTarget,ColorRedTarget)
+	
+		
+---------------------------
+
+Plan 2
+
+This is simpler because it only needs the simple ClickButtons() function and one hot key for each action. 
+
+A hot key for each action, whether a tool or a color
+Left Alt + 
+		A = big text	MenuTextTarget, SubmenuBigTextTarget, 
+		a = small text	MenuTextTarget, SubmenuSmallTextTarget
+		l = line		MenuShapesTarget, SubmenuLineTarget
+		> = arrow		MenuShapesTarget, SubmenuArrowTarget
+		v = triangle	MenuShapesTarget, SubmenuTriangleTarget
+		z = rectangle	MenuShapesTarget, SubmenuSquareTarget
+		c = circle		MenuShapesTarget, SubmenuCircleTarget
+		P = thick pen	MenuPenTarget, SubmenuThickPenTarget
+		p = thin pen	MenuPenTarget, SubmenuThinPenTarget
+		s = select		MenuSelectTarget
+	- Colors. Targets are named Color{color name}Target, like ColorBlackTarget
+		k = Black
+		n = Navy
+		r = Red
+		j = Sand
+		t = Teal
+		b = Blue
+		m = Magenta
+		g = Green
+		o = Orange
+		y = Yellow
+		h = Clear
+		x = none
+
+Examples:
+ alt+A -> ClickButtons(MenuTextTarget, SubmenuBigTextTarget)
+ alt+b -> ClickButtons(MenuColorsTarget, ColorBlueTarget)
+ 
+ 

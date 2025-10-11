@@ -719,8 +719,8 @@ ProcessStudentData() {
     ; Handle Scan Mode separately
     if (ScanMode) {
         timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
-        for index, student in students {
-            logMessage := timestamp . " | SCAN: " . student.name . " (" . student.topic . ")"
+        for index, a_student in students {
+            logMessage := timestamp . " | SCAN: " . a_student.name . " (" . a_student.topic . ")"
             WriteScanLog(logMessage)
         }
         ; Show scan message briefly in log instead of dialog to avoid interference

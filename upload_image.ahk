@@ -12,16 +12,23 @@
 
 ; Global variables
 snagitWindowTitle := "Snagit"
-upchieveWindowTitle := "Baseline"
+upchieveWindowTitle := "Upchieve"
 
 ; Main workflow function
 UploadImageWorkflow() {
-    ; Generate timestamped filename
-    currentTime := FormatTime(A_Now, "yyyy-MM-dd_HH-mm-ss")
-    fileName := "C:\temp\upload-" . currentTime . ".png"
-    WriteLog("Uploading image")
+    ; Save the current FindText binding so it can be restored at the end
+    originalBindingID := FindText().BindWindow(0, 0, 1, 0) ; get_id = 1
 
     try {
+        ; Unbind FindText to allow searching across all windows (Snagit, file dialogs)
+        FindText().BindWindow(0)
+        WriteLog("FindText unbound for upload workflow.")
+
+        ; Generate timestamped filename
+        currentTime := FormatTime(A_Now, "yyyy-MM-dd_HH-mm-ss")
+        fileName := "C:\temp\upload-" . currentTime . ".png"
+        WriteLog("Uploading image")
+
         if (!ProcessSnagitSave(fileName)) {
             MsgBox("Failed to save image in Snagit. Please check the application.", "Error", "OK 4096")
             WriteLog("Failed to save image in Snagit.")
@@ -38,6 +45,13 @@ UploadImageWorkflow() {
     } catch Error as e {
         MsgBox("Critical error: " . e.Message, "Error", "OK 4096")
         return false
+
+    } finally {
+        ; Always restore the original FindText binding
+        if (originalBindingID) {
+            FindText().BindWindow(originalBindingID, 4)
+            WriteLog("Restored original FindText binding to window ID: " . originalBindingID)
+        }
     }
 }
 
@@ -69,6 +83,7 @@ ProcessSnagitSave(fileName) {
     Sleep(200)
 
     WinGetPos(&dialogX, &dialogY, &dialogWidth, &dialogHeight, "Save As")
+    WriteLog("Dialog dimensions: " . dialogWidth . "x" . dialogHeight)
     searchX1 := dialogWidth // 2
     searchY1 := dialogHeight - 150
     searchX2 := dialogWidth
