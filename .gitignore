@@ -9,3 +9,5 @@ ocr_training/
 *.log
 *.bmp
 *.zip
+*.psd
+

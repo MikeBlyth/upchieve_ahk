@@ -1,9 +1,7 @@
 // Function to update the icon badge
 const updateIcon = (enabled) => {
-  const badgeText = enabled ? 'ON' : 'OFF';
-  const badgeColor = enabled ? '#4CAF50' : '#F44336'; // Green for ON, Red for OFF
-  chrome.action.setBadgeText({ text: badgeText });
-  chrome.action.setBadgeBackgroundColor({ color: badgeColor });
+  const iconPath = enabled ? 'HideIconOn-128.png' : 'HideIconOff-128.png';
+  chrome.action.setIcon({ path: iconPath });
 };
 
 // Set initial state on installation and startup

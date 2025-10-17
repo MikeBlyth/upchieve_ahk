@@ -71,8 +71,8 @@ ProcessSnagitSave(fileName) {
 
     Click(60, 264)
 
-    if (!WinWait("Save As", , 5)) {
-        WriteLog("Save As dialog did not appear.")
+    if (!WinWait("Save As", , 50)) {
+        WriteLog("Save As dialog did not appear. Coordmode " . A_CoordModeMouse)
         return false
     }
     WinActivate("Save As")

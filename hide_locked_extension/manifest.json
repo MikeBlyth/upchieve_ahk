@@ -10,7 +10,7 @@
   },
   "action": {
     "default_title": "Click to toggle hiding locked rows",
-    "default_badge": "ON"
+    "default_icon": "HideIconOff-128.png"
   },
   "content_scripts": [
     {

@@ -142,7 +142,7 @@ FindTextInZones(target, zone1, zone2 := "", err1 := 0.15, err2 := 0.10, &stats :
     return 0
 }
 
-; Find and click on a target string within specified coordinates
+; Find and click on a target string within specified window-based coordinates
 ; If coordinates not provided, uses the active window's dimensions
 ; Returns: Object with found location if successful, 0 if not found
 FindAndClick(TargetString, x1 := "", y1 := "", x2 := "", y2 := "", err1 := 0.15, err2 := 0.10) {

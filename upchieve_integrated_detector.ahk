@@ -815,6 +815,10 @@ StartSession(student) {
     ; Maximize window for session
     WinMaximize("ahk_id " . ExtensionWindowID)
 
+    ; Click on student summary at top of chat box
+    Sleep(200)
+    FindAndClick(AboutTheSessionTarget, 2400, 450, 2900, 650, 0.1, 0.1)
+
     ; Get student summary and pass it to the dialog via static var
     ShowSessionStartDialog.lastSessionInfo := SummarizeStudent(student.name)
 
@@ -854,15 +858,15 @@ IsSessionActive() {
 
     ; Look for PencilTipTarget in the specified zone, waiting up to 3 seconds.
     searchX1 := winX + winWidth - 850
-    searchY1 := winY + 400
-    searchX2 := winX + winWidth - 700
-    searchY2 := winY + 496
+    searchY1 := winY + 300
+    searchX2 := winX + winWidth - 500
+    searchY2 := winY + 500
 
     ; The '3' parameter tells FindText to wait for up to 3 seconds for the image to appear.
     if (FindText(&X:='wait', &Y:=3, searchX1, searchY1, searchX2, searchY2, 0.1, 0.1, PencilTipTarget)) {
         return true
     }
-
+    WriteLog("Penciltip not found in (" . searchX1 . "," . searchY1 . ") to (" . searchX2 . "," . searchY2 . ")")
     return false
 }
 
@@ -1072,8 +1076,9 @@ ShowSessionStartDialog() {
         LastStudentTopic := Trim(subjectEdit.Text)
     }
 
-    ; Show dialog and wait for user input
-    startGui.Show()
+    ; Show dialog and wait for user input but don't activate as user may want to
+    ;  greet student first
+    startGui.Show("x200 y600 NoActivate")
 
     ; Wait for user to close dialog
     while (!result) {
