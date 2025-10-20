@@ -182,6 +182,12 @@ WriteScanLog(message) {
 CleanExit() {
     WriteLog("Application exit requested")
 
+    ; If in Scan Mode, log the end of the run
+    if (ScanMode) {
+        timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
+        WriteScanLog(timestamp . " - Scan Run Ended")
+    }
+
     ; Restore normal power management before exit
     AllowSleep()
 
@@ -642,6 +648,12 @@ Main() {
     WriteLog("Initialization complete - starting main detection loop")
     if (AppState != "IN_SESSION") {
         AppState := "WAITING_FOR_STUDENTS"
+    }
+
+    ; If in Scan Mode, log the start of the run
+    if (ScanMode) {
+        timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
+        WriteScanLog(timestamp . " - Scan Run Started")
     }
 
     ; Enable sleep prevention during operation
