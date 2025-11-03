@@ -86,13 +86,13 @@ RefreshHeaderPositions() {
 
     studentResult := FindText(, , 0, 0, 3000,2000, 0.1, 0.1, StudentHeaderTarget)
     if (!studentResult) {
-        WriteLog("ERROR: Student header not found in wide search either.")
+;        WriteLog("ERROR: Student header not found in wide search either.")
         
         ; Capture a debug screenshot
         debugFile := A_ScriptDir . "\debug_header_search.png"
         try {
             FindText().SavePic(debugFile, 0, 0, 3000,2000, 1)
-            WriteLog("DEBUG: Saved screenshot of window for debugging to: " . debugFile)
+;            WriteLog("DEBUG: Saved screenshot of window for debugging to: " . debugFile)
         } catch as e {
             WriteLog("ERROR: Failed to save debug screenshot: " . e.Message)
         }
@@ -126,7 +126,7 @@ CalculateClickPosition(studentName) {
     clickX := studentHeaderPos.x + 100  ; Center of student name column
     clickY := studentHeaderPos.y + 110  ; First student row
 
-    WriteLog("Calculated click position for '" . studentName . "': " . clickX . "," . clickY)
+;    WriteLog("Calculated click position for '" . studentName . "': " . clickX . "," . clickY)
     return {x: clickX, y: clickY}
 }
 

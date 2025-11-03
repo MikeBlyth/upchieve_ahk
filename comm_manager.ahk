@@ -21,7 +21,7 @@ CheckForStudents() {
     ; Check if clipboard has changed and contains student data
     if (clipboardContent != LastClipboardContent && InStr(clipboardContent, "*upchieve") = 1) {
         LastClipboardContent := clipboardContent
-        WriteLog("New student data detected in clipboard: " . SubStr(clipboardContent, 1, 100) . "...")
+;        WriteLog("New student data detected in clipboard: " . SubStr(clipboardContent, 1, 100) . "...")
         return true
     }
 

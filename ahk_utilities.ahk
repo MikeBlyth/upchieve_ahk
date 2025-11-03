@@ -157,7 +157,7 @@ FindAndClick(TargetString, x1 := "", y1 := "", x2 := "", y2 := "", err1 := 0.15,
     ; Get active window position for coordinate conversion
     activeWindow := WinGetID("A")
     WinGetPos(&winX, &winY, &winWidth, &winHeight, "ahk_id " . activeWindow)
-    WriteLog("FindAndClick: Window at (" . winX . "," . winY . ") size " . winWidth . "x" . winHeight)
+    ; WriteLog("FindAndClick: Window at (" . winX . "," . winY . ") size " . winWidth . "x" . winHeight)
 
     ; Convert window coordinates to screen coordinates
     if (x1 == "" || y1 == "" || x2 == "" || y2 == "") {
@@ -166,7 +166,7 @@ FindAndClick(TargetString, x1 := "", y1 := "", x2 := "", y2 := "", err1 := 0.15,
         y1 := (y1 != "") ? y1 + winY : winY
         x2 := (x2 != "") ? x2 + winX : winX + winWidth
         y2 := (y2 != "") ? y2 + winY : winY + winHeight
-        WriteLog("FindAndClick: Using full window - window coords (0,0 to " . winWidth . "," . winHeight . ") -> screen coords (" . x1 . "," . y1 . " to " . x2 . "," . y2 . ")")
+        ; WriteLog("FindAndClick: Using full window - window coords (0,0 to " . winWidth . "," . winHeight . ") -> screen coords (" . x1 . "," . y1 . " to " . x2 . "," . y2 . ")")
     } else {
         ; Convert provided window coordinates to screen coordinates
         origX1 := x1, origY1 := y1, origX2 := x2, origY2 := y2
@@ -174,7 +174,7 @@ FindAndClick(TargetString, x1 := "", y1 := "", x2 := "", y2 := "", err1 := 0.15,
         y1 := y1 + winY
         x2 := x2 + winX
         y2 := y2 + winY
-        WriteLog("FindAndClick: Converting provided coords - window coords (" . origX1 . "," . origY1 . " to " . origX2 . "," . origY2 . ") -> screen coords (" . x1 . "," . y1 . " to " . x2 . "," . y2 . ")")
+        ; WriteLog("FindAndClick: Converting provided coords - window coords (" . origX1 . "," . origY1 . " to " . origX2 . "," . origY2 . ") -> screen coords (" . x1 . "," . y1 . " to " . x2 . "," . y2 . ")")
     }
 
     result := FindText(, , x1, y1, x2, y2, err1, err2, TargetString)
@@ -182,9 +182,9 @@ FindAndClick(TargetString, x1 := "", y1 := "", x2 := "", y2 := "", err1 := 0.15,
     if (result) {
         ; Click at the found location (already in screen coordinates)
         Click result[1].x, result[1].y
-        WriteLog("FindAndClick: Clicked target at screen coords " . result[1].x . "," . result[1].y)
+        ; WriteLog("FindAndClick: Clicked target at screen coords " . result[1].x . "," . result[1].y)
     } else {
-        WriteLog("FindAndClick: Target not found in screen search area (" . x1 . "," . y1 . " to " . x2 . "," . y2 . ")")
+        ; WriteLog("FindAndClick: Target not found in screen search area (" . x1 . "," . y1 . " to " . x2 . "," . y2 . ")")
     }
 
     ; Restore original coordinate modes

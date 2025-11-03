@@ -112,7 +112,7 @@ StartWaitingTimer() {
     ; Create timer function and start 15-minute timer
     WaitingTimerFunc := () => ShowWaitingNotification()
     SetTimer(WaitingTimerFunc, 15 * 60 * 1000)  ; 15 minutes
-    WriteLog("Waiting timer started - notification in 15 minutes")
+;    WriteLog("Waiting timer started - notification in 15 minutes")
 }
 
 ; Stop waiting notification timer
@@ -122,7 +122,7 @@ StopWaitingTimer() {
     if (WaitingTimerFunc) {
         SetTimer(WaitingTimerFunc, 0)  ; Stop the timer
         WaitingTimerFunc := ""
-        WriteLog("Waiting timer stopped")
+;        WriteLog("Waiting timer stopped")
     }
 }
 
@@ -207,7 +207,7 @@ TogglePause() {
         ; Resume from pause
         AppState := "WAITING_FOR_STUDENTS"
         StartWaitingTimer()  ; Restart waiting timer when resuming
-        WriteLog("Application resumed via hotkey - waiting timer restarted")
+;        WriteLog("Application resumed via hotkey - waiting timer restarted")
         UpdateStatusDialog("⏳ Resumed - waiting for students...")
     } else {
         ; Pause the application
@@ -314,7 +314,7 @@ ParseStudentArray(data) {
         i += 3  ; Move to next student (step by 3)
     }
 
-    WriteLog("SUCCESS: Parsed " . studentCount . " students from data")
+;    WriteLog("SUCCESS: Parsed " . studentCount . " students from data")
     return students
 }
 
@@ -341,7 +341,7 @@ CheckBlockedNames(student, blockFile := "block_names.txt") {
     ; If a target student is set, only allow that student
     if (g_targetStudentName != "") {
         if (StrLower(student.name) == StrLower(g_targetStudentName)) {
-            WriteLog("NOT BLOCKED: Student '" . student.name . "' matches target.")
+;            WriteLog("NOT BLOCKED: Student '" . student.name . "' matches target.")
             return false  ; It's the target, so don't block
         } else {
             WriteLog("BLOCKED: Student '" . student.name . "' does not match target '" . g_targetStudentName . "'.")
@@ -379,7 +379,7 @@ CheckBlockedNames(student, blockFile := "block_names.txt") {
         return false
     }
 
-    WriteLog("NOT BLOCKED: Student '" . student.name . "' is allowed")
+;    WriteLog("NOT BLOCKED: Student '" . student.name . "' is allowed")
     return false
 }
 
@@ -599,7 +599,7 @@ FindHeadersWithRetry() {
     }
 
     if (!headersFound) {
-        WriteLog("WARNING: Headers not found after " . maxRetries . " attempts.")
+;        WriteLog("WARNING: Headers not found after " . maxRetries . " attempts.")
         UpdateStatusDialog("⚠️ Headers not found. Will retry periodically.")
         MsgBox("WARNING: Student header not found after " . maxRetries . " attempts. Please ensure the UPchieve page is visible and not covered.", "Header Not Found", "OK 4096")
     }
@@ -719,7 +719,7 @@ MainDetectionLoop() {
         }
 
         ; Sleep to keep the loop efficient
-        Sleep(250)
+        Sleep(100)
     }
 }
 
@@ -727,7 +727,7 @@ MainDetectionLoop() {
 ProcessStudentData() {
     global AppState, LiveMode, InSession, LastStudentName, LastStudentTopic, SessionStartTime
 
-    WriteLog("Processing student data from communication file...")
+;    WriteLog("Processing student data from communication file...")
 
     ; Get content from communication file and parse students
     commData := GetCommContent()
@@ -786,11 +786,12 @@ ProcessStudentData() {
         ; Activate window and click
         WinActivate("ahk_id " . ExtensionWindowID)
         WinWaitActive("ahk_id " . ExtensionWindowID, , 2)
+        Sleep(100) ; Trying to avoid zombie sessions students may see
         Click(clickPos.x, clickPos.y)
 
         ; Wait and verify session started by looking for the session UI
         if (IsSessionActive()) {
-            WriteLog("Session verified - student click successful")
+;            WriteLog("Session verified - student click successful")
             StartSession(selectedStudent)
         } else {
             WriteLog("Session verification failed - click may not have worked")
@@ -878,7 +879,7 @@ IsSessionActive() {
     if (FindText(&X:='wait', &Y:=3, searchX1, searchY1, searchX2, searchY2, 0.1, 0.1, PencilTipTarget)) {
         return true
     }
-    WriteLog("Penciltip not found in (" . searchX1 . "," . searchY1 . ") to (" . searchX2 . "," . searchY2 . ")")
+;    WriteLog("Penciltip not found in (" . searchX1 . "," . searchY1 . ") to (" . searchX2 . "," . searchY2 . ")")
     return false
 }
 
@@ -1242,7 +1243,7 @@ ShowSessionFeedbackDialog() {
         csvRow .= QuoteCSVField(StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "")) ; Column 21: comments (quoted, no trailing comma)
 
         WriteAppLog(csvRow)
-        WriteLog("Session feedback logged to CSV")
+;        WriteLog("Session feedback logged to CSV")
     }
 
     ; Show dialog and wait for result
