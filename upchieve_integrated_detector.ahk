@@ -21,6 +21,7 @@ global LiveMode := false
 global ScanMode := false
 global modeText := "LIVE"
 global AppState := "STARTING"  ; STARTING, WAITING_FOR_STUDENTS, IN_SESSION, PAUSED
+global g_waitingStudents := []
 global g_targetStudentName := ""
 
 ; Sleep prevention constants
@@ -727,28 +728,71 @@ MainDetectionLoop() {
 ProcessStudentData() {
     global AppState, LiveMode, InSession, LastStudentName, LastStudentTopic, SessionStartTime
 
-;    WriteLog("Processing student data from communication file...")
+    WriteLog("DEBUG: Entering ProcessStudentData")
 
     ; Get content from communication file and parse students
     commData := GetCommContent()
-    students := ParseStudentArray(commData)
+    WriteLog("DEBUG: commData from GetCommContent(): " . commData)
 
-    if (students.Length == 0) {
-        WriteLog("No students, clipboard=" . A_Clipboard)
-        return
-    }
+    students := ParseStudentArray(commData)
+    WriteLog("DEBUG: Parsed " . students.Length . " students from commData.")
+
 
     ; Handle Scan Mode separately
     if (ScanMode) {
+        WriteLog("DEBUG: ScanMode is active. g_waitingStudents has " . g_waitingStudents.Length . " students.")
         timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
-        for index, a_student in students {
-            logMessage := timestamp . " | SCAN: " . a_student.name . " (" . a_student.topic . ")"
-            WriteScanLog(logMessage)
+        
+        ; Create a map of current student names for efficient lookup
+        currentStudentNames := Map()
+        for _, student in students {
+            currentStudentNames[student.name] := true
         }
-        ; Show scan message briefly in log instead of dialog to avoid interference
-;        WriteLog("📈 SCAN: Logged " . students.Length . " students to scan.log")
-        ClearComm() ; Clear communication file after processing
+        WriteLog("DEBUG: Created map of " . currentStudentNames.Count . " current students.")
+
+        ; Check for students who are no longer waiting
+        i := g_waitingStudents.Length
+        while i > 0 {
+            waitingStudent := g_waitingStudents[i]
+            WriteLog("DEBUG: Checking waiting student: " . waitingStudent.name)
+            if !currentStudentNames.Has(waitingStudent.name) {
+                WriteLog("DEBUG: Student " . waitingStudent.name . " is NO LONGER on the list. Logging wait time.")
+                ; Student is gone, calculate wait time and log it
+                waitTimeSeconds := DateDiff(A_Now, waitingStudent.addTime, "Seconds")
+                waitTimeMinutes := Round(waitTimeSeconds / 60, 1)
+                logMessage := timestamp . " " . waitingStudent.name . " (" . waitingStudent.topic . "), " . waitTimeMinutes
+                WriteScanLog(logMessage)
+                g_waitingStudents.RemoveAt(i) ; Remove from list
+            }
+            i--
+        }
+
+        ; Check for new students
+        WriteLog("DEBUG: Checking for new students to add.")
+        for _, student in students {
+            isNew := true
+            for _, waitingStudent in g_waitingStudents {
+                if (student.name == waitingStudent.name) {
+                    isNew := false
+                    break
+                }
+            }
+            if (isNew) {
+                WriteLog("DEBUG: Found new student to add: " . student.name)
+                ; Add new student to the waiting list, now including topic
+                g_waitingStudents.Push({name: student.name, topic: student.topic, addTime: A_Now})
+                ; "ADDED" line is intentionally not logged as per user request
+            }
+        }
+
+        WriteLog("DEBUG: Finished ScanMode logic.")
         return ; Exit function after logging
+    }
+
+    ; The rest of the logic is for Live/Testing mode, which should not run for ScanMode.
+    if (students.Length == 0) {
+        WriteLog("No students, clipboard=" . A_Clipboard)
+        return
     }
 
     ; Find the first student that is not blocked
@@ -781,7 +825,7 @@ ProcessStudentData() {
     ; Perform click action based on mode
     if (LiveMode) {
         ; LIVE mode - actually click the student
-;        WriteLog("LIVE MODE: Clicking student at " . clickPos.x . "," . clickPos.y)
+        WriteLog("LIVE MODE: Clicking student at " . clickPos.x . "," . clickPos.y)
 
         ; Activate window and click
         WinActivate("ahk_id " . ExtensionWindowID)
@@ -791,7 +835,7 @@ ProcessStudentData() {
 
         ; Wait and verify session started by looking for the session UI
         if (IsSessionActive()) {
-;            WriteLog("Session verified - student click successful")
+            WriteLog("Session verified - student click successful")
             StartSession(selectedStudent)
         } else {
             WriteLog("Session verification failed - click may not have worked")
@@ -805,8 +849,6 @@ ProcessStudentData() {
         WriteLog("🧪 Testing: Found " . selectedStudent.name . " (" . selectedStudent.topic . ")")
     }
 
-    ; Clear the communication file now that it has been processed
-    ClearComm()
 }
 
 ; Start a session with the selected student

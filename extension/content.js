@@ -114,7 +114,7 @@ function initializeDetector() {
                 mutation.removedNodes.forEach(node => {
                     if (node.nodeType === 1 && node.matches && node.matches('.session-row')) {
                         // We only care if a student (non-locked) is removed.
-                        if (!row.classList.contains('session-row-locked')) {
+                        if (!node.classList.contains('session-row-locked')) {
                             debugLog(1, '📤 Student removed:', node);
                             studentListChanged = true;
                             changeDetails.push('student row removed');

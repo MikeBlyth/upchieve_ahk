@@ -8,23 +8,28 @@ global LastClipboardContent := ""
 ; Returns true if new student data found, false otherwise
 CheckForStudents() {
     global LastClipboardContent
+    clipboardContent := A_Clipboard
 
-    ; Get current clipboard content
-    clipboardContent := ""
-    try {
-        clipboardContent := A_Clipboard
-    } catch Error as e {
-        ; Clipboard access failed - ignore and continue
+    ; If clipboard is the same as last time, do nothing.
+    if (clipboardContent == LastClipboardContent) {
         return false
     }
 
-    ; Check if clipboard has changed and contains student data
-    if (clipboardContent != LastClipboardContent && InStr(clipboardContent, "*upchieve") = 1) {
-        LastClipboardContent := clipboardContent
-;        WriteLog("New student data detected in clipboard: " . SubStr(clipboardContent, 1, 100) . "...")
+    ; It's different. Log everything for debugging.
+    WriteLog("DEBUG_CHECK: Change detected!")
+    WriteLog("DEBUG_CHECK: Current clipboard: '" . clipboardContent . "'")
+    WriteLog("DEBUG_CHECK: Last content: '" . LastClipboardContent . "'")
+
+    ; Update our "last seen" value.
+    LastClipboardContent := clipboardContent
+
+    ; Now, is this new value something we should process?
+    if (InStr(clipboardContent, "*upchieve") = 1) {
+        WriteLog("DEBUG_CHECK: New content is valid. Returning true.")
         return true
     }
 
+    WriteLog("DEBUG_CHECK: New content is NOT valid. Returning false.")
     return false
 }
 
