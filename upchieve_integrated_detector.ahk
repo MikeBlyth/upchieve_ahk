@@ -78,7 +78,7 @@ PreventSleep() {
     result := DllCall("kernel32.dll\SetThreadExecutionState", "UInt", flags, "UInt")
 
     if (result) {
-        WriteLog("Sleep prevention enabled - system stays awake, display can turn off")
+;        WriteLog("Sleep prevention enabled - system stays awake, display can turn off")
     } else {
         WriteLog("WARNING: Failed to enable sleep prevention")
     }
@@ -306,7 +306,7 @@ ParseStudentArray(data) {
                 students.Push(studentObj)
                 studentCount++
 
-                WriteLog("PARSED: Student " . studentCount . " - " . studentObj.ToString())
+;                WriteLog("PARSED: Student " . studentCount . " - " . studentObj.ToString())
             } else {
                 WriteLog("WARNING: Skipping invalid student data at index " . i . ": name='" . name . "', topic='" . topic . "'")
             }
@@ -388,11 +388,11 @@ CheckBlockedNames(student, blockFile := "block_names.txt") {
 FindUpchieveWindow() {
     global ExtensionWindowID
 
-    WriteLog("Searching for Upchieve window...")
+;    WriteLog("Searching for Upchieve window...")
     ExtensionWindowID := WinExist("Upchieve")
 
     if (ExtensionWindowID) {
-        WriteLog("Found Upchieve window with ID: " . ExtensionWindowID)
+;           WriteLog("Found Upchieve window with ID: " . ExtensionWindowID)
         return true
     } else {
         WriteLog("Upchieve window not found.")
@@ -579,7 +579,7 @@ CloseStatusDialog() {
 
 ; Find headers with multiple retries
 FindHeadersWithRetry() {
-    WriteLog("Attempting to find headers with retries...")
+;    WriteLog("Attempting to find headers with retries...")
     maxRetries := 10
     retryDelay := 2000  ; 2 seconds
     headersFound := false
@@ -587,13 +587,13 @@ FindHeadersWithRetry() {
     Loop maxRetries {
         UpdateStatusDialog("🔎 Searching for headers... (Attempt " . A_Index . "/" . maxRetries . ")")
         if (RefreshHeaderPositions()) {
-            WriteLog("Headers detected successfully on attempt " . A_Index)
+;            WriteLog("Headers detected successfully on attempt " . A_Index)
             headersFound := true
             break
         }
 
         if (A_Index < maxRetries) {
-            WriteLog("Headers not found, retry " . A_Index . "/" . maxRetries . " - waiting " . (retryDelay/1000) . " seconds...")
+;            WriteLog("Headers not found, retry " . A_Index . "/" . maxRetries . " - waiting " . (retryDelay/1000) . " seconds...")
             Sleep(retryDelay)
         }
     }
@@ -629,7 +629,7 @@ Main() {
         }
     }
     ; Bind FindText to the Upchieve window
-    WriteLog("Binding FindText to window ID: " . ExtensionWindowID)
+;    WriteLog("Binding FindText to window ID: " . ExtensionWindowID)
     FindText().BindWindow(ExtensionWindowID, 4)
 
     ; Perform initial header detection with retries
@@ -675,7 +675,7 @@ MainDetectionLoop() {
     lastHeaderCheckTime := A_TickCount
     headerCheckInterval := 60 * 1000  ; 60 seconds
 
-    WriteLog("Starting main detection loop in " . modeText . " mode")
+;    WriteLog("Starting main detection loop in " . modeText . " mode")
 
     while (true) {
         ; Handle different application states
@@ -734,7 +734,7 @@ ProcessStudentData() {
     students := ParseStudentArray(commData)
 
     if (students.Length == 0) {
-        WriteLog("No valid students found in communication file data")
+        WriteLog("No students, clipboard=" . A_Clipboard)
         return
     }
 
@@ -746,7 +746,7 @@ ProcessStudentData() {
             WriteScanLog(logMessage)
         }
         ; Show scan message briefly in log instead of dialog to avoid interference
-        WriteLog("📈 SCAN: Logged " . students.Length . " students to scan.log")
+;        WriteLog("📈 SCAN: Logged " . students.Length . " students to scan.log")
         ClearComm() ; Clear communication file after processing
         return ; Exit function after logging
     }
@@ -781,7 +781,7 @@ ProcessStudentData() {
     ; Perform click action based on mode
     if (LiveMode) {
         ; LIVE mode - actually click the student
-        WriteLog("LIVE MODE: Clicking student at " . clickPos.x . "," . clickPos.y)
+;        WriteLog("LIVE MODE: Clicking student at " . clickPos.x . "," . clickPos.y)
 
         ; Activate window and click
         WinActivate("ahk_id " . ExtensionWindowID)
@@ -898,7 +898,7 @@ MonitorSessionEnd() {
     
     ; Search the entire window for the session ended target
     if (FindText(, , searchX1, searchY1, searchX2, searchY2, 0.1, 0.1, SessionEndedTarget)) {
-        WriteLog("SessionEndedTarget found. Ending session.")
+;        WriteLog("SessionEndedTarget found. Ending session.")
         EndCurrentSession()
     }
 }
@@ -1022,7 +1022,7 @@ ShowStartupDialog() {
         Sleep(100)
     }
 
-    WriteLog("Startup dialog result: " . result . " (Mode: " . modeText . ")")
+;    WriteLog("Startup dialog result: " . result . " (Mode: " . modeText . ")")
     return (result == "Continue")
 }
 

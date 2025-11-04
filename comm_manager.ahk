@@ -39,7 +39,7 @@ ClearComm() {
     global LastClipboardContent
     try {
         A_Clipboard := ""
-        WriteLog("Clipboard cleared")
+;        WriteLog("Clipboard cleared")
     } catch Error as e {
         WriteLog("ERROR: Failed to clear clipboard: " . e.Message)
     }

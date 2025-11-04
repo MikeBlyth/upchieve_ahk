@@ -82,7 +82,7 @@ RefreshHeaderPositions() {
     }
 
     ; 2. Perform wide search if not found in narrow zone
-    WriteLog("Searching for Student header in wide area (full window)...")
+;    WriteLog("Searching for Student header in wide area (full window)...")
 
     studentResult := FindText(, , 0, 0, 3000,2000, 0.1, 0.1, StudentHeaderTarget)
     if (!studentResult) {
@@ -105,7 +105,7 @@ RefreshHeaderPositions() {
     studentHeaderPos := GetUpperLeft(studentResult)
     lastStudentHeaderPos := studentHeaderPos ; Store for next time
     HeadersFound := true
-    WriteLog("SUCCESS: Student header found in wide search at: " . studentHeaderPos.x . "," . studentHeaderPos.y)
+;    WriteLog("SUCCESS: Student header found in wide search at: " . studentHeaderPos.x . "," . studentHeaderPos.y)
     return true
 }
 
