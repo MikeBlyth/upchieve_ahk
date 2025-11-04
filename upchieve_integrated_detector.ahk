@@ -758,9 +758,11 @@ ProcessStudentData() {
             if !currentStudentNames.Has(waitingStudent.name) {
                 WriteLog("DEBUG: Student " . waitingStudent.name . " is NO LONGER on the list. Logging wait time.")
                 ; Student is gone, calculate wait time and log it
-                waitTimeSeconds := DateDiff(A_Now, waitingStudent.addTime, "Seconds")
-                waitTimeMinutes := Round(waitTimeSeconds / 60, 1)
-                logMessage := timestamp . " " . waitingStudent.name . " (" . waitingStudent.topic . "), " . waitTimeMinutes
+                endTick := A_TickCount
+                diffMilliseconds := endTick - waitingStudent.addTime
+                waitTimeSeconds := diffMilliseconds / 1000
+                formattedWaitTime := Format("{:.1f}", waitTimeSeconds)
+                logMessage := timestamp . " " . waitingStudent.name . " (" . waitingStudent.topic . "), " . formattedWaitTime
                 WriteScanLog(logMessage)
                 g_waitingStudents.RemoveAt(i) ; Remove from list
             }
@@ -779,8 +781,8 @@ ProcessStudentData() {
             }
             if (isNew) {
                 WriteLog("DEBUG: Found new student to add: " . student.name)
-                ; Add new student to the waiting list, now including topic
-                g_waitingStudents.Push({name: student.name, topic: student.topic, addTime: A_Now})
+                ; Add new student to the waiting list, using A_TickCount for high-precision timing
+                g_waitingStudents.Push({name: student.name, topic: student.topic, addTime: A_TickCount})
                 ; "ADDED" line is intentionally not logged as per user request
             }
         }
