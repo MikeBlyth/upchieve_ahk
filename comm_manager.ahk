@@ -15,21 +15,14 @@ CheckForStudents() {
         return false
     }
 
-    ; It's different. Log everything for debugging.
-    WriteLog("DEBUG_CHECK: Change detected!")
-    WriteLog("DEBUG_CHECK: Current clipboard: '" . clipboardContent . "'")
-    WriteLog("DEBUG_CHECK: Last content: '" . LastClipboardContent . "'")
-
-    ; Update our "last seen" value.
+    ; It's different. Update our "last seen" value.
     LastClipboardContent := clipboardContent
 
     ; Now, is this new value something we should process?
     if (InStr(clipboardContent, "*upchieve") = 1) {
-        WriteLog("DEBUG_CHECK: New content is valid. Returning true.")
         return true
     }
 
-    WriteLog("DEBUG_CHECK: New content is NOT valid. Returning false.")
     return false
 }
 

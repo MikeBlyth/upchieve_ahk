@@ -676,9 +676,17 @@ MainDetectionLoop() {
     lastHeaderCheckTime := A_TickCount
     headerCheckInterval := 60 * 1000  ; 60 seconds
 
-;    WriteLog("Starting main detection loop in " . modeText . " mode")
+    ; Timer for periodic sleep prevention
+    lastSleepPreventTime := A_TickCount
+    sleepPreventInterval := 60 * 1000 ; 60 seconds
 
     while (true) {
+        ; Periodically re-assert sleep prevention
+        if (A_TickCount - lastSleepPreventTime > sleepPreventInterval) {
+            PreventSleep()
+            lastSleepPreventTime := A_TickCount
+        }
+
         ; Handle different application states
         if (AppState == "PAUSED") {
             UpdateStatusDialog("⏸️ PAUSED - Press Ctrl+Shift+H to resume")
@@ -724,39 +732,152 @@ MainDetectionLoop() {
     }
 }
 
-; Process student data from the communication file
+/*
+;  Process student data from the communication file
 ProcessStudentData() {
-    global AppState, LiveMode, InSession, LastStudentName, LastStudentTopic, SessionStartTime
+     global AppState, LiveMode, InSession, LastStudentName, LastStudentTopic, SessionStartTime
 
-    WriteLog("DEBUG: Entering ProcessStudentData")
+     ; Get content from communication file and parse students
+     commData := GetCommContent()
+     students := ParseStudentArray(commData)
 
-    ; Get content from communication file and parse students
-    commData := GetCommContent()
-    WriteLog("DEBUG: commData from GetCommContent(): " . commData)
+     ; Handle Scan Mode separately
+     if (ScanMode) {
+         timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
 
-    students := ParseStudentArray(commData)
-    WriteLog("DEBUG: Parsed " . students.Length . " students from commData.")
+         currentStudentNames := Map()
+         for _, student in students {
+             currentStudentNames[student.name] := true
+         }
+
+         i := g_waitingStudents.Length
+         while i > 0 {
+             waitingStudent := g_waitingStudents[i]
+             if !currentStudentNames.Has(waitingStudent.name) {
+                 endTick := A_TickCount
+                 diffMilliseconds := endTick - waitingStudent.addTime
+                 waitTimeSeconds := diffMilliseconds / 1000
+                 formattedWaitTime := Format("{:.1f}", waitTimeSeconds)
+                 logMessage := timestamp . " " . waitingStudent.name . " (" . waitingStudent.topic . "), " . formattedWaitTime
+                 WriteScanLog(logMessage)
+                 g_waitingStudents.RemoveAt(i)
+             }
+             i--
+         }
+
+         for _, student in students {
+             isNew := true
+             for _, waitingStudent in g_waitingStudents {
+                 if (student.name == waitingStudent.name) {
+                     isNew := false
+                     break
+                 }
+             }
+             if (isNew) {
+                 g_waitingStudents.Push({name: student.name, topic: student.topic, addTime: A_TickCount})
+             }
+         }
+
+         return
+     }
+
+     ; The rest of the logic is for Live/Testing mode, which should not run for ScanMode.
+     WriteLog("DEBUG_LIVE: Entering Live/Test Mode logic with " . students.Length . " students.")
+
+     if (students.Length == 0) {
+         WriteLog("No students, clipboard=" . A_Clipboard)
+         return
+     }
+
+     ; Find the first student that is not blocked
+     selectedStudent := Student("", "", 0)
+     for a_student in students {
+         WriteLog("DEBUG_LIVE: Checking student: " . a_student.name)
+         if (CheckBlockedNames(a_student)) {
+             WriteLog("DEBUG_LIVE: -> " . a_student.name . " is BLOCKED.")
+             continue ; Check next student
+         }
+
+         WriteLog("DEBUG_LIVE: -> " . a_student.name . " is not blocked.")
+         selectedStudent := a_student
+         WriteLog("Selected student: " . selectedStudent.ToString())
+         break
+     }
+
+     ; If no selectable student was found, exit
+     if (selectedStudent.name == "") {
+         WriteLog("No selectable students found after checking block/target list.")
+         return
+     }
+
+     if !IndexOf(Subjects, selectedStudent.topic) {
+         WriteLog("DEBUG_LIVE: -> Topic '" . selectedStudent.topic . "' is NOT in the recognized subjects list.")
+         WriteLog("WARNING: Student topic '" . selectedStudent.topic . "' not in predefined subjects list")
+         return
+     }
+     WriteLog("DEBUG_LIVE: -> Topic '" . selectedStudent.topic . "' is valid.")
+
+     ; Calculate click position
+     clickPos := CalculateClickPosition(selectedStudent.name)
+     WriteLog("DEBUG_LIVE: -> CalculateClickPosition returned: " . clickPos.x . ", " . clickPos.y)
+     if (clickPos.x == 0 || clickPos.y == 0) {
+         WriteLog("Failed to calculate click position - skipping student")
+         return
+     }
+
+     ; Perform click action based on mode
+     if (LiveMode) {
+         ; LIVE mode - actually click the student
+         WriteLog("LIVE MODE: Clicking student at " . clickPos.x . "," . clickPos.y)
+
+         ; Activate window and click
+         WinActivate("ahk_id " . ExtensionWindowID)
+         WinWaitActive("ahk_id " . ExtensionWindowID, , 2)
+         Sleep(100) ; Trying to avoid zombie sessions students may see
+         Click(clickPos.x, clickPos.y)
+
+         ; Wait and verify session started by looking for the session UI
+         if (IsSessionActive()) {
+             WriteLog("Session verified - student click successful")
+             StartSession(selectedStudent)
+         } else {
+             WriteLog("Session verification failed - click may not have worked")
+             ; Could add retry logic here if needed
+         }
+
+     } else {
+         ; TESTING mode - log detection without clicking
+         WriteLog("TESTING MODE: Would click student " . selectedStudent.name . " at " . clickPos.x . "," . clickPos.y)
+         ; Show testing message briefly in log
+         WriteLog("🧪 Testing: Found " . selectedStudent.name . " (" . selectedStudent.topic . ")")
+     }
+ }
+ */
 
 
-    ; Handle Scan Mode separately
+
+ ProcessStudentData() {
+      global AppState, LiveMode, InSession, LastStudentName, LastStudentTopic, SessionStartTime
+
+      ; Get content from communication file and parse students
+      commData := GetCommContent()
+      students := ParseStudentArray(commData)
+
+      ; Handle Scan Mode separately
     if (ScanMode) {
-        WriteLog("DEBUG: ScanMode is active. g_waitingStudents has " . g_waitingStudents.Length . " students.")
         timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
         
         ; Create a map of current student names for efficient lookup
         currentStudentNames := Map()
-        for _, student in students {
-            currentStudentNames[student.name] := true
+        for _, student_item in students {
+            currentStudentNames[student_item.name] := true
         }
-        WriteLog("DEBUG: Created map of " . currentStudentNames.Count . " current students.")
 
         ; Check for students who are no longer waiting
         i := g_waitingStudents.Length
         while i > 0 {
             waitingStudent := g_waitingStudents[i]
-            WriteLog("DEBUG: Checking waiting student: " . waitingStudent.name)
             if !currentStudentNames.Has(waitingStudent.name) {
-                WriteLog("DEBUG: Student " . waitingStudent.name . " is NO LONGER on the list. Logging wait time.")
                 ; Student is gone, calculate wait time and log it
                 endTick := A_TickCount
                 diffMilliseconds := endTick - waitingStudent.addTime
@@ -770,88 +891,95 @@ ProcessStudentData() {
         }
 
         ; Check for new students
-        WriteLog("DEBUG: Checking for new students to add.")
-        for _, student in students {
+        for _, student_item in students {
             isNew := true
             for _, waitingStudent in g_waitingStudents {
-                if (student.name == waitingStudent.name) {
+                if (student_item.name == waitingStudent.name) {
                     isNew := false
                     break
                 }
             }
             if (isNew) {
-                WriteLog("DEBUG: Found new student to add: " . student.name)
                 ; Add new student to the waiting list, using A_TickCount for high-precision timing
-                g_waitingStudents.Push({name: student.name, topic: student.topic, addTime: A_TickCount})
+                g_waitingStudents.Push({name: student_item.name, topic: student_item.topic, addTime: A_TickCount})
                 ; "ADDED" line is intentionally not logged as per user request
             }
         }
 
-        WriteLog("DEBUG: Finished ScanMode logic.")
         return ; Exit function after logging
     }
 
-    ; The rest of the logic is for Live/Testing mode, which should not run for ScanMode.
-    if (students.Length == 0) {
-        WriteLog("No students, clipboard=" . A_Clipboard)
-        return
-    }
+      ; The rest of the logic is for Live/Testing mode, which should not run for ScanMode.
+      WriteLog("DEBUG_LIVE: Entering Live/Test Mode logic with " . students.Length . " students.")
 
-    ; Find the first student that is not blocked
-    selectedStudent := Student("", "", 0)
-    for a_student in students {
-        if (!CheckBlockedNames(a_student)) {
-            selectedStudent := a_student
-            WriteLog("Selected student: " . selectedStudent.ToString())
-            break  ; Found our student, stop looking
-        }
-    }
+      if (students.Length == 0) {
+          WriteLog("No students, clipboard=" . A_Clipboard)
+          return
+      }
 
-    ; If no selectable student was found, exit
-    if (selectedStudent.name == "") {
-        WriteLog("No selectable students found after checking block/target list.")
-        return
-    }
+      ; Find the first student that is not blocked
+      selectedStudent := Student("", "", 0)
+      for a_student in students {
+;          WriteLog("DEBUG_LIVE: Checking student: " . a_student.name)
+          if (CheckBlockedNames(a_student)) {
+              WriteLog("Student " . a_student.name . " is BLOCKED.")
+              continue ; Check next student
+          }
 
-    if !IndexOf(Subjects, selectedStudent.topic) {
-        WriteLog("WARNING: Student topic '" . selectedStudent.topic . "' not in predefined subjects list")
-        return
-    }
-    ; Calculate click position
-    clickPos := CalculateClickPosition(selectedStudent.name)
-    if (clickPos.x == 0 || clickPos.y == 0) {
-        WriteLog("Failed to calculate click position - skipping student")
-        return
-    }
+;          WriteLog("DEBUG_LIVE: -> " . a_student.name . " is not blocked.")
+          selectedStudent := a_student
+          WriteLog("Selected student: " . selectedStudent.ToString())
+          break
+      }
 
-    ; Perform click action based on mode
-    if (LiveMode) {
-        ; LIVE mode - actually click the student
-        WriteLog("LIVE MODE: Clicking student at " . clickPos.x . "," . clickPos.y)
+      ; If no selectable student was found, exit
+      if (selectedStudent.name == "") {
+          WriteLog("No selectable students found after checking block/target list.")
+          return
+      }
 
-        ; Activate window and click
-        WinActivate("ahk_id " . ExtensionWindowID)
-        WinWaitActive("ahk_id " . ExtensionWindowID, , 2)
-        Sleep(100) ; Trying to avoid zombie sessions students may see
-        Click(clickPos.x, clickPos.y)
+      if !IndexOf(Subjects, selectedStudent.topic) {
+;          WriteLog("DEBUG_LIVE: -> Topic '" . selectedStudent.topic . "' is NOT in the recognized subjects list.")
+          WriteLog("WARNING: Student topic '" . selectedStudent.topic . "' not in predefined subjects list")
+          return
+      }
+;      WriteLog("DEBUG_LIVE: -> Topic '" . selectedStudent.topic . "' is valid.")
 
-        ; Wait and verify session started by looking for the session UI
-        if (IsSessionActive()) {
-            WriteLog("Session verified - student click successful")
-            StartSession(selectedStudent)
-        } else {
-            WriteLog("Session verification failed - click may not have worked")
-            ; Could add retry logic here if needed
-        }
+      ; Calculate click position
+      clickPos := CalculateClickPosition(selectedStudent.name)
+;      WriteLog("DEBUG_LIVE: -> CalculateClickPosition returned: " . clickPos.x . ", " . clickPos.y)
+      if (clickPos.x == 0 || clickPos.y == 0) {
+          WriteLog("Failed to calculate click position - skipping student")
+          return
+      }
 
-    } else {
-        ; TESTING mode - log detection without clicking
-        WriteLog("TESTING MODE: Would click student " . selectedStudent.name . " at " . clickPos.x . "," . clickPos.y)
-        ; Show testing message briefly in log
-        WriteLog("🧪 Testing: Found " . selectedStudent.name . " (" . selectedStudent.topic . ")")
-    }
+      ; Perform click action based on mode
+      if (LiveMode) {
+          ; LIVE mode - actually click the student
+          WriteLog("LIVE MODE: Clicking student at " . clickPos.x . "," . clickPos.y)
 
-}
+          ; Activate window and click
+          WinActivate("ahk_id " . ExtensionWindowID)
+          WinWaitActive("ahk_id " . ExtensionWindowID, , 2)
+          Sleep(100) ; Trying to avoid zombie sessions students may see
+          Click(clickPos.x, clickPos.y)
+
+          ; Wait and verify session started by looking for the session UI
+          if (IsSessionActive()) {
+              WriteLog("Session verified - student click successful")
+              StartSession(selectedStudent)
+          } else {
+              WriteLog("Session verification failed - click may not have worked")
+              ; Could add retry logic here if needed
+          }
+
+      } else {
+          ; TESTING mode - log detection without clicking
+          WriteLog("TESTING MODE: Would click student " . selectedStudent.name . " at " . clickPos.x . "," . clickPos.y)
+          ; Show testing message briefly in log
+          WriteLog("🧪 Testing: Found " . selectedStudent.name . " (" . selectedStudent.topic . ")")
+      }
+  }
 
 ; Start a session with the selected student
 StartSession(student) {
