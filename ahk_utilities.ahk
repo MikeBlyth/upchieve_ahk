@@ -194,3 +194,8 @@ FindAndClick(TargetString, x1 := "", y1 := "", x2 := "", y2 := "", err1 := 0.15,
     return result
 }
 
+; Get a formatted timestamp string
+GetTimestamp() {
+    return FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
+}
+

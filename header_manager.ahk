@@ -111,22 +111,17 @@ RefreshHeaderPositions() {
 
 ; Calculate click position based on student name and cached header positions
 ; Returns coordinates object {x, y} for clicking on the student
-CalculateClickPosition(studentName) {
+CalculateClickPosition(studentName, index) {
     global studentHeaderPos, HeadersFound
 
-    ; Verify headers are available
     if (!HeadersFound) {
         WriteLog("ERROR: Cannot calculate click position - headers not found")
         return {x: 0, y: 0}
     }
 
-    ; Calculate click coordinates based on student header position
-    ; Student names appear in rows starting ~95 pixels below the header
-    ; Use the first row for now (can be enhanced to search for specific student)
-    clickX := studentHeaderPos.x + 100  ; Center of student name column
-    clickY := studentHeaderPos.y + 110  ; First student row
+    clickX := studentHeaderPos.x + 100
+    clickY := studentHeaderPos.y + 110 + (98 * (index - 1))
 
-;    WriteLog("Calculated click position for '" . studentName . "': " . clickX . "," . clickY)
     return {x: clickX, y: clickY}
 }
 

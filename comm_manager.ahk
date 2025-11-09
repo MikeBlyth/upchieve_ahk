@@ -8,7 +8,13 @@ global LastClipboardContent := ""
 ; Returns true if new student data found, false otherwise
 CheckForStudents() {
     global LastClipboardContent
-    clipboardContent := A_Clipboard
+    clipboardContent := ""
+    try {
+        clipboardContent := A_Clipboard
+    } catch Error as e {
+        WriteLog("ERROR: Failed to read clipboard: " . e.Message)
+        return false
+    }
 
     ; If clipboard is the same as last time, do nothing.
     if (clipboardContent == LastClipboardContent) {
