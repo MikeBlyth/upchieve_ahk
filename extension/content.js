@@ -4,6 +4,16 @@
 
 console.log('🚀 UPchieve Student Detector Extension loaded');
 
+// --- Main Thread Heartbeat ---
+// This timer helps detect if the main thread is blocked by long-running tasks on the page.
+// If the time since `lastHeartbeat` is significantly longer than the interval (100ms),
+// it indicates the page was frozen.
+let lastHeartbeat = Date.now();
+setInterval(() => {
+    lastHeartbeat = Date.now();
+}, 100);
+// --------------------------
+
 // Configuration
 let detectorEnabled = false;
 let debugLevel = 1;
@@ -187,6 +197,12 @@ function disableDetector() {
 // Debouncing for student detection
 let detectionTimeout = null;
 function triggerStudentDetection(method, details) {
+    // Check for main thread blocking using the heartbeat timer.
+    const heartbeatLag = Date.now() - lastHeartbeat;
+    if (heartbeatLag > 500) { // A lag of >500ms suggests the thread was blocked.
+        debugLog(1, `⚠️ Main thread may have been blocked for ~${(heartbeatLag / 1000).toFixed(1)}s`);
+    }
+
     // Clear any pending detection to ensure we only run once after the last change.
     if (detectionTimeout) {
         clearTimeout(detectionTimeout);
