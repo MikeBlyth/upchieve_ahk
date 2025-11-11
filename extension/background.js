@@ -194,3 +194,15 @@ chrome.runtime.onInstalled.addListener(() => {
 chrome.storage.sync.get(['detectorEnabled'], (result) => {
     updateIcon(result.detectorEnabled || false);
 });
+
+// --- Keep-alive connection for content scripts ---
+// This helps prevent content scripts from being put to sleep by the browser.
+chrome.runtime.onConnect.addListener(port => {
+    if (port.name === 'keep-alive') {
+        console.log('✅ Keep-alive connection established from tab:', port.sender.tab.id);
+        port.onDisconnect.addListener(() => {
+            console.log('⚠️ Keep-alive port disconnected from tab:', port.sender.tab.id);
+        });
+        // We don't need to post messages, the connection itself is the goal.
+    }
+});

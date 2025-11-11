@@ -26,6 +26,30 @@ function debugLog(level, message, ...args) {
     }
 }
 
+// --- Keep-alive connection ---
+// Establishes a long-lived connection with the background script to signal that this
+// page is active and should not be put to sleep by the browser.
+function connectToBackground() {
+    try {
+        const port = chrome.runtime.connect({ name: 'keep-alive' });
+        debugLog(1, '🔌 Keep-alive connection established.');
+
+        port.onDisconnect.addListener(() => {
+            // This can happen if the background script is updated/reloaded.
+            debugLog(1, '🔌 Keep-alive port disconnected. Reconnecting in 5 seconds...');
+            setTimeout(connectToBackground, 5000); // Attempt to reconnect after a delay
+        });
+    } catch (error) {
+        debugLog(1, `❌ Could not establish keep-alive connection: ${error.message}`);
+        debugLog(1, '🔌 Retrying in 30 seconds...');
+        setTimeout(connectToBackground, 30000);
+    }
+}
+
+// Initial connection attempt
+connectToBackground();
+// ---------------------------
+
 // Inject a stylesheet for global page styles (text selection, hiding rows)
 function injectHidingStylesheet() {
     const style = document.createElement('style');
@@ -200,7 +224,7 @@ function triggerStudentDetection(method, details) {
     // Check for main thread blocking using the heartbeat timer.
     const heartbeatLag = Date.now() - lastHeartbeat;
     if (heartbeatLag > 500) { // A lag of >500ms suggests the thread was blocked.
-        debugLog(1, `⚠️ Main thread may have been blocked for ~${(heartbeatLag / 1000).toFixed(1)}s`);
+        debugLog(2, `Main thread activity lag detected: ~${(heartbeatLag / 1000).toFixed(1)}s`);
     }
 
     // Clear any pending detection to ensure we only run once after the last change.
