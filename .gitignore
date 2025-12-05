@@ -1,4 +1,6 @@
 get_price_function.ahk
+block_names.txt
+upchieve_app.log
 temp*
 *.tmp
 priority_test* 

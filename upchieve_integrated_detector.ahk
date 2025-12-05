@@ -952,8 +952,10 @@ ProcessStudentData() {
          ; LIVE mode - actually click the student
 
          ; Activate window and click
+         WriteLog("LIVE MODE: Ready to activate window")
          WinActivate("ahk_id " . ExtensionWindowID)
          WinWaitActive("ahk_id " . ExtensionWindowID, , 2)
+         WriteLog("LIVE MODE: Window activated")
          Sleep(100) ; Trying to avoid zombie sessions students may see
          WriteLog("LIVE MODE: Clicking student at " . clickPos.x . "," . clickPos.y)
          Click(clickPos.x, clickPos.y)
