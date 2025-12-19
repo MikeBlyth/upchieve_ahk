@@ -39,6 +39,7 @@ global LastStudentName := ""
 global LastStudentTopic := ""
 global SessionStartTime := ""
 global SessionEndTime := ""
+global g_sessionCount := ""
 
 ; Waiting notification variables
 global WaitingTimerFunc := ""
@@ -166,7 +167,7 @@ WriteAppLog(message) {
 
     ; Create header if file doesn't exist
     if (!FileExist(logFile)) {
-        header := "Seq,,RTime,Time,Until,W,Name,Grd,Fav,Assgn,Subject,Topic,Math,Duration,Initial response,Serious question,Left abruptly,Stopped resp,Good progress,Last msg,Comments" . "`n"
+        header := "Seq,,RTime,Time,Until,W,Name,Grd,Fav,Assgn,Subject,Topic,Math,Duration,Initial response,Serious question,Left abruptly,Stopped resp,Good progress,Last msg,Comments,# Sessions" . "`n"
         FileAppend(header, logFile)
     }
 
@@ -203,10 +204,13 @@ CleanExit() {
 
 ; Toggle pause/resume functionality
 TogglePause() {
-    global AppState
+    global AppState, LiveMode, ScanMode ; Add ScanMode to globals
 
     if (AppState == "PAUSED") {
         ; Resume from pause
+        if (LiveMode || ScanMode) { ; Change condition to include ScanMode
+            WriteScanLog(GetTimestamp() . " | Resumed")
+        }
         AppState := "WAITING_FOR_STUDENTS"
         StartWaitingTimer()  ; Restart waiting timer when resuming
 ;        WriteLog("Application resumed via hotkey - waiting timer restarted")
@@ -214,6 +218,9 @@ TogglePause() {
     } else {
         ; Pause the application
         WriteLog("Application paused via hotkey.")
+        if (LiveMode || ScanMode) { ; Change condition to include ScanMode
+            WriteScanLog(GetTimestamp() . " | Paused")
+        }
         StopWaitingTimer()  ; Stop waiting timer when pausing
         AppState := "PAUSED"
         UpdateStatusDialog("⏸️ PAUSED - Press Ctrl+Shift+H to resume")
@@ -979,11 +986,9 @@ ProcessStudentData() {
 
 ; Start a session with the selected student
 StartSession(student) {
-    global InSession, AppState, LastStudentName, LastStudentTopic, SessionStartTime, SoundTimerFunc
+    global InSession, AppState, LastStudentName, LastStudentTopic, SessionStartTime, SoundTimerFunc, LiveMode, ScanMode
 
-    if (LiveMode) {
-        WriteScanLog(GetTimestamp() . " | SESSION START: " . student.name)
-    }
+    WriteScanLog(GetTimestamp() . " | SESSION START: " . student.name)
 
     WriteLog("Starting session with: " . student.ToString())
 
@@ -1077,11 +1082,9 @@ MonitorSessionEnd() {
 
 ; End the current session
 EndCurrentSession() {
-    global InSession, AppState, SoundTimerFunc, LastStudentName
+    global InSession, AppState, SoundTimerFunc, LastStudentName, LiveMode, ScanMode
 
-    if (LiveMode) {
-        WriteScanLog(GetTimestamp() . " | SESSION END: " . LastStudentName)
-    }
+    WriteScanLog(GetTimestamp() . " | SESSION END: " . LastStudentName)
 
     WriteLog("Ending current session")
 
@@ -1230,6 +1233,11 @@ ShowSessionStartDialog() {
     startTimeEdit := startGui.AddEdit("xm y+5 w200 ReadOnly")
     startTimeEdit.Text := startTimeFormatted
 
+    ; Session count
+    startGui.AddText("xm y+15", "Session #:")
+    sessionCountEdit := startGui.AddEdit("xm y+5 w200")
+    sessionCountEdit.Text := ""
+
     ; Previous session info section (if available)
     if (ShowSessionStartDialog.lastSessionInfo != "" && ShowSessionStartDialog.lastSessionInfo != "No previous session history.") {
         startGui.AddText("xm y+20", "Previous session info:")
@@ -1260,9 +1268,10 @@ ShowSessionStartDialog() {
 
     ; Update global variables from user input
     UpdateSessionInfo() {
-        global LastStudentName, LastStudentTopic
+        global LastStudentName, LastStudentTopic, g_sessionCount
         LastStudentName := Trim(nameEdit.Text)
         LastStudentTopic := Trim(subjectEdit.Text)
+        g_sessionCount := Trim(sessionCountEdit.Text)
     }
 
     ; Show dialog and wait for user input but don't activate as user may want to
@@ -1334,6 +1343,11 @@ ShowSessionFeedbackDialog() {
     feedbackGui.AddText("xm y+15", "Comments:")
     commentsEdit := feedbackGui.AddEdit("xm y+5 w350")
 
+    ; Session Count
+    feedbackGui.AddText("xm y+15", "Session #:")
+    sessionCountEdit := feedbackGui.AddEdit("xm y+5 w100")
+    sessionCountEdit.Text := g_sessionCount
+
     ; Buttons
     feedbackGui.AddText("xm y+15", "Continue looking for students?")
     yesBtn := feedbackGui.AddButton("xm y+5 w80 h30", "Yes")
@@ -1381,6 +1395,8 @@ ShowSessionFeedbackDialog() {
 
     ; Function to log session feedback in CSV format
     LogSessionFeedbackCSV() {
+        global g_sessionCount
+        g_sessionCount := Trim(sessionCountEdit.Text)
         ; Calculate session duration in minutes
         duration := ""
         if (SessionStartTime != "" && SessionEndTime != "") {
@@ -1416,7 +1432,8 @@ ShowSessionFeedbackDialog() {
         csvRow .= (stoppedCheck.Value ? "1" : "0") . "," ; Column 18: Stopped resp
         csvRow .= progressEdit.Text . "," ; Column 19: Good progress (float 0-1)
         csvRow .= lastMsgEdit.Text . "," ; Column 20: last response
-        csvRow .= QuoteCSVField(StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "")) ; Column 21: comments (quoted, no trailing comma)
+        csvRow .= QuoteCSVField(StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "")) . "," ; Column 21: comments (quoted)
+        csvRow .= g_sessionCount ; Column 22: session count
 
         WriteAppLog(csvRow)
 ;        WriteLog("Session feedback logged to CSV")
