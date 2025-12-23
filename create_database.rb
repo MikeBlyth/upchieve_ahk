@@ -2,6 +2,30 @@
 
 require 'sqlite3'
 require 'date'
+require 'csv'
+
+# --- Helper Functions ---
+def canonical_subject(subject_str)
+  return nil if subject_str.nil?
+  
+  s = subject_str.strip.downcase
+  
+  case s
+  when "csp", "ap computer science principles"
+    "AP Computer Science Principles"
+  when "csa", "ap computer science a"
+    "AP Computer Science A"
+   when "science", "sciece"
+    "Middle School Science"
+  when "pre-algebra", "prealbegra"
+    "Prealgebra"
+  when "algebra 1"
+    "Algebra"
+  else
+    # Default to capitalizing each word
+    s.split.map(&:capitalize).join(' ')
+  end
+end
 
 # --- Configuration ---
 LOG_FILE = 'scan.log'
@@ -28,6 +52,33 @@ def parse_and_load_data(log_file, db_file)
       student_name TEXT,
       subject TEXT,
       waiting_time_seconds REAL
+    );
+  SQL
+
+  db.execute "DROP TABLE IF EXISTS app_log_data;"
+  db.execute <<-SQL
+    CREATE TABLE app_log_data (
+      Date TEXT,
+      RequestTime TEXT,
+      Time TEXT,
+      Until TEXT,
+      W TEXT,
+      Name TEXT,
+      Grade INTEGER,
+      Fav INTEGER,
+      Assignment TEXT,
+      Subject TEXT,
+      Topic TEXT,
+      Math INTEGER,
+      Duration TEXT,
+      InitialResponse INTEGER,
+      SeriousQuestion INTEGER,
+      LeftAbruptly INTEGER,
+      StoppedResp INTEGER,
+      GoodProgress TEXT,
+      LastMsg TEXT,
+      Comments TEXT,
+      Sessions INTEGER
     );
   SQL
 
@@ -126,6 +177,45 @@ def parse_and_load_data(log_file, db_file)
       end
     end
   end
+
+  # --- Process upchieve_app.log ---
+  app_log_file = 'upchieve_app.log'
+  if File.exist?(app_log_file)
+    boolean_indices = [7, 11, 13, 14, 15, 16] # Indices for Fav, Math, InitialResponse, etc.
+
+    CSV.foreach(app_log_file, encoding: 'UTF-8', invalid: :replace, undef: :replace) do |row|
+      # Take the first 21 fields, padding with nil if the row is shorter.
+      log_data = row.first(21)
+      if log_data.length < 21
+        log_data.fill(nil, log_data.length...21)
+      end
+
+      # Convert boolean-like strings to integers by index.
+      boolean_indices.each do |index|
+        if log_data[index]
+          # Check for 'true' or 'false' and convert, otherwise leave as is (for 0, 1, etc.)
+          val = log_data[index].to_s.downcase
+          if val == 'true'
+            log_data[index] = 1
+          elsif val == 'false'
+            log_data[index] = 0
+          end
+        end
+      end
+      
+      # Handle Sessions column (index 20): if it's an empty string, make it nil.
+      if log_data[20] == ""
+        log_data[20] = nil
+      end
+
+      # Standardize Subject name (index 9)
+      log_data[9] = canonical_subject(log_data[9])
+
+      # Ensure all data is ready for insertion.
+      db.execute("INSERT INTO app_log_data VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", log_data)
+    end
+  end
+
 
   puts "Database '#{db_file}' created and populated successfully."
 

@@ -156,6 +156,29 @@ def analyze_data(db_file)
     puts "Hour #{hour}: #{median_time.round(2)} seconds"
   end
 
+  # --- App Log Analysis ---
+  puts "\n\n--- Upchieve App Log Analysis ---"
+
+  # 1. Total number of sessions by subject
+  puts "\n--- Total Sessions by Subject ---"
+  sessions_by_subject = db.execute("SELECT Subject, COUNT(*) as count FROM app_log_data WHERE Subject IS NOT NULL AND Subject != '' GROUP BY Subject ORDER BY count DESC")
+  sessions_by_subject.each do |row|
+    puts "#{row['Subject']}: #{row['count']} sessions"
+  end
+
+  # 2. Average length of session by subject
+  puts "\n--- Average Session Duration by Subject (in minutes) ---"
+  avg_duration_by_subject = db.execute("SELECT Subject, AVG(CAST(Duration AS REAL)) as avg_duration FROM app_log_data WHERE Subject IS NOT NULL AND Subject != '' AND Duration IS NOT NULL AND CAST(Duration AS REAL) > 0 GROUP BY Subject ORDER BY avg_duration DESC")
+  avg_duration_by_subject.each do |row|
+    puts "#{row['Subject']}: #{row['avg_duration'].round(2)} minutes"
+  end
+
+  # 3. Median number of prior sessions
+  puts "\n--- Median Number of Prior Student Sessions ---"
+  session_counts = db.execute("SELECT Sessions FROM app_log_data WHERE Sessions IS NOT NULL").map { |row| row['Sessions'].to_i }
+  median_sessions = median(session_counts)
+  puts "Median of prior sessions: #{median_sessions.round(2)}"
+
 rescue SQLite3::Exception => e
   puts "Database error: #{e}"
 ensure

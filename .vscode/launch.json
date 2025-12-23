@@ -4,12 +4,14 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-    
 
-
-
-        
-
+        {
+            "type": "ahk",
+            "request": "launch",
+            "name": "AutoHotkey v1 Debugger",
+            "program": "",
+            "stopOnEntry": true
+        },
 
         {
             "name": "ocr_tester.ahk",
@@ -44,6 +46,17 @@
             "name": "upchieve_waiting_detector",
             "program": "c:/users/mike/upchieve_ahk/upchieve_integrated_detector.ahk",
             "stopOnEntry": true
+        },
+
+        {
+            "type": "rdbg",
+            "name": "Create DB",
+            "request": "launch",
+            "script": "${workspaceFolder}/create_database.rb",
+            "useBundler": true,
+            "stopOnEntry": true, 
+
         }
     ]
+
 }
