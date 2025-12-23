@@ -64,7 +64,7 @@ global Subjects := ["6th Grade Math", "7th Grade Math", "8th Grade Math", "9th G
 
 ; Hotkey handlers
 ^+q::CleanExit()  ; Ctrl+Shift+Q to quit
-^+h::TogglePause()  ; Ctrl+Shift+H to pause/resume
+^+h::ToggleLiveScanMode()  ; Ctrl+Shift+H to toggle Live/Scan mode
 ^+a::HandleManualSessionToggle()  ; Ctrl+Shift+A to manually start/end session
 ^+d::ShowDebugInfo()  ; Ctrl+Shift+D for debug information
 
@@ -202,29 +202,31 @@ CleanExit() {
     ExitApp
 }
 
-; Toggle pause/resume functionality
-TogglePause() {
-    global AppState, LiveMode, ScanMode ; Add ScanMode to globals
+; Toggle between Live and Scan modes
+ToggleLiveScanMode() {
+    global LiveMode, ScanMode, modeText
 
-    if (AppState == "PAUSED") {
-        ; Resume from pause
-        if (LiveMode || ScanMode) { ; Change condition to include ScanMode
-            WriteScanLog(GetTimestamp() . " | Resumed")
-        }
-        AppState := "WAITING_FOR_STUDENTS"
-        StartWaitingTimer()  ; Restart waiting timer when resuming
-;        WriteLog("Application resumed via hotkey - waiting timer restarted")
-        UpdateStatusDialog("⏳ Resumed - waiting for students...")
-    } else {
-        ; Pause the application
-        WriteLog("Application paused via hotkey.")
-        if (LiveMode || ScanMode) { ; Change condition to include ScanMode
-            WriteScanLog(GetTimestamp() . " | Paused")
-        }
-        StopWaitingTimer()  ; Stop waiting timer when pausing
-        AppState := "PAUSED"
-        UpdateStatusDialog("⏸️ PAUSED - Press Ctrl+Shift+H to resume")
+    if (LiveMode) {
+        ; Switch from Live to Scan
+        LiveMode := false
+        ScanMode := true
+        modeText := "SCAN"
+        WriteScanLog(GetTimestamp() . " - Live Run Ended")
+        WriteScanLog(GetTimestamp() . " - Scan Run Started")
+        WriteLog("Switched from LIVE to SCAN mode.")
+        UpdateStatusDialog("Switched to SCAN mode.")
+    } else if (ScanMode) {
+        ; Switch from Scan to Live
+        ScanMode := false
+        LiveMode := true
+        modeText := "LIVE"
+        WriteScanLog(GetTimestamp() . " - Scan Run Ended")
+        WriteScanLog(GetTimestamp() . " - Live Run Started")
+        WriteLog("Switched from SCAN to LIVE mode.")
+        UpdateStatusDialog("Switched to LIVE mode.")
     }
+    ; If neither is active, this hotkey does nothing.
+    ; This could happen if the app is in "TESTING" mode.
 }
 
 ; Manually start or end a session via hotkey
@@ -696,19 +698,7 @@ MainDetectionLoop() {
             lastSleepPreventTime := A_TickCount
         }
 
-        ; Handle different application states
-        if (AppState == "PAUSED") {
-            UpdateStatusDialog("⏸️ PAUSED - Press Ctrl+Shift+H to resume")
 
-            ; Check if user manually opened a session while paused
-            if (IsSessionActive()) {
-                WriteLog("Manual session detected while paused - starting session tracking")
-                StartSession(Student("", "", 0))
-            }
-
-            Sleep(1000)
-            continue
-        }
 
         if (AppState == "IN_SESSION") {
             ; Monitor for session end
