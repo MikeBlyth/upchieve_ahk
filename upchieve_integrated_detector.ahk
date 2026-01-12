@@ -202,28 +202,51 @@ CleanExit() {
     ExitApp
 }
 
-; Toggle between Live and Scan modes
-ToggleLiveScanMode() {
+; Ensure sound is not muted in the Upchieve window
+EnsureSoundUnmuted() {
+    while SoundMuted() {
+        MsgBox("The Upchieve window appears to be muted. Please unmute the tab in your browser and click OK to continue.", "Tab Muted", "OK 4112")
+        WriteLog("Waiting for user to unmute the Upchieve tab...")
+    }
+}
+
+; Set the application to Live mode
+SetLiveMode() {
     global LiveMode, ScanMode, modeText
 
+    ; Ensure sound is not muted before entering Live mode
+    EnsureSoundUnmuted()
+
+    ScanMode := false
+    LiveMode := true
+    modeText := "LIVE"
+    WriteScanLog(GetTimestamp() . " - Scan Run Ended")
+    WriteScanLog(GetTimestamp() . " - Live Run Started")
+    WriteLog("Switched to LIVE mode.")
+    UpdateStatusDialog("Switched to LIVE mode.")
+}
+
+; Set the application to Scan mode
+SetScanMode() {
+    global LiveMode, ScanMode, modeText
+
+    LiveMode := false
+    ScanMode := true
+    modeText := "SCAN"
+    WriteScanLog(GetTimestamp() . " - Live Run Ended")
+    WriteScanLog(GetTimestamp() . " - Scan Run Started")
+    WriteLog("Switched to SCAN mode.")
+    UpdateStatusDialog("Switched to SCAN mode.")
+}
+
+; Toggle between Live and Scan modes
+ToggleLiveScanMode() {
+    global LiveMode, ScanMode
+
     if (LiveMode) {
-        ; Switch from Live to Scan
-        LiveMode := false
-        ScanMode := true
-        modeText := "SCAN"
-        WriteScanLog(GetTimestamp() . " - Live Run Ended")
-        WriteScanLog(GetTimestamp() . " - Scan Run Started")
-        WriteLog("Switched from LIVE to SCAN mode.")
-        UpdateStatusDialog("Switched to SCAN mode.")
+        SetScanMode()
     } else if (ScanMode) {
-        ; Switch from Scan to Live
-        ScanMode := false
-        LiveMode := true
-        modeText := "LIVE"
-        WriteScanLog(GetTimestamp() . " - Scan Run Ended")
-        WriteScanLog(GetTimestamp() . " - Live Run Started")
-        WriteLog("Switched from SCAN to LIVE mode.")
-        UpdateStatusDialog("Switched to LIVE mode.")
+        SetLiveMode()
     }
     ; If neither is active, this hotkey does nothing.
     ; This could happen if the app is in "TESTING" mode.
@@ -634,10 +657,7 @@ Main() {
     }
 
     if (LiveMode) {
-        while SoundMuted() {
-            MsgBox("The Upchieve window appears to be muted. Please unmute the tab in your browser and click OK to continue.", "Tab Muted", "OK 4112")
-            WriteLog("Waiting for user to unmute the Upchieve tab...")
-        }
+        EnsureSoundUnmuted()
     }
     ; Bind FindText to the Upchieve window
 ;    WriteLog("Binding FindText to window ID: " . ExtensionWindowID)
@@ -718,6 +738,9 @@ MainDetectionLoop() {
         ; 1. Check for headers periodically
         if (A_TickCount - lastHeaderCheckTime > headerCheckInterval) {
             RefreshHeaderPositions()
+            if (LiveMode) {
+                EnsureSoundUnmuted()
+            }
             lastHeaderCheckTime := A_TickCount
         }
 
