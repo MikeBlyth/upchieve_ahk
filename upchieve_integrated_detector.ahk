@@ -130,10 +130,10 @@ StopWaitingTimer() {
 
 ; Show "Still waiting?" notification
 ShowWaitingNotification() {
-    global AppState
+    global AppState, ScanMode
 
-    ; Only show if still in waiting state
-    if (AppState != "WAITING_FOR_STUDENTS") {
+    ; Only show if still in waiting state and NOT in scan mode
+    if (AppState != "WAITING_FOR_STUDENTS" || ScanMode) {
         StopWaitingTimer()
         return
     }
@@ -220,6 +220,10 @@ SetLiveMode() {
     ScanMode := false
     LiveMode := true
     modeText := "LIVE"
+
+    ; Restart waiting timer if we are waiting
+    StartWaitingTimer()
+
     WriteScanLog(GetTimestamp() . " - Scan Run Ended")
     WriteScanLog(GetTimestamp() . " - Live Run Started")
     WriteLog("Switched to LIVE mode.")
@@ -233,6 +237,10 @@ SetScanMode() {
     LiveMode := false
     ScanMode := true
     modeText := "SCAN"
+
+    ; Stop waiting timer in scan mode
+    StopWaitingTimer()
+
     WriteScanLog(GetTimestamp() . " - Live Run Ended")
     WriteScanLog(GetTimestamp() . " - Scan Run Started")
     WriteLog("Switched to SCAN mode.")
