@@ -167,7 +167,7 @@ WriteAppLog(message) {
 
     ; Create header if file doesn't exist
     if (!FileExist(logFile)) {
-        header := "Seq,,RTime,Time,Until,W,Name,Grd,Fav,Assgn,Subject,Topic,Math,Duration,Initial response,Serious question,Left abruptly,Stopped resp,Good progress,Last msg,Comments,# Sessions" . "`n"
+        header := "RTime,Time,Until,W,,Name,Grd,Fav,Assgn,Subject,Topic,Math,Duration,Initial response,Serious question,Left abruptly,Stopped resp,Good progress,Last msg,Comments,# Sessions" . "`n"
         FileAppend(header, logFile)
     }
 
@@ -177,7 +177,15 @@ WriteAppLog(message) {
 
 ; App log function for scan data
 WriteScanLog(message) {
-    FileAppend(message . "`n", "scan.log")
+    try {
+        file := FileOpen("scan.log", "a", "UTF-8-RAW")
+        text := message . "`n"
+        size := StrPut(text, "UTF-8") - 1
+        buf := Buffer(size)
+        StrPut(text, buf, size, "UTF-8")
+        file.RawWrite(buf)
+        file.Close()
+    }
 }
 
 ; Clean exit function
@@ -465,30 +473,36 @@ SummarizeStudent(name) {
                 continue  ; Skip header and log messages
             }
             
-            ; Split CSV line
-            fields := StrSplit(line, ",")
-            if (fields.Length < 21) {
+            ; Parse CSV line properly handling quotes
+            fields := []
+            Loop Parse, line, "CSV" {
+                fields.Push(A_LoopField)
+            }
+
+            if (fields.Length < 20) {
                 continue  ; Skip malformed lines
             }
             
-            ; Extract relevant fields (1-indexed CSV columns)
-            studentName := Trim(fields[7])   ; Column 7: Name
-            date := Trim(fields[2])          ; Column 2: RTime (date)
-            subject := Trim(fields[11])      ; Column 11: Subject
-            topic := Trim(fields[12])        ; Column 12: Topic
-            duration := Trim(fields[14])     ; Column 14: Duration
-            goodProgress := Trim(fields[19]) ; Column 19: Good progress
-            comments := Trim(fields[21])     ; Column 21: Comments
+            ; Standard indices (Date at Col 1)
+            dateVal := fields[1]
+            studentName := fields[6]
+            subject := fields[10]
+            topic := fields[11]
+            duration := fields[13]
+            goodProgress := fields[18]
+            comments := fields[20]
+            
+            studentName := Trim(studentName)
             
             ; Check if this entry matches the student name (case-insensitive)
             if (StrLower(studentName) == StrLower(name) && studentName != "") {
                 studentEntries.Push({
-                    date: date,
-                    subject: subject,
-                    topic: topic,
-                    duration: duration,
-                    goodProgress: goodProgress,
-                    comments: comments
+                    date: dateVal,
+                    subject: Trim(subject),
+                    topic: Trim(topic),
+                    duration: Trim(duration),
+                    goodProgress: Trim(goodProgress),
+                    comments: Trim(comments)
                 })
             }
         }
@@ -1433,28 +1447,27 @@ ShowSessionFeedbackDialog() {
 
         ; Build CSV row following exact column specification
         csvRow := ""
-        csvRow .= "," ; Column 1: blank
-        csvRow .= rtime . "," ; Column 2: date
-        csvRow .= startTime . "," ; Column 3: starting time
-        csvRow .= startTime . "," ; Column 4: starting time (same as column 3)
-        csvRow .= endTime . "," ; Column 5: ending time
-        csvRow .= "," ; Column 6: blank
-        csvRow .= StrReplace(StrReplace(nameEdit.Text, "`n", " "), "`r", "") . "," ; Column 7: name
-        csvRow .= gradeEdit.Text . "," ; Column 8: grade
+        csvRow .= rtime . "," ; Column 1: date (was 2)
+        csvRow .= startTime . "," ; Column 2: starting time
+        csvRow .= startTime . "," ; Column 3: starting time (same as column 2)
+        csvRow .= endTime . "," ; Column 4: ending time
+        csvRow .= "," ; Column 5: blank
+        csvRow .= StrReplace(StrReplace(nameEdit.Text, "`n", " "), "`r", "") . "," ; Column 6: name
+        csvRow .= gradeEdit.Text . "," ; Column 7: grade
+        csvRow .= "," ; Column 8: blank
         csvRow .= "," ; Column 9: blank
-        csvRow .= "," ; Column 10: blank
-        csvRow .= StrReplace(StrReplace(subjectEdit.Text, "`n", " "), "`r", "") . "," ; Column 11: subject
-        csvRow .= QuoteCSVField(StrReplace(StrReplace(topicEdit.Text, "`n", " "), "`r", "")) . "," ; Column 12: Topic (quoted)
-        csvRow .= (mathCheck.Value ? "1" : "0") . "," ; Column 13: Math
-        csvRow .= duration . "," ; Column 14: duration
-        csvRow .= (initialCheck.Value ? "1" : "0") . "," ; Column 15: Initial response
-        csvRow .= (seriousCheck.Value ? "1" : "0") . "," ; Column 16: Serious question
-        csvRow .= (leftCheck.Value ? "1" : "0") . "," ; Column 17: Left abruptly
-        csvRow .= (stoppedCheck.Value ? "1" : "0") . "," ; Column 18: Stopped resp
-        csvRow .= progressEdit.Text . "," ; Column 19: Good progress (float 0-1)
-        csvRow .= lastMsgEdit.Text . "," ; Column 20: last response
-        csvRow .= QuoteCSVField(StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "")) . "," ; Column 21: comments (quoted)
-        csvRow .= g_sessionCount ; Column 22: session count
+        csvRow .= StrReplace(StrReplace(subjectEdit.Text, "`n", " "), "`r", "") . "," ; Column 10: subject
+        csvRow .= QuoteCSVField(StrReplace(StrReplace(topicEdit.Text, "`n", " "), "`r", "")) . "," ; Column 11: Topic (quoted)
+        csvRow .= (mathCheck.Value ? "1" : "0") . "," ; Column 12: Math
+        csvRow .= duration . "," ; Column 13: duration
+        csvRow .= (initialCheck.Value ? "1" : "0") . "," ; Column 14: Initial response
+        csvRow .= (seriousCheck.Value ? "1" : "0") . "," ; Column 15: Serious question
+        csvRow .= (leftCheck.Value ? "1" : "0") . "," ; Column 16: Left abruptly
+        csvRow .= (stoppedCheck.Value ? "1" : "0") . "," ; Column 17: Stopped resp
+        csvRow .= progressEdit.Text . "," ; Column 18: Good progress (float 0-1)
+        csvRow .= lastMsgEdit.Text . "," ; Column 19: last response
+        csvRow .= QuoteCSVField(StrReplace(StrReplace(commentsEdit.Text, "`n", " "), "`r", "")) . "," ; Column 20: comments (quoted)
+        csvRow .= g_sessionCount ; Column 21: session count
 
         WriteAppLog(csvRow)
 ;        WriteLog("Session feedback logged to CSV")
