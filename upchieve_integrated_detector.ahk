@@ -210,11 +210,32 @@ CleanExit() {
     ExitApp
 }
 
-; Ensure sound is not muted in the Upchieve window
+; Ensure sound is not muted (System-wide check)
 EnsureSoundUnmuted() {
-    while SoundMuted() {
-        MsgBox("The Upchieve window appears to be muted. Please unmute the tab in your browser and click OK to continue.", "Tab Muted", "OK 4112")
-        WriteLog("Waiting for user to unmute the Upchieve tab...")
+    Loop {
+        try {
+            isSystemMuted := SoundGetMute()
+        } catch {
+            isSystemMuted := false ; Assume unmuted if call fails
+        }
+
+        if (!isSystemMuted) {
+            ; System is unmuted, now just ask user to confirm tab volume once
+            result := MsgBox("Please ensure that both:`n1. System volume is audible`n2. The Upchieve browser tab is NOT muted`n`nClick OK to confirm and start Live Mode.", "Confirm Audio", "OKCancel 4144")
+            if (result == "Cancel") {
+                return false
+            }
+            return true
+        }
+        
+        ; System is muted, show blocking dialog
+        result := MsgBox("System sound appears to be muted!`n`nPlease unmute your system audio and click OK to continue.", "System Muted", "OKCancel 4112")
+        
+        if (result == "Cancel") {
+            return false ; User gave up
+        }
+        
+        Sleep(500) ; Brief pause before re-checking
     }
 }
 
@@ -223,7 +244,10 @@ SetLiveMode() {
     global LiveMode, ScanMode, modeText
 
     ; Ensure sound is not muted before entering Live mode
-    EnsureSoundUnmuted()
+    if (EnsureSoundUnmuted() == false) {
+        WriteLog("User cancelled unmuting - Live mode aborted.")
+        return
+    }
 
     ScanMode := false
     LiveMode := true
@@ -576,11 +600,6 @@ CompareDates(entryA, entryB) {
     return numB - numA
 }
 
-SoundMuted() {
-    global winWidth, winHeight
-    return FindText(,, winWidth-700, winHeight-100, winWidth, winHeight, 0.1, 0.1, MutedTarget)
-}
-
 ; Create movable status dialog
 CreateStatusDialog() {
     global StatusDialog, StatusText
@@ -664,7 +683,7 @@ FindHeadersWithRetry() {
 
 ; Main application entry point
 Main() {
-    global LiveMode, AppState
+    global LiveMode, ScanMode, modeText, AppState
     WriteLog("`n=== UPchieve Integrated Detector Started ===")
 
     ; Show startup dialog for mode selection
@@ -679,7 +698,12 @@ Main() {
     }
 
     if (LiveMode) {
-        EnsureSoundUnmuted()
+        if (EnsureSoundUnmuted() == false) {
+            WriteLog("User cancelled unmuting at startup - reverting to TESTING mode.")
+            LiveMode := false
+            ScanMode := false
+            modeText := "TESTING"
+        }
     }
     ; Bind FindText to the Upchieve window
 ;    WriteLog("Binding FindText to window ID: " . ExtensionWindowID)
@@ -761,7 +785,13 @@ MainDetectionLoop() {
         if (A_TickCount - lastHeaderCheckTime > headerCheckInterval) {
             RefreshHeaderPositions()
             if (LiveMode) {
-                EnsureSoundUnmuted()
+                if (EnsureSoundUnmuted() == false) {
+                    WriteLog("User cancelled unmuting during periodic check - reverting to TESTING mode.")
+                    LiveMode := false
+                    ScanMode := false
+                    modeText := "TESTING"
+                    UpdateStatusDialog("Mode changed to TESTING due to muted sound.")
+                }
             }
             lastHeaderCheckTime := A_TickCount
         }
