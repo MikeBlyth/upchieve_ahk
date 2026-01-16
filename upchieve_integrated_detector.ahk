@@ -211,7 +211,7 @@ CleanExit() {
 }
 
 ; Ensure sound is not muted (System-wide check)
-EnsureSoundUnmuted() {
+EnsureSoundUnmuted(confirmTab := true) {
     Loop {
         try {
             isSystemMuted := SoundGetMute()
@@ -220,10 +220,13 @@ EnsureSoundUnmuted() {
         }
 
         if (!isSystemMuted) {
-            ; System is unmuted, now just ask user to confirm tab volume once
-            result := MsgBox("Please ensure that both:`n1. System volume is audible`n2. The Upchieve browser tab is NOT muted`n`nClick OK to confirm and start Live Mode.", "Confirm Audio", "OKCancel 4144")
-            if (result == "Cancel") {
-                return false
+            ; System is unmuted
+            if (confirmTab) {
+                ; Ask user to confirm tab volume once
+                result := MsgBox("Please ensure that both:`n1. System volume is audible`n2. The Upchieve browser tab is NOT muted`n`nClick OK to confirm and start Live Mode.", "Confirm Audio", "OKCancel 4144")
+                if (result == "Cancel") {
+                    return false
+                }
             }
             return true
         }
@@ -238,7 +241,6 @@ EnsureSoundUnmuted() {
         Sleep(500) ; Brief pause before re-checking
     }
 }
-
 ; Set the application to Live mode
 SetLiveMode() {
     global LiveMode, ScanMode, modeText
@@ -785,7 +787,7 @@ MainDetectionLoop() {
         if (A_TickCount - lastHeaderCheckTime > headerCheckInterval) {
             RefreshHeaderPositions()
             if (LiveMode) {
-                if (EnsureSoundUnmuted() == false) {
+                if (EnsureSoundUnmuted(false) == false) {
                     WriteLog("User cancelled unmuting during periodic check - reverting to TESTING mode.")
                     LiveMode := false
                     ScanMode := false
