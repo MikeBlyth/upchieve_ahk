@@ -24,6 +24,7 @@ CheckForStudents() {
             ; Log non-200 status errors (throttled)
             if (A_TickCount - LastErrorTime > 60000) {
                 WriteLog("ERROR: Ruby server returned status " . whr.Status)
+                MsgBox("⚠️ Connection Error`n`nThe Ruby server returned an unexpected status: " . whr.Status . "`n`nPlease check if server.rb is running correctly.", "Server Error", "IconExclamation")
                 LastErrorTime := A_TickCount
             }
             return false
@@ -32,6 +33,7 @@ CheckForStudents() {
         ; Server might be down or busy
         if (A_TickCount - LastErrorTime > 60000) {
             WriteLog("ERROR: Failed to connect to Ruby server: " . e.Message)
+            MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (localhost:4567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "IconHand")
             LastErrorTime := A_TickCount
         }
         return false
