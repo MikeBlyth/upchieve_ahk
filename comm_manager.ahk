@@ -49,9 +49,7 @@ CheckForStudents() {
             WriteLog("ERROR: Connection failed after " . elapsed . "ms. Exception: " . e.Message)
             
             ; Differentiate between timeout and other errors
-            if (InStr(e.Message, "The operation timed out")) {
-                 WriteLog("DEBUG: Request timed out. Is the Ruby server overloaded or blocked?")
-            } else {
+            if (!InStr(e.Message, "The operation timed out")) {
                  MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (127.0.0.1:4567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "IconStop")
             }
             

@@ -871,7 +871,7 @@ MainDetectionLoop() {
         }
 
         ; Sleep to keep the loop efficient and prevent server overload
-        Sleep(1000)
+        Sleep(500)
     }
 }
 
