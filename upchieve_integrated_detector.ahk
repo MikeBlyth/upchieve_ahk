@@ -83,13 +83,17 @@ EnsureServerRunning() {
         ; Use 127.0.0.1 to avoid potential localhost resolution issues
         whr.Open("GET", "http://127.0.0.1:4567/ahk_data", true)
         whr.Send()
-        whr.WaitForResponse(1) ; Wait 1 second
         
-        if (whr.Status == 200) {
+        if (whr.WaitForResponse(1) && whr.Status == 200) {
             WriteLog("Ruby server is already running.")
             return true
         } else {
-             WriteLog("Ruby server check failed with status: " . whr.Status)
+             try {
+                status := whr.Status
+             } catch {
+                status := "Timeout/Error"
+             }
+             WriteLog("Ruby server check failed with status: " . status)
         }
     } catch Error as e {
         ; Server unreachable, need to start it
@@ -110,13 +114,14 @@ EnsureServerRunning() {
                 whr := ComObject("WinHttp.WinHttpRequest.5.1")
                 whr.Open("GET", "http://127.0.0.1:4567/ahk_data", true)
                 whr.Send()
-                whr.WaitForResponse(1)
                 
-                if (whr.Status == 200) {
+                if (whr.WaitForResponse(1) && whr.Status == 200) {
                     WriteLog("Ruby server started successfully.")
                     UpdateStatusDialog("Ruby server started.")
                     return true
                 }
+            } catch {
+                ; Ignore errors during loop wait
             }
         }
     } catch Error as e {
@@ -865,8 +870,8 @@ MainDetectionLoop() {
             ProcessStudentData()
         }
 
-        ; Sleep to keep the loop efficient
-        Sleep(100)
+        ; Sleep to keep the loop efficient and prevent server overload
+        Sleep(1000)
     }
 }
 

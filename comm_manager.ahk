@@ -12,28 +12,49 @@ CheckForStudents() {
     currentData := ""
     
     try {
+        startTime := A_TickCount
+        
         ; Use WinHttpRequest for low-latency local fetching
         whr := ComObject("WinHttp.WinHttpRequest.5.1")
-        whr.Open("GET", "http://127.0.0.1:4567/ahk_data", true) ; true = async
-        whr.Send()
-        whr.WaitForResponse(0.1) ; Wait max 100ms
         
-        if (whr.Status == 200) {
+        ; Set timeouts: Resolve(500), Connect(500), Send(500), Receive(500)
+        whr.SetTimeouts(500, 500, 500, 500)
+        
+        ; Switch to Synchronous mode (false) for better reliability in simple polling
+        whr.Open("GET", "http://127.0.0.1:4567/ahk_data", false)
+        
+        ; WriteLog("DEBUG: Sending HTTP request...")
+        whr.Send()
+        
+        ; In Sync mode, Send() returns only after completion or error
+        status := whr.Status
+        elapsed := A_TickCount - startTime
+        
+        ; WriteLog("DEBUG: Request completed in " . elapsed . "ms with status: " . status)
+        
+        if (status == 200) {
             currentData := whr.ResponseText
         } else {
-            ; Log non-200 status errors (throttled)
+            ; Log non-200 status errors
             if (A_TickCount - LastErrorTime > 60000) {
-                WriteLog("ERROR: Ruby server returned status " . whr.Status)
-                MsgBox("⚠️ Connection Error`n`nThe Ruby server returned an unexpected status: " . whr.Status . "`n`nPlease check if server.rb is running correctly.", "Server Error", "IconExclamation")
+                WriteLog("ERROR: Ruby server returned status " . status . " (Time: " . elapsed . "ms)")
                 LastErrorTime := A_TickCount
             }
             return false
         }
     } catch Error as e {
+        elapsed := A_TickCount - startTime
         ; Server might be down or busy
         if (A_TickCount - LastErrorTime > 60000) {
-            WriteLog("ERROR: Failed to connect to Ruby server: " . e.Message)
-            MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (127.0.0.1:4567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "IconHand")
+            WriteLog("ERROR: Connection failed after " . elapsed . "ms. Exception: " . e.Message)
+            
+            ; Differentiate between timeout and other errors
+            if (InStr(e.Message, "The operation timed out")) {
+                 WriteLog("DEBUG: Request timed out. Is the Ruby server overloaded or blocked?")
+            } else {
+                 MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (127.0.0.1:4567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "IconStop")
+            }
+            
             LastErrorTime := A_TickCount
         }
         return false

@@ -1,0 +1,21 @@
+[2026-01-22 09:13:34] INFO  WEBrick 1.9.2
+[2026-01-22 09:13:34] INFO  ruby 3.4.5 (2025-07-16) [x64-mingw-ucrt]
+== Sinatra (v4.2.1) has taken the stage on 4567 for development with backup from WEBrick
+[2026-01-22 09:13:34] INFO  Rackup::Handler::WEBrick::Server#start: pid=71900 port=4567
+127.0.0.1 - - [22/Jan/2026:09:14:19 -0500] "GET /ahk_data HTTP/1.1" 200 9 0.0183
+127.0.0.1 - - [22/Jan/2026:09:14:19 Eastern Standard Time] "GET /ahk_data HTTP/1.1" 200 9
+- -> /ahk_data
+127.0.0.1 - - [22/Jan/2026:09:19:38 -0500] "GET /ahk_data HTTP/1.1" 200 9 0.0043
+127.0.0.1 - - [22/Jan/2026:09:19:38 Eastern Standard Time] "GET /ahk_data HTTP/1.1" 200 9
+- -> /ahk_data
+[2026-01-22 09:19:39] ERROR Errno::ECONNRESET: An existing connection was forcibly closed by the remote host. @ io_fillbuf - fd:6 
+	C:/Users/Mike/.local/share/gem/ruby/3.4.0/gems/webrick-1.9.2/lib/webrick/httpserver.rb:82:in 'IO#eof?'
+	C:/Users/Mike/.local/share/gem/ruby/3.4.0/gems/webrick-1.9.2/lib/webrick/httpserver.rb:82:in 'WEBrick::HTTPServer#run'
+	C:/Users/Mike/.local/share/gem/ruby/3.4.0/gems/webrick-1.9.2/lib/webrick/server.rb:309:in 'block in WEBrick::GenericServer#start_thread'
+127.0.0.1 - - [22/Jan/2026:09:48:47 -0500] "GET /ahk_data HTTP/1.1" 200 9 0.0102
+127.0.0.1 - - [22/Jan/2026:09:48:47 Eastern Standard Time] "GET /ahk_data HTTP/1.1" 200 9
+- -> /ahk_data
+[2026-01-22 09:49:04] ERROR Errno::ECONNRESET: An existing connection was forcibly closed by the remote host. @ io_fillbuf - fd:6 
+	C:/Users/Mike/.local/share/gem/ruby/3.4.0/gems/webrick-1.9.2/lib/webrick/httpserver.rb:82:in 'IO#eof?'
+	C:/Users/Mike/.local/share/gem/ruby/3.4.0/gems/webrick-1.9.2/lib/webrick/httpserver.rb:82:in 'WEBrick::HTTPServer#run'
+	C:/Users/Mike/.local/share/gem/ruby/3.4.0/gems/webrick-1.9.2/lib/webrick/server.rb:309:in 'block in WEBrick::GenericServer#start_thread'
