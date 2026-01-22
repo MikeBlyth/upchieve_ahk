@@ -12,7 +12,8 @@
   ],
 
   "host_permissions": [
-    "https://app.upchieve.org/*"
+    "https://app.upchieve.org/*",
+    "http://localhost:4567/*"
   ],
 
   "action": {

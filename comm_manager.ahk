@@ -1,51 +1,66 @@
 ; Communication Manager for UWD Integration
-; Handles clipboard-based communication between Chrome extension and AutoHotkey
+; Handles HTTP-based communication between Ruby Server and AutoHotkey
 
 ; Global variables for communication
-global LastClipboardContent := ""
+global LastDataContent := ""
+global LastErrorTime := 0
 
-; Check for student detection data in the clipboard (non-blocking)
+; Check for student detection data via HTTP (non-blocking)
 ; Returns true if new student data found, false otherwise
 CheckForStudents() {
-    global LastClipboardContent
-    clipboardContent := ""
+    global LastDataContent, LastErrorTime
+    currentData := ""
+    
     try {
-        clipboardContent := A_Clipboard
+        ; Use WinHttpRequest for low-latency local fetching
+        whr := ComObject("WinHttp.WinHttpRequest.5.1")
+        whr.Open("GET", "http://localhost:4567/ahk_data", true) ; true = async
+        whr.Send()
+        whr.WaitForResponse(0.1) ; Wait max 100ms
+        
+        if (whr.Status == 200) {
+            currentData := whr.ResponseText
+        } else {
+            ; Log non-200 status errors (throttled)
+            if (A_TickCount - LastErrorTime > 60000) {
+                WriteLog("ERROR: Ruby server returned status " . whr.Status)
+                LastErrorTime := A_TickCount
+            }
+            return false
+        }
     } catch Error as e {
-        WriteLog("ERROR: Failed to read clipboard: " . e.Message)
+        ; Server might be down or busy
+        if (A_TickCount - LastErrorTime > 60000) {
+            WriteLog("ERROR: Failed to connect to Ruby server: " . e.Message)
+            LastErrorTime := A_TickCount
+        }
         return false
     }
 
-    ; If clipboard is the same as last time, do nothing.
-    if (clipboardContent == LastClipboardContent) {
+    ; If data is empty or unchanged, do nothing
+    if (currentData == "" || currentData == LastDataContent) {
         return false
     }
 
     ; It's different. Update our "last seen" value.
-    LastClipboardContent := clipboardContent
+    LastDataContent := currentData
 
     ; Now, is this new value something we should process?
-    if (InStr(clipboardContent, "*upchieve") = 1) {
+    if (InStr(currentData, "*upchieve") = 1) {
         return true
     }
 
     return false
 }
 
-; Get current communication content (from clipboard)
+; Get current communication content
 GetCommContent() {
-    global LastClipboardContent
-    return LastClipboardContent
+    global LastDataContent
+    return LastDataContent
 }
 
-; Clear communication content (clear clipboard)
+; Clear communication content
 ClearComm() {
-    global LastClipboardContent
-    try {
-        A_Clipboard := ""
-;        WriteLog("Clipboard cleared")
-    } catch Error as e {
-        WriteLog("ERROR: Failed to clear clipboard: " . e.Message)
-    }
-    LastClipboardContent := ""
+    global LastDataContent
+    LastDataContent := ""
 }

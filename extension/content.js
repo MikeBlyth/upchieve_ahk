@@ -241,23 +241,6 @@ function triggerStudentDetection(method, details) {
     }, 250);
 }
 
-// Format all students for clipboard in AHK-compatible format
-function formatStudentDataForClipboard(students) {
-    // Start with the identifier
-    let clipboardData = `*upchieve`;
-
-    // Add each student's data
-    students.forEach((student, index) => {
-        const studentWaitMinutes = extractWaitMinutes(student.waitTime);
-        clipboardData += `|${student.name}|${student.topic}|${studentWaitMinutes}`;
-
-        debugLog(2, `📝 Added student ${index + 1}: ${student.name} (${student.topic}, ${studentWaitMinutes}min)`);
-    });
-
-    debugLog(1, '📋 Formatted clipboard data:', clipboardData);
-    return clipboardData;
-}
-
 // Extract wait time in minutes as integer
 function extractWaitMinutes(waitTimeText) {
     debugLog(2, `🕐 extractWaitMinutes called with: "${waitTimeText}"`);
@@ -288,6 +271,38 @@ function extractWaitMinutes(waitTimeText) {
     return 0;
 }
 
+// Send data to Ruby server (Localhost)
+function sendToRubyServer(students) {
+    debugLog(1, '📤 Sending data to Ruby server:', students.length, 'students');
+
+    const payload = {
+        students: students.map(s => ({
+            name: s.name,
+            topic: s.topic,
+            waitTime: s.waitTime,
+            minutes: extractWaitMinutes(s.waitTime)
+        }))
+    };
+
+    fetch('http://localhost:4567/students', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(response => {
+        if (response.ok) {
+            debugLog(1, '✅ Successfully sent data to Ruby server');
+        } else {
+            debugLog(1, '⚠️ Server responded with error:', response.status);
+        }
+    })
+    .catch(error => {
+        debugLog(1, '❌ Failed to connect to Ruby server:', error.message);
+    });
+}
+
 // Extract student data from DOM
 function extractAndDisplayStudentData() {
     debugLog(1, '📊 Extracting student data...');
@@ -299,10 +314,8 @@ function extractAndDisplayStudentData() {
         if (sessionRows.length === 0) {
             debugLog(1, '❌ No session rows found - student list is empty');
 
-            // Send empty student list to clipboard to clear stale data
-            const emptyClipboardData = `*upchieve`;
-            copyToClipboard(emptyClipboardData);
-            debugLog(1, '📋 Sent empty student list to clipboard:', emptyClipboardData);
+            // Send empty student list to clear server state
+            sendToRubyServer([]);
 
             // Show notification that student list is empty
             showExtensionNotification('Student List Empty', 'No students currently waiting');
@@ -396,60 +409,24 @@ function extractAndDisplayStudentData() {
             const message = `Student: ${primaryStudent.name}\nTopic: ${primaryStudent.topic}` +
                 (primaryStudent.waitTime ? `\nWait Time: ${primaryStudent.waitTime}` : '');
 
-            // Copy to clipboard using extension API (no focus issues!)
-            // Format: *upchieve|name1|topic1|minutes1|name2|topic2|minutes2|...
-            const clipboardData = formatStudentDataForClipboard(students);
-            copyToClipboard(clipboardData);
+            // Send to Ruby Server instead of clipboard
+            sendToRubyServer(students);
 
             // Log all students for debugging
             debugLog(1, '🎓 All students detected:', students);
-            debugLog(1, '📋 Multi-student clipboard format sent to AHK');
-
+            
             // Show notification via extension
             showExtensionNotification('Student Detected!', message);
 
         } else {
             debugLog(1, '⚠️ DOM change detected but no student data found');
+            // Send empty list to clear server state
+            sendToRubyServer([]);
         }
 
     } catch (error) {
         console.error('Error extracting student data:', error);
         debugLog(1, '❌ Extraction Error: Failed to extract student data: ' + error.message);
-    }
-}
-
-// Copy to clipboard using extension permissions (no focus issues!)
-function copyToClipboard(text) {
-    debugLog(1, '📋 Copying to clipboard via execCommand (skip modern API):', text);
-
-    // Skip modern clipboard API entirely - go straight to execCommand
-    fallbackCopy(text);
-}
-
-// Fallback clipboard method
-function fallbackCopy(text) {
-    try {
-        const textarea = document.createElement('textarea');
-        textarea.value = text;
-        textarea.style.position = 'absolute';
-        textarea.style.left = '-9999px';
-        textarea.style.opacity = '0';
-
-        document.body.appendChild(textarea);
-        textarea.focus();
-        textarea.select();
-
-        const success = document.execCommand('copy');
-        document.body.removeChild(textarea);
-
-        if (success) {
-            debugLog(1, '✅ Fallback clipboard copy successful:', text);
-        } else {
-            debugLog(1, '❌ All clipboard methods failed');
-        }
-
-    } catch (error) {
-        debugLog(1, '❌ Fallback copy error:', error);
     }
 }
 
