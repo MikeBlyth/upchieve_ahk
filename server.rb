@@ -31,9 +31,6 @@ post '/students' do
       
       puts "[#{Time.now.strftime('%H:%M:%S')}] Received #{$current_students.length} students"
       
-      # Write to file for potential AHK/other consumption
-      File.write('current_students.json', JSON.pretty_generate($current_students))
-      
       content_type :json
       { status: 'success', count: $current_students.length }.to_json
     else

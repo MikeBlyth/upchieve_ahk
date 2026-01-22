@@ -4,11 +4,12 @@
 ; Global variables for communication
 global LastDataContent := ""
 global LastErrorTime := 0
+global LastServerStatus := "OK"
 
 ; Check for student detection data via HTTP (non-blocking)
 ; Returns true if new student data found, false otherwise
 CheckForStudents() {
-    global LastDataContent, LastErrorTime
+    global LastDataContent, LastErrorTime, LastServerStatus
     currentData := ""
     
     try {
@@ -30,11 +31,11 @@ CheckForStudents() {
         status := whr.Status
         elapsed := A_TickCount - startTime
         
-        ; WriteLog("DEBUG: Request completed in " . elapsed . "ms with status: " . status)
-        
         if (status == 200) {
+            LastServerStatus := "OK"
             currentData := whr.ResponseText
         } else {
+            LastServerStatus := "ERROR"
             ; Log non-200 status errors
             if (A_TickCount - LastErrorTime > 60000) {
                 WriteLog("ERROR: Ruby server returned status " . status . " (Time: " . elapsed . "ms)")
@@ -50,10 +51,21 @@ CheckForStudents() {
             
             ; Differentiate between timeout and other errors
             if (!InStr(e.Message, "The operation timed out")) {
+                 LastServerStatus := "ERROR"
                  MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (127.0.0.1:4567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "IconStop")
+            } else {
+                 LastServerStatus := "TIMEOUT"
+                 WriteLog("DEBUG: Request timed out. Is the Ruby server overloaded or blocked?")
             }
             
             LastErrorTime := A_TickCount
+        } else {
+            ; Update status even if we don't log to file
+            if (InStr(e.Message, "The operation timed out")) {
+                LastServerStatus := "TIMEOUT"
+            } else {
+                LastServerStatus := "ERROR"
+            }
         }
         return false
     }

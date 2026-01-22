@@ -816,6 +816,22 @@ Main() {
     MainDetectionLoop()
 }
 
+; Force restart the Ruby server
+RestartRubyServer() {
+    WriteLog("Restarting Ruby server...")
+    UpdateStatusDialog("⚠️ Server hung. Restarting...")
+    
+    try {
+        RunWait("taskkill /F /IM ruby.exe", , "Hide")
+    } catch {
+        ; Ignore if process not found
+    }
+    
+    Sleep(1000)
+    EnsureServerRunning()
+    UpdateStatusDialog("✅ Server restarted.")
+}
+
 ; Main detection loop - non-blocking poll for clipboard and periodic header refresh
 MainDetectionLoop() {
     global AppState, LiveMode, modeText
@@ -825,6 +841,9 @@ MainDetectionLoop() {
     ; Timer for periodic sleep prevention
     lastSleepPreventTime := A_TickCount
     sleepPreventInterval := 60 * 1000 ; 60 seconds
+    
+    ; Watchdog for server timeouts
+    consecutiveTimeouts := 0
 
     while (true) {
         ; Periodically re-assert sleep prevention
@@ -868,6 +887,19 @@ MainDetectionLoop() {
         ; 2. Check for students from the communication file
         if (CheckForStudents()) {
             ProcessStudentData()
+            consecutiveTimeouts := 0 ; Reset on success
+        } else {
+            ; Check server health
+            if (LastServerStatus == "TIMEOUT") {
+                consecutiveTimeouts++
+                if (consecutiveTimeouts > 5) {
+                    WriteLog("WARNING: 5 consecutive server timeouts detected. Initiating restart.")
+                    RestartRubyServer()
+                    consecutiveTimeouts := 0
+                }
+            } else if (LastServerStatus == "OK") {
+                consecutiveTimeouts := 0
+            }
         }
 
         ; Sleep to keep the loop efficient and prevent server overload
