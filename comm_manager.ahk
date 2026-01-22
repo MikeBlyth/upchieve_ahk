@@ -14,7 +14,7 @@ CheckForStudents() {
     try {
         ; Use WinHttpRequest for low-latency local fetching
         whr := ComObject("WinHttp.WinHttpRequest.5.1")
-        whr.Open("GET", "http://localhost:4567/ahk_data", true) ; true = async
+        whr.Open("GET", "http://127.0.0.1:4567/ahk_data", true) ; true = async
         whr.Send()
         whr.WaitForResponse(0.1) ; Wait max 100ms
         
@@ -33,7 +33,7 @@ CheckForStudents() {
         ; Server might be down or busy
         if (A_TickCount - LastErrorTime > 60000) {
             WriteLog("ERROR: Failed to connect to Ruby server: " . e.Message)
-            MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (localhost:4567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "IconHand")
+            MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (127.0.0.1:4567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "IconHand")
             LastErrorTime := A_TickCount
         }
         return false

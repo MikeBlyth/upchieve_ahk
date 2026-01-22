@@ -80,16 +80,20 @@ EnsureServerRunning() {
     try {
         ; Use WinHttpRequest to check server status (low timeout)
         whr := ComObject("WinHttp.WinHttpRequest.5.1")
-        whr.Open("GET", "http://localhost:4567/ahk_data", true)
+        ; Use 127.0.0.1 to avoid potential localhost resolution issues
+        whr.Open("GET", "http://127.0.0.1:4567/ahk_data", true)
         whr.Send()
-        whr.WaitForResponse(0.5) ; Wait 500ms
+        whr.WaitForResponse(1) ; Wait 1 second
         
         if (whr.Status == 200) {
             WriteLog("Ruby server is already running.")
             return true
+        } else {
+             WriteLog("Ruby server check failed with status: " . whr.Status)
         }
-    } catch {
+    } catch Error as e {
         ; Server unreachable, need to start it
+        WriteLog("Ruby server check exception: " . e.Message)
     }
     
     WriteLog("Ruby server not found. Starting server.rb...")
@@ -104,9 +108,9 @@ EnsureServerRunning() {
             Sleep(500)
             try {
                 whr := ComObject("WinHttp.WinHttpRequest.5.1")
-                whr.Open("GET", "http://localhost:4567/ahk_data", true)
+                whr.Open("GET", "http://127.0.0.1:4567/ahk_data", true)
                 whr.Send()
-                whr.WaitForResponse(0.5)
+                whr.WaitForResponse(1)
                 
                 if (whr.Status == 200) {
                     WriteLog("Ruby server started successfully.")
@@ -119,7 +123,7 @@ EnsureServerRunning() {
         WriteLog("Failed to start Ruby server: " . e.Message)
     }
     
-    MsgBox("Failed to start the local Ruby server.`n`nPlease manually run 'ruby server.rb' and try again.", "Server Error", "OK 4112")
+    MsgBox("Failed to start or connect to the local Ruby server.`n`nPlease manually run 'ruby server.rb' and try again.", "Server Error", "OK 4112")
     return false
 }
 

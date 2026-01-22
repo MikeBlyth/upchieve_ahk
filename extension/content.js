@@ -284,7 +284,7 @@ function sendToRubyServer(students) {
         }))
     };
 
-    fetch('http://localhost:4567/students', {
+    fetch('http://127.0.0.1:4567/students', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
