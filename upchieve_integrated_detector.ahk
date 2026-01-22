@@ -73,6 +73,56 @@ PlayNotificationSound() {
     SoundBeep(800, 500)  ; 800Hz beep for 500ms
 }
 
+; Check if Ruby server is running and start it if not
+EnsureServerRunning() {
+    UpdateStatusDialog("Checking Ruby server...")
+    
+    try {
+        ; Use WinHttpRequest to check server status (low timeout)
+        whr := ComObject("WinHttp.WinHttpRequest.5.1")
+        whr.Open("GET", "http://localhost:4567/ahk_data", true)
+        whr.Send()
+        whr.WaitForResponse(0.5) ; Wait 500ms
+        
+        if (whr.Status == 200) {
+            WriteLog("Ruby server is already running.")
+            return true
+        }
+    } catch {
+        ; Server unreachable, need to start it
+    }
+    
+    WriteLog("Ruby server not found. Starting server.rb...")
+    UpdateStatusDialog("Starting Ruby server...")
+    
+    try {
+        ; Start Ruby server in background
+        Run("ruby server.rb", , "Hide")
+        
+        ; Wait for it to initialize (up to 10 seconds)
+        Loop 20 {
+            Sleep(500)
+            try {
+                whr := ComObject("WinHttp.WinHttpRequest.5.1")
+                whr.Open("GET", "http://localhost:4567/ahk_data", true)
+                whr.Send()
+                whr.WaitForResponse(0.5)
+                
+                if (whr.Status == 200) {
+                    WriteLog("Ruby server started successfully.")
+                    UpdateStatusDialog("Ruby server started.")
+                    return true
+                }
+            }
+        }
+    } catch Error as e {
+        WriteLog("Failed to start Ruby server: " . e.Message)
+    }
+    
+    MsgBox("Failed to start the local Ruby server.`n`nPlease manually run 'ruby server.rb' and try again.", "Server Error", "OK 4112")
+    return false
+}
+
 ; Prevent system sleep/hibernation during operation (allows display to turn off)
 PreventSleep() {
     ; Prevent system sleep but allow display to turn off
@@ -687,6 +737,14 @@ FindHeadersWithRetry() {
 Main() {
     global LiveMode, ScanMode, modeText, AppState
     WriteLog("`n=== UPchieve Integrated Detector Started ===")
+
+    ; Create status dialog early for feedback
+    CreateStatusDialog()
+
+    ; Ensure Ruby server is running
+    if (!EnsureServerRunning()) {
+        CleanExit()
+    }
 
     ; Show startup dialog for mode selection
     if (!ShowStartupDialog()) {
