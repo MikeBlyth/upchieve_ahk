@@ -284,23 +284,21 @@ function sendToRubyServer(students) {
         }))
     };
 
-    fetch('http://127.0.0.1:4567/students', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(response => {
-        if (response.ok) {
-            debugLog(1, '✅ Successfully sent data to Ruby server');
-        } else {
-            debugLog(1, '⚠️ Server responded with error:', response.status);
-        }
-    })
-    .catch(error => {
-        debugLog(1, '❌ Failed to connect to Ruby server:', error.message);
-    });
+  // Send data to local Ruby server (Gemini Code Port Refactor: 54567)
+  fetch('http://127.0.0.1:54567/students', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ students: students })
+  })
+  .then(response => {
+    // console.log("Data sent to local server", response);
+  })
+  .catch(error => {
+    // Silent fail or minimal log to avoid console spam
+    // console.error('Error sending to local server:', error);
+  });
 }
 
 // Extract student data from DOM

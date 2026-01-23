@@ -1,100 +1,87 @@
 # Upchieve Student Detector
 
-Automated student detection for UPchieve using browser extension (recommended) and AutoHotkey script.
+Automated student detection for UPchieve using a browser extension, a local Ruby server, and an AutoHotkey script.
 
 ## Current System Overview
 
-### Browser Extension (Recommended - 2025)
-- **Files**: `extension/` folder with manifest.json, content.js, background.js, popup.html/js
-- **Features**: Real-time DOM monitoring, 100% accurate student detection, clipboard integration
+### Architecture
+The system uses a 3-tier architecture to bridge the browser and the desktop automation:
+1.  **Browser Extension**: Monitors the DOM for new students and POSTs data to a local server.
+2.  **Ruby Server (`server.rb`)**: A lightweight Sinatra server (port 54567) that acts as a bridge, holding the latest student data in memory.
+3.  **AutoHotkey Script**: Polls the server via HTTP to detect changes and automate mouse clicks/alerts.
+
+### Browser Extension (Recommended - 2026)
+- **Files**: `extension/` folder
+- **Features**: Real-time DOM monitoring (`MutationObserver`), HTTP POST to `127.0.0.1:54567`
 - **Installation**: Chrome Developer Mode → Load Unpacked → Select `extension/` folder
 - **Usage**: Navigate to app.upchieve.org → Click extension icon → Enable detector
-- **Output Format**: `*upchieve|StudentName|HelpTopic|WaitMinutes` copied to clipboard
+- **Data Flow**: DOM Change -> Extract Data -> POST JSON to local server
+
+### Local Server
+- **File**: `server.rb`
+- **Stack**: Ruby (Sinatra + WEBrick)
+- **Port**: 54567
+- **Endpoints**:
+    - `POST /students`: Receives JSON from extension
+    - `GET /ahk_data`: Serves optimized string (`*upchieve|Name|Topic...`) to AHK
+- **Management**: Automatically started/restarted by the AHK script.
 
 ### AutoHotkey System
-- **Main Script**: `upchieve_integrated_detector.ahk` - Integrated detection with session management
-- **Dependencies**: FindTextv2.ahk for pattern detection, comm_manager.ahk
-- **Data Files**: block_names.txt, upchieve_app.log (CSV export)
+- **Main Script**: `upchieve_integrated_detector.ahk`
+- **Communication**: Polls `http://127.0.0.1:54567/ahk_data` every 500ms (Synchronous HTTP)
+- **Features**:
+    - **Auto-Recovery**: Automatically kills and restarts `ruby.exe` if 5 consecutive timeouts occur.
+    - **Session Management**: Tracks WAITING/IN_SESSION states.
+    - **Sound Safety**: Prevents operation if system audio is muted.
 - **Hotkeys**: Ctrl+Shift+H (toggle Live/Scan), Ctrl+Shift+A (manual session toggle), Ctrl+Shift+Q (quit)
 
 ## Quick Start
 
-**Browser Extension:**
-1. Load extension in Chrome developer mode
-2. Navigate to UPchieve and enable detector
-3. Extension automatically detects new students and copies data to clipboard
-
-**AutoHotkey Script:**
-1. Run `upchieve_integrated_detector.ahk`
-2. Click on UPchieve browser window when prompted
-3. Select LIVE, SCAN, or TESTING mode
-4. Script monitors for students (via extension or visual patterns) and manages sessions
+1.  **Install/Load Extension**: Load the `extension/` folder in Chrome.
+2.  **Start AHK**: Run `upchieve_integrated_detector.ahk`.
+    - *Note:* The script will automatically start `ruby server.rb` if it's not running.
+3.  **Select Mode**: Choose LIVE (auto-click) or TESTING (notify only).
+4.  **Enable Extension**: Ensure the extension icon is green on the UPchieve tab.
 
 ## Key Features
 
 ### Browser Extension
-- **DOM Monitoring**: MutationObserver for real-time student detection
-- **Visual Indicators**: Green icon when active, notifications for new students
-- **Platform Independent**: Works on any browser/OS
-- **Zero Maintenance**: No pattern updates needed
+- **Non-Intrusive**: Uses `MutationObserver` to detect changes without polling.
+- **Robust**: Retry logic for server connections.
+- **Visual Feedback**: Notifications within the browser when students are detected.
 
 ### AutoHotkey Script
-- **Integrated Detection**: Combines extension data with visual verification
-- **Session Tracking**: Three states (WAITING_FOR_STUDENTS, IN_SESSION, PAUSED)
-- **Sound Safety Check**: Prevents entering Live Mode or continuing if the tab is muted
-- **Student Blocking**: Skip students listed in `block_names.txt`
-- **CSV Logging**: Comprehensive session data export to `upchieve_app.log`
-- **End-Session Dialog**: Detailed feedback form for session data entry
+- **Reliable Polling**: Uses synchronous `WinHttpRequest` with 500ms timeouts for stability.
+- **Self-Healing**: Detects "hung" server processes and restarts them automatically.
+- **Integrated Detection**: Combines extension data with visual verification (FindText).
+- **Session Tracking**: logs data to `upchieve_app.log` (CSV).
 
-## File Structure
+## Troubleshooting
+- **Server Status**: Open `http://127.0.0.1:54567/ahk_data` in your browser. You should see `*upchieve...`.
+- **Extension**: Check `chrome://extensions` for errors. Ensure "Allow access to file URLs" or "Host permissions" are correct if needed (though it uses localhost).
+- **Logs**:
+    - `upchieve_app.log`: Session history (CSV).
+    - `server.err`: Ruby server errors (if piped).
+    - AHK internal logs (displayed in debug mode).
+- **Timeouts**: If AHK logs "Request timed out", the server might be overloaded. The script will auto-restart it after 5 failures.
 
-### Extension Files
-- `extension/manifest.json` - Chrome extension config
-- `extension/content.js` - DOM monitoring and data extraction
-- `extension/popup.html/js` - Control interface
-
-### AutoHotkey Files
-- `upchieve_integrated_detector.ahk` - Main detection script
-- `block_names.txt` - Students to skip (optional)
-- `upchieve_app.log` - CSV session data
+## Dependencies
+- **Runtime**: Ruby 3.x+ (with `sinatra` gem), AutoHotkey v2.0+
+- **Browser**: Chrome/Edge with extension loaded
 
 ## AutoHotkey Technical Details
 
 ### Architecture
-- **Header Detection**: Retries up to 10 times (2-second intervals) at startup. Periodic refresh every 60s.
-- **Sound Check**: `EnsureSoundUnmuted` checks periodically and on mode switch.
-- **SearchZone System**: Header-based positioning for pattern detection
-- **Subject Recognition**: Direct pattern matching for 10+ subjects
-- **Manual Session Handling**: If script starts during a manual session, it will wait until session ends to detect headers
+- **Communication**: `comm_manager.ahk` handles HTTP requests.
+- **Polling**: 500ms loop in `MainDetectionLoop`.
+- **State Machine**: WAITING -> IN_SESSION -> PAUSED.
 
 ### Session Management
-1. **WAITING_FOR_STUDENTS**: Scans for students
-2. **IN_SESSION**: Monitors for session end only
-3. **Session End**: Shows feedback dialog for manual data entry
-4. **CSV Export**: 21-column format for spreadsheet analysis
-
-### Performance
-- **Header detection**: Periodic refresh every 60s
-- **Student detection**: ~25ms (pattern matching)
-- **Subject detection**: ~25ms (pattern matching)
-- **Wait monitoring**: 60-second continuous cycles
-
-## Troubleshooting
-- **Extension**: Check console (F12) for debug output
-- **AutoHotkey**: Ensure all 3 column headers visible, browser zoom at 100%
-- **Missing headers**: Script will retry automatically.
-- **Muted Sound**: Script will pause and alert if the tab is muted in Live Mode.
-- **Pattern issues**: Check that UI elements match expected visual patterns
-
-## Dependencies
-- **Extension**: Chrome/Edge with developer mode
-- **AutoHotkey**: v2.0+, FindTextv2.ahk library
+1.  **WAITING**: Polls server.
+2.  **IN_SESSION**: Stops polling server, monitors "Session Ended" visual target.
+3.  **Session End**: Shows feedback dialog, logs to CSV, returns to WAITING.
 
 ## AutoHotkey v2 Syntax Notes
 - Use `&varName` for output parameters
-- No leading `|` on first FindText pattern
-- Single-line if statements must be on separate lines
-- Pattern detection uses FindText library for visual element matching
-- MsgBox button combinations written as one word: "OKCancel", not "OK Cancel"
-- Use `Gui.Destroy()` to close GUI windows, not `Gui.Close()`
-- Arrays don't have `.Sort()` method - use custom sorting functions instead
+- `RunWait` used for server management tasks (`taskkill`).
+- `try...catch` blocks essential for robust HTTP handling.

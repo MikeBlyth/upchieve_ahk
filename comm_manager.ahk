@@ -22,53 +22,53 @@ CheckForStudents() {
         whr.SetTimeouts(500, 500, 500, 500)
         
         ; Switch to Synchronous mode (false) for better reliability in simple polling
-        whr.Open("GET", "http://127.0.0.1:4567/ahk_data", false)
-        
-        ; WriteLog("DEBUG: Sending HTTP request...")
-        whr.Send()
-        
-        ; In Sync mode, Send() returns only after completion or error
-        status := whr.Status
-        elapsed := A_TickCount - startTime
-        
-        if (status == 200) {
-            LastServerStatus := "OK"
-            currentData := whr.ResponseText
-        } else {
-            LastServerStatus := "ERROR"
-            ; Log non-200 status errors
+        try {
+            whr.Open("GET", "http://127.0.0.1:54567/ahk_data", true)
+            whr.Send()
+            whr.WaitForResponse(1)
+            
+            ; In Sync mode, Send() returns only after completion or error
+            status := whr.Status
+            elapsed := A_TickCount - startTime
+            
+            if (status == 200) {
+                LastServerStatus := "OK"
+                currentData := whr.ResponseText
+            } else {
+                LastServerStatus := "ERROR"
+                ; Log non-200 status errors
+                if (A_TickCount - LastErrorTime > 60000) {
+                    WriteLog("ERROR: Ruby server returned status " . status . " (Time: " . elapsed . "ms)")
+                    LastErrorTime := A_TickCount
+                }
+                return false
+            }
+        } catch Error as e {
+            elapsed := A_TickCount - startTime
+            ; Server might be down or busy
             if (A_TickCount - LastErrorTime > 60000) {
-                WriteLog("ERROR: Ruby server returned status " . status . " (Time: " . elapsed . "ms)")
+                WriteLog("ERROR: Connection failed after " . elapsed . "ms. Exception: " . e.Message)
+                
+                ; Differentiate between timeout and other errors
+                if (!InStr(e.Message, "The operation timed out")) {
+                     LastServerStatus := "ERROR"
+                     MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (127.0.0.1:54567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "IconError")
+                } else {
+                     LastServerStatus := "TIMEOUT"
+                     WriteLog("DEBUG: Request timed out. Is the Ruby server overloaded or blocked?")
+                }
+                
                 LastErrorTime := A_TickCount
+            } else {
+                ; Update status even if we don't log to file
+                if (InStr(e.Message, "The operation timed out")) {
+                    LastServerStatus := "TIMEOUT"
+                } else {
+                    LastServerStatus := "ERROR"
+                }
             }
             return false
         }
-    } catch Error as e {
-        elapsed := A_TickCount - startTime
-        ; Server might be down or busy
-        if (A_TickCount - LastErrorTime > 60000) {
-            WriteLog("ERROR: Connection failed after " . elapsed . "ms. Exception: " . e.Message)
-            
-            ; Differentiate between timeout and other errors
-            if (!InStr(e.Message, "The operation timed out")) {
-                 LastServerStatus := "ERROR"
-                 MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (127.0.0.1:4567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "IconStop")
-            } else {
-                 LastServerStatus := "TIMEOUT"
-                 WriteLog("DEBUG: Request timed out. Is the Ruby server overloaded or blocked?")
-            }
-            
-            LastErrorTime := A_TickCount
-        } else {
-            ; Update status even if we don't log to file
-            if (InStr(e.Message, "The operation timed out")) {
-                LastServerStatus := "TIMEOUT"
-            } else {
-                LastServerStatus := "ERROR"
-            }
-        }
-        return false
-    }
 
     ; If data is empty or unchanged, do nothing
     if (currentData == "" || currentData == LastDataContent) {

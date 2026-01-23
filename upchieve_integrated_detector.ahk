@@ -80,8 +80,9 @@ EnsureServerRunning() {
     try {
         ; Use WinHttpRequest to check server status (low timeout)
         whr := ComObject("WinHttp.WinHttpRequest.5.1")
+        whr.SetTimeouts(500, 500, 500, 500)
         ; Use 127.0.0.1 to avoid potential localhost resolution issues
-        whr.Open("GET", "http://127.0.0.1:4567/ahk_data", true)
+        whr.Open("GET", "http://127.0.0.1:54567/ahk_data", true)
         whr.Send()
         
         if (whr.WaitForResponse(1) && whr.Status == 200) {
@@ -112,7 +113,8 @@ EnsureServerRunning() {
             Sleep(500)
             try {
                 whr := ComObject("WinHttp.WinHttpRequest.5.1")
-                whr.Open("GET", "http://127.0.0.1:4567/ahk_data", true)
+                whr.SetTimeouts(500, 500, 500, 500)
+                whr.Open("GET", "http://127.0.0.1:54567/ahk_data", true)
                 whr.Send()
                 
                 if (whr.WaitForResponse(1) && whr.Status == 200) {

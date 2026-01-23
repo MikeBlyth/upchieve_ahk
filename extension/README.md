@@ -1,12 +1,12 @@
 # UPchieve Student Detector Browser Extension
 
-A Chrome/Edge extension that automatically detects waiting students on UPchieve and copies their information to the clipboard for AutoHotkey integration.
+A Chrome/Edge extension that automatically detects waiting students on UPchieve and sends their information to a local Ruby server for AutoHotkey integration.
 
 ## Features
 
-- 🎯 **Automatic Detection**: Monitors DOM for new student entries
-- 📋 **Clipboard Integration**: Copies student data in `Name|Topic` format
-- 🔒 **Extension Permissions**: No clipboard focus issues like console scripts
+- 🎯 **Automatic Detection**: Monitors DOM for new student entries using `MutationObserver`
+- 📡 **Local Server Integration**: Sends data to `http://127.0.0.1:54567/students` (JSON format)
+- 🔒 **Secure**: Only communicates with localhost
 - 🎛️ **Toggle Control**: Enable/disable via extension popup
 - 🧪 **Testing**: Built-in test function to verify functionality
 - 💾 **State Persistence**: Remembers enabled/disabled state
@@ -29,21 +29,19 @@ A Chrome/Edge extension that automatically detects waiting students on UPchieve 
 
 ## Usage
 
-1. **Navigate** to `https://app.upchieve.org/dashboard` (waiting students page)
+1. **Start the Local Server**: Run `upchieve_integrated_detector.ahk` (it will auto-start the server).
 
-2. **Click Extension Icon** to open popup
+2. **Navigate** to `https://app.upchieve.org/dashboard` (waiting students page)
 
-3. **Enable Detector** by clicking the green button
+3. **Click Extension Icon** to open popup
 
-4. **Monitor Console** (F12) to see detection activity:
+4. **Enable Detector** by clicking the green button
+
+5. **Monitor Console** (F12) to see activity:
    ```
    🚨 New student detected via DOM monitoring
-   ✅ Extension clipboard copy successful: StudentName|Topic
-   ```
-
-5. **AutoHotkey Integration**: The clipboard will contain data like:
-   ```
-   Sarah Johnson|8th Grade Math
+   📤 Sending data to Ruby server: 1 students
+   ✅ Successfully sent data to Ruby server
    ```
 
 ## Files Structure
@@ -55,61 +53,36 @@ extension/
 ├── popup.html            # Extension popup interface
 ├── popup.js              # Popup functionality
 ├── README.md             # This file
-└── icon16.png            # Extension icons (create these)
-└── icon48.png
-└── icon128.png
+└── icon16.png...         # Icons
 ```
 
 ## Testing
 
 - **Test Detection**: Click "Test Detection" button in popup
 - **Console Commands**: Available on UPchieve pages:
+  - `injectTestStudent()` - Injects a fake student row to test detection
   - `testExtensionDetection()` - Manual test
-  - `setExtensionDebugLevel(2)` - Verbose logging
 
 ## Permissions Explained
 
 - **activeTab**: Access current UPchieve tab
-- **clipboardWrite**: Write to clipboard (no focus issues!)
+- **host_permissions**: `http://127.0.0.1:54567/*` (Local Server)
 - **storage**: Remember enabled/disabled state
-- **host_permissions**: Only runs on `app.upchieve.org`
-
-## Advantages Over Console Scripts
-
-✅ **No Developer Mode** required for daily use
-✅ **Persistent** across page reloads
-✅ **Better clipboard permissions** - no focus issues
-✅ **User-friendly toggle** via extension popup
-✅ **Secure** - declared permissions and sandboxed execution
 
 ## AutoHotkey Integration
 
-The extension copies data to clipboard in this exact format:
+The extension sends JSON data to the local Ruby server.
+Your AutoHotkey script (`upchieve_integrated_detector.ahk`) polls the server (`GET /ahk_data`) to receive this data in an optimized format:
 ```
-StudentName|HelpTopic
-```
-
-Your AutoHotkey script can detect clipboard changes and parse this data:
-```autohotkey
-; Example AHK clipboard monitoring
-OnClipboardChange("ClipboardChanged")
-
-ClipboardChanged() {
-    if (InStr(A_Clipboard, "|")) {
-        StudentData := StrSplit(A_Clipboard, "|")
-        StudentName := StudentData[1]
-        HelpTopic := StudentData[2]
-        ; Process the student data...
-    }
-}
+*upchieve|StudentName|HelpTopic|WaitMinutes
 ```
 
 ## Troubleshooting
 
-- **"Extension not loaded"**: Make sure you're on `app.upchieve.org`
-- **No clipboard data**: Check console for error messages
-- **Not detecting students**: Ensure detector is enabled (green status)
-- **Permission errors**: Try disabling and re-enabling the extension
+- **"Failed to connect to Ruby server"**: Ensure `upchieve_integrated_detector.ahk` is running (it starts the server).
+- **Extension not loaded**: Make sure you're on `app.upchieve.org`.
+- **Not detecting students**: Ensure detector is enabled (green status).
+- **Server logs**: Check `server.err` in the project root if connection issues persist.
 
 ## Development
 
@@ -117,4 +90,4 @@ To modify the extension:
 1. Edit the source files
 2. Go to `chrome://extensions/`
 3. Click the refresh icon on the extension
-4. Test changes on UPchieve page
+4. Reload the UPchieve page

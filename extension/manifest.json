@@ -11,11 +11,10 @@
     "scripting"
   ],
 
-  "host_permissions": [
-    "https://app.upchieve.org/*",
-    "http://127.0.0.1:4567/*"
-  ],
-
+      "host_permissions": [
+        "https://app.upchieve.org/*",
+        "http://127.0.0.1:54567/*"
+      ],
   "action": {
     "default_popup": "popup.html",
     "default_title": "UPchieve Student Detector"
