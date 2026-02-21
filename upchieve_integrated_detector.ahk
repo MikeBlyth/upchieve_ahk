@@ -90,9 +90,12 @@ EnsureServerRunning() {
             return true
         } else {
              try {
-                status := whr.Status
+                if (whr.WaitForResponse(1))
+                    status := whr.Status
+                else 
+                    status := "Timeout"
              } catch {
-                status := "Timeout/Error"
+                status := "Error"
              }
              WriteLog("Ruby server check failed with status: " . status)
         }

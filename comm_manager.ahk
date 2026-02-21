@@ -25,24 +25,32 @@ CheckForStudents() {
         try {
             whr.Open("GET", "http://127.0.0.1:54567/ahk_data", true)
             whr.Send()
-            whr.WaitForResponse(1)
             
-            ; In Sync mode, Send() returns only after completion or error
-            status := whr.Status
-            elapsed := A_TickCount - startTime
-            
-            if (status == 200) {
-                LastServerStatus := "OK"
-                currentData := whr.ResponseText
-            } else {
-                LastServerStatus := "ERROR"
-                ; Log non-200 status errors
-                if (A_TickCount - LastErrorTime > 60000) {
-                    WriteLog("ERROR: Ruby server returned status " . status . " (Time: " . elapsed . "ms)")
-                    LastErrorTime := A_TickCount
+            if (whr.WaitForResponse(1)) {
+                ; In Sync mode, Send() returns only after completion or error
+                status := whr.Status
+                elapsed := A_TickCount - startTime
+                
+                if (status == 200) {
+                    LastServerStatus := "OK"
+                    currentData := whr.ResponseText
+                    ; DEBUG: Log the received data to verify format
+                    if (currentData != "*upchieve") {
+                     ;   WriteLog("DEBUG: Received data: " . currentData)
+                    }
+                } else {
+                    LastServerStatus := "ERROR"
+                    ; Log non-200 status errors
+                    if (A_TickCount - LastErrorTime > 60000) {
+                        WriteLog("ERROR: Ruby server returned status " . status . " (Time: " . elapsed . "ms)")
+                        LastErrorTime := A_TickCount
+                    }
+                    return false
                 }
-                return false
+            } else {
+                 throw Error("The operation timed out (WaitForResponse returned false)")
             }
+
         } catch Error as e {
             elapsed := A_TickCount - startTime
             ; Server might be down or busy
@@ -52,7 +60,7 @@ CheckForStudents() {
                 ; Differentiate between timeout and other errors
                 if (!InStr(e.Message, "The operation timed out")) {
                      LastServerStatus := "ERROR"
-                     MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (127.0.0.1:54567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "IconError")
+                     MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (127.0.0.1:54567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "OK IconError")
                 } else {
                      LastServerStatus := "TIMEOUT"
                      WriteLog("DEBUG: Request timed out. Is the Ruby server overloaded or blocked?")
@@ -69,6 +77,11 @@ CheckForStudents() {
             }
             return false
         }
+    } catch Error as e {
+        ; Fallback catch for the outer try block (though the inner one handles most)
+        WriteLog("ERROR: Unexpected error in CheckForStudents: " . e.Message)
+        return false
+    }
 
     ; If data is empty or unchanged, do nothing
     if (currentData == "" || currentData == LastDataContent) {
