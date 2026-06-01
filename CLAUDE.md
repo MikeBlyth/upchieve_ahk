@@ -65,6 +65,38 @@ The system uses a 3-tier architecture to bridge the browser and the desktop auto
     - AHK internal logs (displayed in debug mode).
 - **Timeouts**: If AHK logs "Request timed out", the server might be overloaded. The script will auto-restart it after 5 failures.
 
+## Socket Management & Long-Running Operations
+
+### Why Server Degradation Occurs
+The 500ms polling interval creates 2 requests/second. Each HTTP request opens a TCP socket that enters `TIME_WAIT` state for ~120 seconds after closing. If the app runs continuously without restart:
+- At any moment: ~240 sockets in TIME_WAIT
+- Over 5+ days: Potential socket pool exhaustion
+- Result: New requests timeout, server appears unresponsive
+
+This is normal system behavior, not a bug. Windows has ~16,000 ephemeral ports; TIME_WAIT sockets consume slots briefly.
+
+### Prevention Strategies
+1. **Daily Usage Pattern** (12 hours on, 12 hours off): 
+   - Socket pool resets during downtime
+   - No degradation expected
+   
+2. **Quick Reset** (if timeouts appear):
+   - Close AHK (Ctrl+Shift+Q)
+   - Wait 2 minutes (all sockets clear)
+   - Restart AHK
+
+3. **Circuit Breaker Pattern** (recommended for safety):
+   - Track consecutive timeouts (target: 5 failures)
+   - After threshold, pause polling for 30 seconds
+   - Retry periodically until server recovers
+   - **Benefit**: Prevents server degradation if app is accidentally left running
+   - **Keeps responsiveness**: Still polls every 500ms during normal operation
+
+### Implementation Notes
+- Synchronous HTTP mode (`whr.Open(..., false)`) is used for reliable polling
+- Connection timeouts set to 2000ms after experiencing 3+ second delays
+- If implementing circuit breaker, use exponential backoff (1s → 2s → 4s → ... up to 30s interval)
+
 ## Dependencies
 - **Runtime**: Ruby 3.x+ (with `sinatra` gem), AutoHotkey v2.0+
 - **Browser**: Chrome/Edge with extension loaded
