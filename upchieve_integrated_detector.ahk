@@ -76,55 +76,56 @@ PlayNotificationSound() {
 ; Check if Ruby server is running and start it if not
 EnsureServerRunning() {
     UpdateStatusDialog("Checking Ruby server...")
-    
+
     try {
         ; Use WinHttpRequest to check server status (low timeout)
         whr := ComObject("WinHttp.WinHttpRequest.5.1")
-        whr.SetTimeouts(500, 500, 500, 500)
+        ; Set timeouts: Resolve(2000), Connect(2000), Send(2000), Receive(2000)
+        ; Increased from 500ms to handle occasional server slowness
+        whr.SetTimeouts(2000, 2000, 2000, 2000)
         ; Use 127.0.0.1 to avoid potential localhost resolution issues
-        whr.Open("GET", "http://127.0.0.1:54567/ahk_data", true)
+        whr.Open("GET", "http://127.0.0.1:54567/ahk_data", false)
         whr.Send()
-        
-        if (whr.WaitForResponse(1) && whr.Status == 200) {
+
+        if (whr.Status == 200) {
             WriteLog("Ruby server is already running.")
+            whr := ""
             return true
         } else {
-             try {
-                if (whr.WaitForResponse(1))
-                    status := whr.Status
-                else 
-                    status := "Timeout"
-             } catch {
-                status := "Error"
-             }
-             WriteLog("Ruby server check failed with status: " . status)
+            WriteLog("Ruby server check failed with status: " . whr.Status)
+            whr := ""
         }
     } catch Error as e {
         ; Server unreachable, need to start it
         WriteLog("Ruby server check exception: " . e.Message)
+        whr := ""
     }
-    
+
     WriteLog("Ruby server not found. Starting server.rb...")
     UpdateStatusDialog("Starting Ruby server...")
-    
+
     try {
         ; Start Ruby server in background
         Run("ruby server.rb", , "Hide")
-        
+
         ; Wait for it to initialize (up to 10 seconds)
         Loop 20 {
             Sleep(500)
             try {
                 whr := ComObject("WinHttp.WinHttpRequest.5.1")
-                whr.SetTimeouts(500, 500, 500, 500)
-                whr.Open("GET", "http://127.0.0.1:54567/ahk_data", true)
+                ; Set timeouts: Resolve(2000), Connect(2000), Send(2000), Receive(2000)
+        ; Increased from 500ms to handle occasional server slowness
+        whr.SetTimeouts(2000, 2000, 2000, 2000)
+                whr.Open("GET", "http://127.0.0.1:54567/ahk_data", false)
                 whr.Send()
-                
-                if (whr.WaitForResponse(1) && whr.Status == 200) {
+
+                if (whr.Status == 200) {
                     WriteLog("Ruby server started successfully.")
                     UpdateStatusDialog("Ruby server started.")
+                    whr := ""
                     return true
                 }
+                whr := ""
             } catch {
                 ; Ignore errors during loop wait
             }
@@ -132,7 +133,7 @@ EnsureServerRunning() {
     } catch Error as e {
         WriteLog("Failed to start Ruby server: " . e.Message)
     }
-    
+
     MsgBox("Failed to start or connect to the local Ruby server.`n`nPlease manually run 'ruby server.rb' and try again.", "Server Error", "OK 4112")
     return false
 }
@@ -1157,7 +1158,27 @@ ProcessStudentData() {
 
 ; Start a session with the selected student
 StartSession(student) {
-    global InSession, AppState, LastStudentName, LastStudentTopic, SessionStartTime, SoundTimerFunc, LiveMode, ScanMode
+    global InSession, AppState, LastStudentName, LastStudentTopic, SessionStartTime, SoundTimerFunc, LiveMode, ScanMode, g_waitingStudents
+
+    ; In Scan Mode, if we manually start a session, we should record the wait time and remove them from the list
+    if (student.name != "") {
+        timestamp := FormatTime(A_Now, "yyyy-MM-dd HH:mm:ss")
+        i := g_waitingStudents.Length
+        while i > 0 {
+            waitingStudent := g_waitingStudents[i]
+            if (StrLower(waitingStudent.name) == StrLower(student.name)) {
+                endTick := A_TickCount
+                diffMilliseconds := endTick - waitingStudent.addTime
+                waitTimeSeconds := diffMilliseconds / 1000
+                formattedWaitTime := Format("{:.1f}", waitTimeSeconds)
+                logMessage := timestamp . " " . waitingStudent.name . " (" . waitingStudent.topic . "), " . formattedWaitTime . " (SESSION START)"
+                WriteScanLog(logMessage)
+                g_waitingStudents.RemoveAt(i)
+                break
+            }
+            i--
+        }
+    }
 
     WriteScanLog(GetTimestamp() . " | SESSION START: " . student.name)
 

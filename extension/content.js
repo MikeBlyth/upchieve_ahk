@@ -221,6 +221,9 @@ function disableDetector() {
 // Debouncing for student detection
 let detectionTimeout = null;
 function triggerStudentDetection(method, details) {
+    const timestamp = new Date().toLocaleTimeString();
+    debugLog(1, `🔔 [${timestamp}] Detection trigger queued: ${method} (${details})`);
+
     // Check for main thread blocking using the heartbeat timer.
     const heartbeatLag = Date.now() - lastHeartbeat;
     if (heartbeatLag > 500) { // A lag of >500ms suggests the thread was blocked.
@@ -230,12 +233,14 @@ function triggerStudentDetection(method, details) {
     // Clear any pending detection to ensure we only run once after the last change.
     if (detectionTimeout) {
         clearTimeout(detectionTimeout);
+        debugLog(2, `⏰ Previous detection timeout cleared`);
     }
 
     // Schedule a new detection to run after a short delay (e.g., 250ms).
     // This groups together rapid-fire mutations into a single processing event.
     detectionTimeout = setTimeout(() => {
-        debugLog(1, `🎯 Student detection triggered by ${method}: ${details}`);
+        const fireTime = new Date().toLocaleTimeString();
+        debugLog(1, `🎯 [${fireTime}] Student detection executing: ${method}`);
         extractAndDisplayStudentData();
         detectionTimeout = null; // Reset after running
     }, 250);
@@ -284,21 +289,28 @@ function sendToRubyServer(students) {
         }))
     };
 
-  // Send data to local Ruby server (Gemini Code Port Refactor: 54567)
-  fetch('http://127.0.0.1:54567/students', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({ students: students })
-  })
-  .then(response => {
-    // console.log("Data sent to local server", response);
-  })
-  .catch(error => {
-    // Silent fail or minimal log to avoid console spam
-    // console.error('Error sending to local server:', error);
-  });
+    debugLog(2, '📋 Payload details:', payload);
+
+    // Send data to local Ruby server (Gemini Code Port Refactor: 54567)
+    fetch('http://127.0.0.1:54567/students', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ students: students })
+    })
+    .then(response => {
+        debugLog(1, '✅ Server response status:', response.status);
+        debugLog(2, '📊 Full response:', response);
+        return response.json().catch(() => ({}));
+    })
+    .then(data => {
+        debugLog(1, '📥 Server response body:', data);
+    })
+    .catch(error => {
+        debugLog(1, '❌ Error sending to local server:', error.message);
+        debugLog(2, '🔍 Full error:', error);
+    });
 }
 
 // Extract student data from DOM
@@ -400,6 +412,8 @@ function extractAndDisplayStudentData() {
 
         // Display results
         if (students.length > 0) {
+            const timestamp = new Date().toLocaleTimeString();
+
             // Focus on most recent/relevant student (typically first in list)
             const primaryStudent = students[0];
 
@@ -408,16 +422,18 @@ function extractAndDisplayStudentData() {
                 (primaryStudent.waitTime ? `\nWait Time: ${primaryStudent.waitTime}` : '');
 
             // Send to Ruby Server instead of clipboard
+            debugLog(1, `📤 [${timestamp}] Sending ${students.length} student(s) to server...`);
             sendToRubyServer(students);
 
             // Log all students for debugging
             debugLog(1, '🎓 All students detected:', students);
-            
+
             // Show notification via extension
             showExtensionNotification('Student Detected!', message);
 
         } else {
             debugLog(1, '⚠️ DOM change detected but no student data found');
+            debugLog(1, '📤 Sending empty student list to clear server state');
             // Send empty list to clear server state
             sendToRubyServer([]);
         }

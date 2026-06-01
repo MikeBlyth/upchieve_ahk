@@ -26,6 +26,8 @@ UploadImageWorkflow() {
 
         ; Generate timestamped filename
         currentTime := FormatTime(A_Now, "yyyy-MM-dd_HH-mm-ss")
+        if !DirExist("C:\temp")
+            DirCreate("C:\temp")
         fileName := "C:\temp\upload-" . currentTime . ".png"
 ;        WriteLog("Uploading image")
 
@@ -66,21 +68,34 @@ ProcessSnagitSave(fileName) {
     if (!WinActive(snagitWindowTitle))
         return false
 
+    ; Open File Menu and click Save As
     Click(50, 25)
     Sleep(200)
-
     Click(60, 264)
 
     if (!WinWait("Save As", , 50)) {
-        WriteLog("Save As dialog did not appear. Coordmode " . A_CoordModeMouse)
+        WriteLog("Save As dialog did not appear.")
         return false
     }
     WinActivate("Save As")
     WinWaitActive("Save As", , 3)
-    Sleep(100)
+    Sleep(300)
 
-    Send(fileName)
-    Sleep(200)
+    ; Clear and paste the filename for maximum reliability
+    oldClipboard := A_Clipboard
+    A_Clipboard := fileName
+    if !ClipWait(2) {
+        WriteLog("Clipboard failed to populate.")
+    }
+    
+    Send("^a")
+    Sleep(50)
+    Send("{Backspace}")
+    Sleep(50)
+    Send("^v")
+    Sleep(300)
+    
+    A_Clipboard := oldClipboard ; Restore original clipboard
 
     WinGetPos(&dialogX, &dialogY, &dialogWidth, &dialogHeight, "Save As")
 ;    WriteLog("Dialog dimensions: " . dialogWidth . "x" . dialogHeight)
@@ -90,11 +105,17 @@ ProcessSnagitSave(fileName) {
     searchY2 := dialogHeight
 
     if (!FindAndClick(SaveTarget, searchX1, searchY1, searchX2, searchY2)) {    
-        WriteLog("Failed to find Save button.")
-        return false
+        ; Fallback to Enter key if button not found
+        Send("{Enter}")
+        Sleep(1000)
+        if WinExist("Save As") {
+            WriteLog("Failed to find Save button and Enter did not close dialog.")
+            return false
+        }
     }
-    Sleep(1000)
-    return true
+    
+    Sleep(1000) ; Wait for file to be written
+    return FileExist(fileName)
 }
 
 ; Process UPchieve upload operations
@@ -123,10 +144,23 @@ ProcessUpchieveUpload(fileName) {
 
     WinActivate("Open")
     WinWaitActive("Open", , 3)
-    Sleep(300)
+    Sleep(500)
 
-    Send(fileName)
+    ; Clear and paste the filename for maximum reliability
+    oldClipboard := A_Clipboard
+    A_Clipboard := fileName
+    if !ClipWait(2) {
+        WriteLog("Clipboard failed to populate.")
+    }
+    
+    Send("^a")
+    Sleep(50)
+    Send("{Backspace}")
+    Sleep(50)
+    Send("^v")
     Sleep(300)
+    
+    A_Clipboard := oldClipboard ; Restore original clipboard
 
     WinGetPos(&dialogX, &dialogY, &dialogWidth, &dialogHeight, "Open")
     searchX1 := dialogWidth // 2
@@ -134,8 +168,14 @@ ProcessUpchieveUpload(fileName) {
     searchX2 := dialogWidth
     searchY2 := dialogHeight
 
-    if (!FindAndClick(OpenFileTarget, searchX1, searchY1, searchX2, searchY2))
-        return false
+    if (!FindAndClick(OpenFileTarget, searchX1, searchY1, searchX2, searchY2)) {
+        ; Fallback to Enter key if button not found
+        Send("{Enter}")
+        Sleep(500)
+        if WinExist("Open") {
+            return false
+        }
+    }
 
     return true
 }
