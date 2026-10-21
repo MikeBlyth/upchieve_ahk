@@ -1,0 +1,49 @@
+{
+    "name": "Run_FlattenArray_File",
+    "inputs": {
+        "host": {
+            "workflowReferenceName": "d974af32-c99c-f111-b8db-000d3a5cf469"
+        },
+        "retryPolicy": {
+            "type": "None"
+        },
+        "body": {
+            "text_1": "4ce1598b-87b0-467a-842b-7dce1a59aa02"
+        }
+    },
+    "outputs": {
+        "statusCode": 502,
+        "headers": {
+            "x-ms-workflow-run-id": "08584140103553552310535121768CU11",
+            "x-ms-correlation-id": "30426386-d453-4954-9c9b-e4a32a4e7288",
+            "x-ms-client-tracking-id": "08584140984282030136040394464CU09",
+            "x-ms-client-keywords": "testFlow",
+            "x-ms-trigger-history-name": "08584140103553552310535121768CU11",
+            "x-ms-execution-location": "westus",
+            "x-ms-workflow-system-id": "/locations/westus/scaleunits/prod-23/workflows/e3adc8acf6a746ed98d0168a011565f3",
+            "x-ms-workflow-id": "e3adc8acf6a746ed98d0168a011565f3",
+            "x-ms-workflow-version": "08584140105083838046",
+            "x-ms-workflow-name": "54448f2a-cf29-548b-db20-1ccfd214d1be",
+            "x-ms-tracking-id": "455407a3-6619-4109-9354-a61c2b4b665f",
+            "Content-Type": "application/json; charset=utf-8",
+            "Content-Length": "273"
+        },
+        "body": {
+            "error": {
+                "code": "NoResponse",
+                "message": "The server did not receive a response from an upstream server. Request tracking id '08584140103553552310535121768CU11'.",
+                "messageTemplate": "The server did not receive a response from an upstream server. Request tracking id '{0}'."
+            }
+        }
+    },
+    "startTime": "2026-08-24T18:35:30.1202344Z",
+    "endTime": "2026-08-24T18:35:30.3743093Z",
+    "trackingId": "45b5ca74-4e3b-4088-8536-8ca98ccd6574",
+    "clientTrackingId": "08584140984282030136040394464CU09",
+    "clientKeywords": [
+        "testFlow"
+    ],
+    "code": "BadGateway",
+    "status": "Failed",
+    "failureCause": ""
+}

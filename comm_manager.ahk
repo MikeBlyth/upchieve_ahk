@@ -46,7 +46,7 @@ CheckForStudents() {
 
         ; Use synchronous mode (false) for reliable polling and automatic connection cleanup
         try {
-            whr.Open("GET", "http://127.0.0.1:54567/ahk_data", false)
+            whr.Open("GET", "http://127.0.0.1:55000/ahk_data", false)
             whr.Send()
 
             status := whr.Status
@@ -85,7 +85,7 @@ CheckForStudents() {
                 ; Differentiate between timeout and other errors
                 if (!InStr(e.Message, "The operation timed out")) {
                      LastServerStatus := "ERROR"
-                     MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (127.0.0.1:54567).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "OK IconError")
+                     MsgBox("⚠️ Connection Failed`n`nCould not connect to the local Ruby server (127.0.0.1:55000).`n`nPlease ensure 'ruby server.rb' is running.", "Server Offline", "OK IconError")
                 } else {
                      LastServerStatus := "TIMEOUT"
                      WriteLog("DEBUG: Request timed out. Is the Ruby server overloaded or blocked?")

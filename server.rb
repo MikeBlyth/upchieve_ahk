@@ -1,9 +1,43 @@
 require 'sinatra'
 require 'json'
+require 'webrick'
+require 'socket'
 
-# Configure Sinatra
-set :port, 54567
+# Create custom WEBrick server with SO_REUSEADDR properly applied
+server_options = {
+  :Port => 55000,
+  :BindAddress => '0.0.0.0',
+  :AccessLog => [],
+  :Logger => WEBrick::Log.new($stderr, 0)  # Minimal logging
+}
+
+# Custom socket creation to ensure SO_REUSEADDR is set
+class CustomTCPServer < TCPServer
+  def initialize(host, port)
+    super(host, port)
+    setsockopt(Socket::SOL_SOCKET, Socket::SO_REUSEADDR, 1)
+  end
+end
+
+# Override WEBrick's socket creation
+module WEBrick::Utils
+  class << self
+    alias_method :original_create_listeners, :create_listeners
+
+    def create_listeners(address, port)
+      socket = CustomTCPServer.new(address, port)
+      return [socket]
+    rescue => e
+      # Fallback to original if custom fails
+      original_create_listeners(address, port)
+    end
+  end
+end
+
+set :server, :webrick
+set :port, 55000
 set :bind, '127.0.0.1'
+set :server_settings, server_options
 
 # Graceful Exit
 trap("INT") { 

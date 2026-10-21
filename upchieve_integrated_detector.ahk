@@ -84,7 +84,7 @@ EnsureServerRunning() {
         ; Increased from 500ms to handle occasional server slowness
         whr.SetTimeouts(2000, 2000, 2000, 2000)
         ; Use 127.0.0.1 to avoid potential localhost resolution issues
-        whr.Open("GET", "http://127.0.0.1:54567/ahk_data", false)
+        whr.Open("GET", "http://127.0.0.1:55000/ahk_data", false)
         whr.Send()
 
         if (whr.Status == 200) {
@@ -116,7 +116,7 @@ EnsureServerRunning() {
                 ; Set timeouts: Resolve(2000), Connect(2000), Send(2000), Receive(2000)
         ; Increased from 500ms to handle occasional server slowness
         whr.SetTimeouts(2000, 2000, 2000, 2000)
-                whr.Open("GET", "http://127.0.0.1:54567/ahk_data", false)
+                whr.Open("GET", "http://127.0.0.1:55000/ahk_data", false)
                 whr.Send()
 
                 if (whr.Status == 200) {
